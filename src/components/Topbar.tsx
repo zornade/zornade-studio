@@ -9,9 +9,11 @@ export function Topbar() {
     <header className="flex h-14 flex-shrink-0 items-center gap-4 border-b border-slate-200 bg-white px-4">
       {/* Wordmark */}
       <div className="flex items-center gap-2">
-        <span className="grid h-7 w-7 place-items-center rounded-lg bg-zornade font-display text-sm font-bold text-white">
-          Z
-        </span>
+        <img
+          src="/zornade-icon.svg"
+          alt="Zornade"
+          className="h-7 w-7 rounded-lg"
+        />
         <span className="font-display text-base font-semibold tracking-tight text-slate-900">
           Zornade <span className="text-zornade">Studio</span>
         </span>
