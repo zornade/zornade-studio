@@ -1,0 +1,44 @@
+Zornade Studio
+Copyright (C) 2026 Zornade
+
+================================================================================
+1. LICENZA DEL SOFTWARE (codice sorgente)
+================================================================================
+Il codice sorgente di Zornade Studio è distribuito secondo i termini della
+GNU Affero General Public License, versione 3 o successiva (AGPL-3.0-or-later).
+Il testo completo della licenza è nel file LICENSE.
+
+In particolare (AGPL §13): chiunque metta a disposizione di terzi, tramite una
+rete, una versione modificata di questo software deve offrirne il codice
+sorgente corrispondente agli utenti di quella rete.
+
+================================================================================
+2. LICENZA DEGLI OUTPUT (mappe, embed, immagini esportate)
+================================================================================
+Le mappe e le visualizzazioni prodotte con Zornade Studio sono opere derivate
+da più fonti di dati e sono soggette a OBBLIGO DI ATTRIBUZIONE:
+
+  - Dati cartografici di base: © OpenStreetMap contributors, licenza ODbL 1.0
+    (https://www.openstreetmap.org/copyright). L'ODbL RICHIEDE LEGALMENTE
+    l'attribuzione a OpenStreetMap.
+  - Elaborazioni, stile e dati Zornade: © Zornade.
+
+Condizioni d'uso degli embed e degli export:
+  - I crediti e il link a https://zornade.com (la didascalia/attribuzione
+    generata insieme all'embed) DEVONO essere mantenuti, visibili e funzionanti.
+  - È vietato rimuovere, nascondere, coprire o rendere non cliccabile il blocco
+    di attribuzione.
+  - La rimozione dell'attribuzione costituisce una violazione delle licenze dei
+    dati (ODbL) e dei Termini di servizio del servizio di embedding Zornade.
+
+NOTA: l'AGPL si applica al CODICE del software, non vincola di per sé chi si
+limita a incorporare una mappa ospitata da Zornade. L'obbligo di attribuzione
+per gli output deriva dalle licenze dei dati (ODbL) e dai Termini di servizio
+qui richiamati.
+
+================================================================================
+3. COMPONENTI DI TERZE PARTI
+================================================================================
+Questo software include o si basa su librerie open source di terze parti
+(tra cui MapLibre GL, Protomaps basemaps, pmtiles, React), ciascuna soggetta
+alla propria licenza. Vedere i rispettivi pacchetti per i dettagli.

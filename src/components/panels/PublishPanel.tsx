@@ -27,7 +27,20 @@ export function PublishPanel() {
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/(^-|-$)/g, "") || "mappa";
 
-  const embed = `<iframe src="https://studio.zornade.com/embed/${slug}" width="100%" height="520" frameborder="0" scrolling="no" title="${project.title}"></iframe>`;
+  const embed = `<!--
+  Mappa realizzata con Zornade Studio — https://zornade.com
+  ATTRIBUZIONE OBBLIGATORIA. Questa mappa contiene dati © OpenStreetMap (licenza
+  ODbL) ed elaborazioni proprietarie Zornade. Il mantenimento dei crediti e del
+  link a zornade.com è richiesto dalle licenze dei dati (ODbL) e dai Termini di
+  servizio dell'embed: la rimozione costituisce una violazione di licenza.
+  Non rimuovere né nascondere questo blocco e la didascalia sottostante.
+-->
+<figure style="margin:0">
+  <iframe src="https://studio.zornade.com/embed/${slug}" width="100%" height="520" frameborder="0" scrolling="no" title="${project.title}" loading="lazy"></iframe>
+  <figcaption style="font:13px/1.45 system-ui,-apple-system,sans-serif;color:#475569;margin-top:6px">
+    <a href="https://zornade.com/mappe/${slug}/" target="_blank" rel="noopener">${project.title} — Mappa di Zornade</a> · Dati © OpenStreetMap
+  </figcaption>
+</figure>`;
 
   const copy = () => {
     navigator.clipboard?.writeText(embed);
@@ -53,6 +66,11 @@ export function PublishPanel() {
         <p className="text-xs text-slate-500">
           Lo snapshot statico verrà pubblicato su CDN e resterà raggiungibile in
           modo permanente.
+        </p>
+        <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700">
+          Lo snippet include i crediti e il link a Zornade: l'attribuzione è
+          richiesta dalle licenze dei dati (ODbL di OpenStreetMap) e dai Termini
+          di servizio. Non va rimossa.
         </p>
         <label className="flex items-center gap-2 text-sm text-slate-600">
           <input type="checkbox" disabled className="h-4 w-4 rounded accent-zornade" />

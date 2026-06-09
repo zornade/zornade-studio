@@ -4,6 +4,8 @@
   "private": true,
   "type": "module",
   "description": "Zornade Studio — strumento interno di produzione mappe e visualizzazioni editoriali",
+  "license": "AGPL-3.0-or-later",
+  "author": "Zornade",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
