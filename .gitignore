@@ -1,0 +1,7 @@
+node_modules
+dist
+.env
+.env.local
+
+# Basemap tilesets are large and rebuilt/hosted on R2 — never commit them.
+*.pmtiles

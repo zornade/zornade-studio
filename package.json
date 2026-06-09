@@ -1,0 +1,33 @@
+{
+  "name": "zornade-studio",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Zornade Studio — strumento interno di produzione mappe e visualizzazioni editoriali",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@maplibre/maplibre-gl-style-spec": "^23.3.0",
+    "@protomaps/basemaps": "^5.6.0",
+    "lucide-react": "^1.17.0",
+    "maplibre-gl": "^4.7.1",
+    "pmtiles": "^4.3.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.9.0",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.3",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.15",
+    "typescript": "^5.6.0",
+    "vite": "^5.4.11"
+  }
+}
