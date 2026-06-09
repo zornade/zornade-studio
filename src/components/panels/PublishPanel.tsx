@@ -28,7 +28,7 @@ export function PublishPanel() {
       .replace(/(^-|-$)/g, "") || "mappa";
 
   const embed = `<!--
-  Mappa realizzata con Zornade Studio — https://zornade.com
+  Mappa realizzata con Zornade Studio — https://zornade.com/studio
   ATTRIBUZIONE OBBLIGATORIA. Questa mappa contiene dati © OpenStreetMap (licenza
   ODbL) ed elaborazioni proprietarie Zornade. Il mantenimento dei crediti e del
   link a zornade.com è richiesto dalle licenze dei dati (ODbL) e dai Termini di
