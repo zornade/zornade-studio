@@ -92,7 +92,11 @@ export function MapCanvas() {
     : scale.colors;
 
   return (
-    <div className="relative h-full w-full overflow-hidden bg-slate-100">
+    <div
+      className={`relative h-full w-full overflow-hidden ${
+        design.showBasemap ? "bg-slate-100" : "studio-transparent-bg"
+      }`}
+    >
       <MapPreview
         tilesUrl={TILES_URL}
         flavor={flavor}
@@ -101,6 +105,7 @@ export function MapCanvas() {
         tooltip={design.tooltip}
         zoomPan={design.zoomPan}
         mapFont={mapFont}
+        basemap={design.showBasemap}
       />
 
       {/* Title / subtitle overlay (top-left). */}

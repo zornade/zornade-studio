@@ -199,47 +199,64 @@ export function DesignPanel() {
 
       {/* ---- Stile mappa ---- */}
       <PanelSection title="Stile della mappa">
-        <div className="grid grid-cols-2 gap-2">
-          {VARIANTS.map((v) => (
-            <button
-              key={v.id}
-              onClick={() => updateBrand({ variant: v.id })}
-              className={`rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
-                brand.variant === v.id
-                  ? "border-zornade bg-zornade-50 text-zornade-700"
-                  : "border-slate-200 text-slate-600 hover:border-slate-300"
-              }`}
-            >
-              {v.label}
-            </button>
-          ))}
-        </div>
-
-        <Field
-          label={`Intensità tinta · ${Math.round((brand.tintStrength ?? 0.35) * 100)}%`}
-        >
-          <input
-            type="range"
-            min={0}
-            max={1}
-            step={0.05}
-            value={brand.tintStrength ?? 0.35}
-            onChange={(e) =>
-              updateBrand({ tintStrength: Number(e.target.value) })
-            }
-            className="w-full accent-zornade"
-          />
-        </Field>
-
-        <label className="flex items-center gap-2 text-sm text-slate-600">
+        <label className="flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700">
           <input
             type="checkbox"
-            checked={brand.tintWater ?? false}
-            onChange={(e) => updateBrand({ tintWater: e.target.checked })}
+            checked={design.showBasemap}
+            onChange={(e) => updateDesign({ showBasemap: e.target.checked })}
             className="h-4 w-4 rounded accent-zornade"
           />
-          Tinta anche l'acqua
+          Mostra la mappa di sfondo
+          <span className="ml-auto text-xs text-slate-400">
+            {design.showBasemap ? "" : "sfondo trasparente"}
+          </span>
         </label>
+
+        {design.showBasemap && (
+          <>
+            <div className="grid grid-cols-2 gap-2">
+              {VARIANTS.map((v) => (
+                <button
+                  key={v.id}
+                  onClick={() => updateBrand({ variant: v.id })}
+                  className={`rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
+                    brand.variant === v.id
+                      ? "border-zornade bg-zornade-50 text-zornade-700"
+                      : "border-slate-200 text-slate-600 hover:border-slate-300"
+                  }`}
+                >
+                  {v.label}
+                </button>
+              ))}
+            </div>
+
+            <Field
+              label={`Intensità tinta · ${Math.round((brand.tintStrength ?? 0.35) * 100)}%`}
+            >
+              <input
+                type="range"
+                min={0}
+                max={1}
+                step={0.05}
+                value={brand.tintStrength ?? 0.35}
+                onChange={(e) =>
+                  updateBrand({ tintStrength: Number(e.target.value) })
+                }
+                className="w-full accent-zornade"
+              />
+            </Field>
+
+            <label className="flex items-center gap-2 text-sm text-slate-600">
+              <input
+                type="checkbox"
+                checked={brand.tintWater ?? false}
+                onChange={(e) => updateBrand({ tintWater: e.target.checked })}
+                className="h-4 w-4 rounded accent-zornade"
+              />
+              Tinta anche l'acqua
+            </label>
+          </>
+        )}
       </PanelSection>
 
       {/* ---- Colori dei dati ---- */}

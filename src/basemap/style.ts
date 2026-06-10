@@ -48,6 +48,12 @@ export interface BuildStyleOptions {
    * When omitted, the default Protomaps Noto Sans is used unchanged.
    */
   mapFont?: { glyphs: string; regular: string; bold: string };
+  /**
+   * Render the basemap. When false, the style has no basemap source/layers and
+   * the map background is transparent (only overlays like a choropleth show).
+   * Default: true.
+   */
+  basemap?: boolean;
 }
 
 /** Heuristic: does this Protomaps text-font denote a heavier weight? */
@@ -97,6 +103,19 @@ export function buildStyle(opts: BuildStyleOptions): StyleSpecification {
   const attribution = opts.attribution
     ? `${OSM_ZORNADE_ATTRIBUTION} · ${opts.attribution}`
     : OSM_ZORNADE_ATTRIBUTION;
+
+  // Basemap-less style: no Protomaps source/layers → transparent background.
+  // Only the Zornade credit is kept (no OSM tiles are shown, so the ODbL OSM
+  // attribution is not required here).
+  if (opts.basemap === false) {
+    return {
+      version: 8,
+      glyphs: opts.mapFont?.glyphs ?? opts.glyphsUrl ?? DEFAULT_GLYPHS,
+      sprite: opts.spriteUrl ?? DEFAULT_SPRITE,
+      sources: {},
+      layers: [],
+    };
+  }
 
   const baseLayers = layers("protomaps", opts.flavor, { lang });
   const styleLayers = opts.mapFont

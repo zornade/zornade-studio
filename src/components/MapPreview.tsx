@@ -32,6 +32,8 @@ interface MapPreviewProps {
   zoomPan?: boolean;
   /** Optional map-label font override (glyphs + fontstacks). */
   mapFont?: { glyphs: string; regular: string; bold: string };
+  /** Render the basemap. When false, the background is transparent. Default true. */
+  basemap?: boolean;
 }
 
 // Centred on the Italian peninsula.
@@ -53,6 +55,7 @@ export function MapPreview({
   tooltip = true,
   zoomPan = true,
   mapFont,
+  basemap = true,
 }: MapPreviewProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
@@ -118,7 +121,7 @@ export function MapPreview({
 
     const map = new maplibregl.Map({
       container: containerRef.current,
-      style: buildStyle({ tilesUrl, flavor, lang, mapFont }) as maplibregl.StyleSpecification,
+      style: buildStyle({ tilesUrl, flavor, lang, mapFont, basemap }) as maplibregl.StyleSpecification,
       center: INITIAL_CENTER,
       zoom: INITIAL_ZOOM,
       attributionControl: false,
@@ -187,11 +190,11 @@ export function MapPreview({
     const map = mapRef.current;
     if (!map) return;
     map.setStyle(
-      buildStyle({ tilesUrl, flavor, lang, mapFont }) as maplibregl.StyleSpecification,
+      buildStyle({ tilesUrl, flavor, lang, mapFont, basemap }) as maplibregl.StyleSpecification,
     );
     syncData(map);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tilesUrl, flavor, lang, mapFont]);
+  }, [tilesUrl, flavor, lang, mapFont, basemap]);
 
   // Re-sync the overlay whenever the data layer changes.
   useEffect(() => {
