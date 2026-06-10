@@ -29,3 +29,28 @@ body {
   background: #cbd5e1;
   border-radius: 4px;
 }
+
+/* Choropleth hover tooltip. */
+.studio-tooltip .maplibregl-popup-content {
+  padding: 8px 10px;
+  border-radius: 10px;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.18);
+  font-family: "Inter", sans-serif;
+}
+.studio-tooltip .maplibregl-popup-tip {
+  display: none;
+}
+.studio-tooltip-name {
+  font-weight: 600;
+  font-size: 13px;
+  color: #0f172a;
+}
+.studio-tooltip-value {
+  margin-top: 2px;
+  font-size: 12px;
+  color: #334155;
+}
+.studio-tooltip-value span {
+  color: #64748b;
+  text-transform: capitalize;
+}

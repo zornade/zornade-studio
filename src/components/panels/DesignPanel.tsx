@@ -6,16 +6,18 @@ import {
   type PresetChoice,
   FONT_OPTIONS,
   COLOR_SCALES,
+  MAP_FONTS,
   CLASSIFICATION_METHODS,
   LEGEND_TYPES,
   ANNOTATION_TOOLS,
   INTERACTION_OPTIONS,
+  NEWSROOM_KIT_LIST,
+  NEWSROOM_KITS,
 } from "../../studio/catalog";
 import { PanelSection, Field, SoonBadge } from "../primitives";
 
 const PRESET_OPTIONS: { id: PresetChoice; label: string }[] = [
-  { id: "zornade", label: "Zornade" },
-  { id: "altreconomia", label: "Altreconomia" },
+  ...NEWSROOM_KIT_LIST.map((k) => ({ id: k.id as PresetChoice, label: k.label })),
   { id: "custom", label: "Personalizzato" },
 ];
 
@@ -36,10 +38,13 @@ export function DesignPanel() {
     updateBrand,
     design,
     updateDesign,
+    data,
   } = useStudio();
 
-  const [nClasses, setNClasses] = useState(5);
   const [noData, setNoData] = useState("#e5e7eb");
+  const activeKit = preset !== "custom" ? NEWSROOM_KITS[preset] : null;
+  // Cap classes at the number of source rows (each row can be its own class).
+  const maxClasses = data ? Math.max(2, data.rows.length) : 9;
   const fontId =
     FONT_OPTIONS.find((f) => f.stack === design.titleFont)?.id ??
     "space-grotesk";
@@ -125,18 +130,35 @@ export function DesignPanel() {
         )}
 
         <Field label="Font etichette mappa">
-          <div className="flex items-center gap-2">
-            <select disabled className={`${inputCls} opacity-60`}>
-              <option>Noto Sans (predefinito)</option>
-            </select>
-            <SoonBadge />
-          </div>
+          <select
+            value={design.mapFont}
+            onChange={(e) => updateDesign({ mapFont: e.target.value })}
+            className={inputCls}
+          >
+            {MAP_FONTS.map((f) => (
+              <option key={f.id} value={f.id}>
+                {f.label}
+              </option>
+            ))}
+          </select>
         </Field>
 
         <Field label="Logo">
+          {activeKit?.logo && (
+            <div className="mb-2 flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+              <img
+                src={activeKit.logo}
+                alt={activeKit.label}
+                className="h-6 w-auto object-contain"
+              />
+              <span className="text-xs text-slate-500">
+                Logo {activeKit.label}
+              </span>
+            </div>
+          )}
           <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-dashed border-slate-300 px-3 py-2.5 text-sm text-slate-600 hover:border-zornade">
             <ImageIcon size={15} />
-            Carica logo (PNG/SVG)
+            {activeKit?.logo ? "Sostituisci logo (PNG/SVG)" : "Carica logo (PNG/SVG)"}
             <input type="file" accept=".png,.svg" className="hidden" />
           </label>
         </Field>
@@ -225,6 +247,27 @@ export function DesignPanel() {
         title="Colori dei dati"
         hint="Scala, classi e legenda della coropletica."
       >
+        {data && (
+          <div className="grid grid-cols-[1fr_auto] gap-2">
+            <Field label="Nome del dato in mappa">
+              <input
+                value={design.valueLabel}
+                onChange={(e) => updateDesign({ valueLabel: e.target.value })}
+                placeholder={data.valueColumn}
+                className={inputCls}
+              />
+            </Field>
+            <Field label="Unità">
+              <input
+                value={design.valueUnit}
+                onChange={(e) => updateDesign({ valueUnit: e.target.value })}
+                placeholder="es. %"
+                className={`${inputCls} w-20`}
+              />
+            </Field>
+          </div>
+        )}
+
         <Field label="Scala colore">
           <div className="space-y-1.5">
             {COLOR_SCALES.map((s) => (
@@ -262,16 +305,21 @@ export function DesignPanel() {
           </select>
         </Field>
 
-        <Field label={`Numero di classi · ${nClasses}`}>
+        <Field label={`Numero di classi · ${design.nClasses}`}>
           <input
             type="range"
-            min={3}
-            max={9}
+            min={2}
+            max={maxClasses}
             step={1}
-            value={nClasses}
-            onChange={(e) => setNClasses(Number(e.target.value))}
+            value={Math.min(design.nClasses, maxClasses)}
+            onChange={(e) => updateDesign({ nClasses: Number(e.target.value) })}
             className="w-full accent-zornade"
           />
+          {data && (
+            <p className="mt-1 text-[11px] text-slate-400">
+              Fino a {maxClasses} classi ({data.rows.length} righe nel file).
+            </p>
+          )}
         </Field>
 
         <div className="grid grid-cols-2 gap-3">
@@ -299,32 +347,46 @@ export function DesignPanel() {
         </div>
       </PanelSection>
 
-      {/* ---- Interattività (mockup) ---- */}
-      <PanelSection title="Interattività">
-        <div className="flex items-center gap-2 text-xs text-slate-500">
-          <SoonBadge />
-          Cosa può fare il lettore con la mappa pubblicata.
-        </div>
+      {/* ---- Interattività ---- */}
+      <PanelSection title="Interattività" hint="Cosa può fare il lettore con la mappa pubblicata.">
         <div className="space-y-1.5">
-          {INTERACTION_OPTIONS.map((o) => (
-            <label
-              key={o.id}
-              className="flex items-start gap-2.5 rounded-lg border border-slate-200 px-3 py-2 opacity-80"
-            >
-              <input
-                type="checkbox"
-                disabled
-                defaultChecked={o.id === "tooltip" || o.id === "zoom"}
-                className="mt-0.5 h-4 w-4 rounded accent-zornade"
-              />
-              <span>
-                <span className="block text-sm font-medium text-slate-700">
-                  {o.label}
+          {INTERACTION_OPTIONS.map((o) => {
+            const live = o.id === "tooltip" || o.id === "zoom";
+            const checked =
+              o.id === "tooltip"
+                ? design.tooltip
+                : o.id === "zoom"
+                  ? design.zoomPan
+                  : false;
+            return (
+              <label
+                key={o.id}
+                className={`flex items-start gap-2.5 rounded-lg border border-slate-200 px-3 py-2 ${
+                  live ? "cursor-pointer hover:border-zornade" : "opacity-70"
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  disabled={!live}
+                  checked={live ? checked : false}
+                  onChange={(e) => {
+                    if (o.id === "tooltip")
+                      updateDesign({ tooltip: e.target.checked });
+                    else if (o.id === "zoom")
+                      updateDesign({ zoomPan: e.target.checked });
+                  }}
+                  className="mt-0.5 h-4 w-4 rounded accent-zornade"
+                />
+                <span className="min-w-0 flex-1">
+                  <span className="flex items-center gap-2 text-sm font-medium text-slate-700">
+                    {o.label}
+                    {!live && <SoonBadge />}
+                  </span>
+                  <span className="block text-xs text-slate-500">{o.desc}</span>
                 </span>
-                <span className="block text-xs text-slate-500">{o.desc}</span>
-              </span>
-            </label>
-          ))}
+              </label>
+            );
+          })}
         </div>
       </PanelSection>
 

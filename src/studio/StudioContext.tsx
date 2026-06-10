@@ -8,12 +8,14 @@ import {
 import { PRESETS, type NewsroomBrand } from "../basemap";
 import type {
   DataSourceKind,
+  DatasetState,
   DesignSettings,
   ProjectMeta,
   StepId,
   StudioState,
 } from "./types";
 import type { PresetChoice } from "./catalog";
+import { NEWSROOM_KITS } from "./catalog";
 
 interface StudioContextValue extends StudioState {
   setStep: (step: StepId) => void;
@@ -23,6 +25,7 @@ interface StudioContextValue extends StudioState {
   applyPreset: (name: PresetChoice) => void;
   updateBrand: (patch: Partial<NewsroomBrand>) => void;
   updateDesign: (patch: Partial<DesignSettings>) => void;
+  setData: (data: DatasetState | null) => void;
 }
 
 const StudioContext = createContext<StudioContextValue | null>(null);
@@ -31,12 +34,18 @@ const INITIAL_BRAND: NewsroomBrand = { ...PRESETS.zornade };
 
 const INITIAL_DESIGN: DesignSettings = {
   titleFont: '"Space Grotesk", sans-serif',
+  mapFont: "noto",
   colorScale: "teal-seq",
   classification: "quantile",
   legendType: "steps",
+  nClasses: 5,
+  valueLabel: "",
+  valueUnit: "",
   showTitle: true,
   showLegend: true,
   showSource: true,
+  tooltip: true,
+  zoomPan: true,
 };
 
 export function StudioProvider({ children }: { children: ReactNode }) {
@@ -51,6 +60,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   const [preset, setPreset] = useState<PresetChoice>("zornade");
   const [brand, setBrand] = useState<NewsroomBrand>(INITIAL_BRAND);
   const [design, setDesign] = useState<DesignSettings>(INITIAL_DESIGN);
+  const [data, setData] = useState<DatasetState | null>(null);
 
   const value = useMemo<StudioContextValue>(
     () => ({
@@ -61,6 +71,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       preset,
       brand,
       design,
+      data,
       setStep,
       updateProject: (patch) => setProject((p) => ({ ...p, ...patch })),
       setDataSource,
@@ -69,6 +80,15 @@ export function StudioProvider({ children }: { children: ReactNode }) {
         setPreset(name);
         if (name !== "custom" && PRESETS[name]) {
           setBrand({ ...PRESETS[name] });
+          const kit = NEWSROOM_KITS[name];
+          if (kit) {
+            setDesign((d) => ({
+              ...d,
+              titleFont: kit.titleFont,
+              mapFont: kit.mapFont,
+              colorScale: kit.colorScale,
+            }));
+          }
         }
       },
       updateBrand: (patch) => {
@@ -76,8 +96,9 @@ export function StudioProvider({ children }: { children: ReactNode }) {
         setBrand((b) => ({ ...b, ...patch }));
       },
       updateDesign: (patch) => setDesign((d) => ({ ...d, ...patch })),
+      setData,
     }),
-    [step, project, dataSource, vizType, preset, brand, design],
+    [step, project, dataSource, vizType, preset, brand, design, data],
   );
 
   return (

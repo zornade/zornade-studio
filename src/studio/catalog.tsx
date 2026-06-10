@@ -172,6 +172,37 @@ export const FONT_OPTIONS: FontOption[] = [
   { id: "custom", label: "Carica font redazione…", stack: '"Inter", sans-serif' },
 ];
 
+/**
+ * Fonts available for the MAP LABELS themselves (places, roads…).
+ *
+ * Unlike title fonts (pure CSS), label fonts must exist in a glyphs endpoint
+ * that MapLibre can fetch as `.pbf`. "noto" is the default (Protomaps' own
+ * endpoint, unchanged); the others are served by the public, CORS-enabled
+ * OpenMapTiles font server. `glyphs: null` means "use the style default".
+ */
+export interface MapFontOption {
+  id: string;
+  label: string;
+  /** Glyphs endpoint template, or null to keep the Protomaps default. */
+  glyphs: string | null;
+  /** Regular fontstack name as served by the endpoint. */
+  regular: string;
+  /** Bold fontstack name as served by the endpoint. */
+  bold: string;
+}
+
+const OMT_GLYPHS = "https://fonts.openmaptiles.org/{fontstack}/{range}.pbf";
+
+// Only fontstacks actually served by the OpenMapTiles glyph server are listed.
+// (Others, e.g. Roboto / PT Sans / Lato, return an HTML 200 there and would
+// crash MapLibre with "Unimplemented type: 4" when parsed as a glyph pbf.)
+// "noto" keeps the Protomaps default endpoint, which serves Noto Sans only.
+export const MAP_FONTS: MapFontOption[] = [
+  { id: "noto", label: "Noto Sans (predefinito)", glyphs: null, regular: "Noto Sans Regular", bold: "Noto Sans Medium" },
+  { id: "opensans", label: "Open Sans", glyphs: OMT_GLYPHS, regular: "Open Sans Regular", bold: "Open Sans Bold" },
+  { id: "metropolis", label: "Metropolis", glyphs: OMT_GLYPHS, regular: "Metropolis Regular", bold: "Metropolis Bold" },
+];
+
 /** Data color scales for choropleth/symbol layers. */
 export interface ColorScale {
   id: string;
@@ -186,6 +217,73 @@ export const COLOR_SCALES: ColorScale[] = [
   { id: "div-rdbu", label: "Rosso–Blu", type: "divergente", colors: ["#b2182b", "#f4a582", "#f7f7f7", "#92c5de", "#2166ac"] },
   { id: "cat", label: "Categorica", type: "categorica", colors: ["#32a4ae", "#f57c00", "#7e57c2", "#43a047", "#e53935"] },
 ];
+
+/**
+ * Newsroom "basekit": the design side of a preset (title font + data color
+ * scale + optional logo) that pairs with the map brand in basemap/presets.ts.
+ *
+ * Keyed by PresetName so {@link applyPreset} can apply brand + design together.
+ * `logo` is null until the newsroom supplies its asset (the Design panel keeps
+ * a manual logo-upload control); brand colours in presets.ts are placeholders
+ * flagged for confirmation with each redazione.
+ */
+export interface NewsroomKit {
+  id: PresetName;
+  label: string;
+  /** CSS font stack for titles (matches a FONT_OPTIONS stack). */
+  titleFont: string;
+  /** Map-label font id (see MAP_FONTS). */
+  mapFont: string;
+  /** Default data color scale id (see COLOR_SCALES). */
+  colorScale: string;
+  /** Public path of the newsroom logo, or null if not yet provided. */
+  logo: string | null;
+}
+
+export const NEWSROOM_KITS: Record<PresetName, NewsroomKit> = {
+  zornade: {
+    id: "zornade",
+    label: "Zornade",
+    titleFont: '"Space Grotesk", sans-serif',
+    mapFont: "noto",
+    colorScale: "teal-seq",
+    logo: "/zornade-icon.svg",
+  },
+  corriere: {
+    id: "corriere",
+    label: "Corriere della Sera",
+    titleFont: 'Georgia, "Times New Roman", serif',
+    mapFont: "metropolis",
+    colorScale: "blue-seq",
+    logo: null,
+  },
+  internazionale: {
+    id: "internazionale",
+    label: "Internazionale",
+    titleFont: '"Inter", sans-serif',
+    mapFont: "opensans",
+    colorScale: "div-rdbu",
+    logo: null,
+  },
+  indipendente: {
+    id: "indipendente",
+    label: "L'Indipendente",
+    titleFont: 'Georgia, "Times New Roman", serif',
+    mapFont: "opensans",
+    colorScale: "warm-seq",
+    logo: null,
+  },
+  altreconomia: {
+    id: "altreconomia",
+    label: "Altreconomia",
+    titleFont: 'Georgia, "Times New Roman", serif',
+    mapFont: "metropolis",
+    colorScale: "warm-seq",
+    logo: null,
+  },
+};
+
+export const NEWSROOM_KIT_LIST: NewsroomKit[] = Object.values(NEWSROOM_KITS);
 
 export interface NamedOption {
   id: string;

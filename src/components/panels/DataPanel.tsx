@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ArrowLeft, Upload, ShieldCheck, Info } from "lucide-react";
+import { ArrowLeft, Upload, ShieldCheck, Info, CheckCircle2, AlertTriangle } from "lucide-react";
 import { useStudio } from "../../studio/StudioContext";
 import {
   DATA_SOURCES,
@@ -7,6 +7,12 @@ import {
   ZORNADE_DATASETS,
 } from "../../studio/catalog";
 import { Button, PanelSection, SoonBadge, Field } from "../primitives";
+import { parseCsv, detectNumericColumns } from "../../lib/csv";
+import {
+  GEO_LEVELS,
+  detectGeoLevel,
+  detectKeyColumn,
+} from "../../lib/choropleth";
 
 export function DataPanel() {
   const { dataSource, setDataSource } = useStudio();
@@ -69,6 +75,93 @@ export function DataPanel() {
 }
 
 function UploadSource() {
+  const { data, setData, setVizType, setStep } = useStudio();
+  const [error, setError] = useState<string | null>(null);
+
+  const handleFile = async (file: File) => {
+    setError(null);
+    const name = file.name.toLowerCase();
+    if (!name.endsWith(".csv")) {
+      setError(
+        "Per ora è supportato il CSV. Excel/GeoJSON/Shapefile sono in arrivo.",
+      );
+      return;
+    }
+    const text = await file.text();
+    const { columns, rows } = parseCsv(text);
+    if (columns.length === 0 || rows.length === 0) {
+      setError("Il file sembra vuoto o non leggibile.");
+      return;
+    }
+    const geoLevel = detectGeoLevel(columns);
+    if (!geoLevel) {
+      setError(
+        "Nessuna colonna geografica riconosciuta (es. codice_istat, sigla, comune).",
+      );
+      return;
+    }
+    if (!GEO_LEVELS[geoLevel].ready) {
+      setError(
+        `Livello “${GEO_LEVELS[geoLevel].label}” riconosciuto, ma la geometria non è ancora disponibile. Per ora: Regioni.`,
+      );
+      return;
+    }
+    const keyColumn = detectKeyColumn(geoLevel, columns)!;
+    const numericColumns = detectNumericColumns(columns, rows).filter(
+      (c) => c !== keyColumn,
+    );
+    if (numericColumns.length === 0) {
+      setError("Nessuna colonna numerica da mappare trovata.");
+      return;
+    }
+    setData({
+      fileName: file.name,
+      columns,
+      rows,
+      geoLevel,
+      keyColumn,
+      valueColumn: numericColumns[0],
+      numericColumns,
+    });
+    setVizType("choropleth");
+    setStep("design");
+  };
+
+  if (data) {
+    return (
+      <div className="space-y-3">
+        <div className="flex items-start gap-2 rounded-xl border border-emerald-200 bg-emerald-50 p-3">
+          <CheckCircle2 size={16} className="mt-0.5 flex-shrink-0 text-emerald-600" />
+          <div className="min-w-0 text-xs text-emerald-800">
+            <p className="font-medium">{data.fileName}</p>
+            <p className="text-emerald-700">
+              {data.rows.length} righe · livello {GEO_LEVELS[data.geoLevel].label}{" "}
+              · chiave “{data.keyColumn}”
+            </p>
+          </div>
+        </div>
+
+        <Field label="Colonna da mappare">
+          <select
+            value={data.valueColumn}
+            onChange={(e) => setData({ ...data, valueColumn: e.target.value })}
+            className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-sm text-slate-700 focus:border-zornade focus:outline-none"
+          >
+            {data.numericColumns.map((c) => (
+              <option key={c} value={c}>
+                {c}
+              </option>
+            ))}
+          </select>
+        </Field>
+
+        <Button variant="secondary" onClick={() => setData(null)} className="w-full">
+          Carica un altro file
+        </Button>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-3">
       <label className="flex cursor-pointer flex-col items-center gap-2 rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-center transition-colors hover:border-zornade hover:bg-zornade-50">
@@ -77,14 +170,24 @@ function UploadSource() {
           Trascina un file o clicca per caricare
         </span>
         <span className="text-xs text-slate-500">
-          CSV, Excel, GeoJSON, Shapefile, KML, GeoTIFF
+          CSV (Excel, GeoJSON, Shapefile, KML, GeoTIFF in arrivo)
         </span>
         <input
           type="file"
           accept=".csv,.xlsx,.geojson,.json,.zip,.kml,.kmz,.tif,.tiff"
           className="hidden"
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            if (f) void handleFile(f);
+          }}
         />
       </label>
+      {error && (
+        <p className="flex items-start gap-1.5 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700">
+          <AlertTriangle size={13} className="mt-0.5 flex-shrink-0" />
+          {error}
+        </p>
+      )}
       <p className="flex items-start gap-1.5 text-xs text-slate-500">
         <Info size={13} className="mt-0.5 flex-shrink-0" />
         Aggancio automatico su CAP, comune o provincia per la coropletica.
