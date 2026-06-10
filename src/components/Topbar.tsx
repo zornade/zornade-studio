@@ -1,9 +1,11 @@
-import { Eye, Share2 } from "lucide-react";
+import { Eye, Share2, LogOut } from "lucide-react";
 import { useStudio } from "../studio/StudioContext";
+import { useAuth } from "../auth/AuthContext";
 import { Button } from "./primitives";
 
 export function Topbar() {
   const { project, updateProject, setStep } = useStudio();
+  const { logout } = useAuth();
 
   return (
     <header className="flex h-14 flex-shrink-0 items-center gap-4 border-b border-slate-200 bg-white px-4">
@@ -37,6 +39,10 @@ export function Topbar() {
         <Button variant="primary" onClick={() => setStep("publish")}>
           <Share2 size={16} />
           Pubblica
+        </Button>
+        <div className="h-6 w-px bg-slate-200" />
+        <Button variant="ghost" onClick={logout} title="Esci">
+          <LogOut size={16} />
         </Button>
       </div>
     </header>

@@ -1,8 +1,11 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { StudioProvider, useStudio } from "./studio/StudioContext";
+import { AuthProvider, useAuth } from "./auth/AuthContext";
+import { LoginScreen } from "./components/LoginScreen";
 import { Topbar } from "./components/Topbar";
 import { Stepper } from "./components/Stepper";
 import { MapCanvas } from "./components/MapCanvas";
+import { MapErrorBoundary } from "./components/MapErrorBoundary";
 import { DataPanel } from "./components/panels/DataPanel";
 import { VisualizePanel } from "./components/panels/VisualizePanel";
 import { DesignPanel } from "./components/panels/DesignPanel";
@@ -46,13 +49,17 @@ function Workspace() {
       </aside>
 
       <main className="min-w-0 flex-1">
-        <MapCanvas />
+        <MapErrorBoundary>
+          <MapCanvas />
+        </MapErrorBoundary>
       </main>
     </div>
   );
 }
 
-export function App() {
+function StudioShell() {
+  const { isAuthed } = useAuth();
+  if (!isAuthed) return <LoginScreen />;
   return (
     <StudioProvider>
       <div className="flex h-full flex-col bg-slate-50">
@@ -61,5 +68,13 @@ export function App() {
         <Workspace />
       </div>
     </StudioProvider>
+  );
+}
+
+export function App() {
+  return (
+    <AuthProvider>
+      <StudioShell />
+    </AuthProvider>
   );
 }
