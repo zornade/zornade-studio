@@ -1,21 +1,21 @@
 /**
- * Lightweight authentication gate for Zornade Studio (internal use).
+ * Authentication gate for Zornade Studio.
  *
- * SECURITY MODEL (read this):
- * This is a client-side gate. It prevents casual access to the UI but is NOT a
- * substitute for server-side protection: the app bundle is downloadable, so a
- * determined actor could bypass the UI gate. The credential is never stored in
- * plaintext — we compare the SHA-256 hash of the typed password against a hash
- * provided via an environment variable (`VITE_STUDIO_PASS_SHA256`, set in a
- * gitignored .env.local). The robust version (server-side check + HttpOnly
- * cookie, or Netlify's built-in password protection) lands when we deploy.
+ * TWO MODES, auto-detected:
  *
- * Configuration (.env.local, NOT committed):
- *   VITE_STUDIO_USER=redazione
- *   VITE_STUDIO_PASS_SHA256=<hex sha-256 of the password>
+ * 1. SERVER mode (production on Netlify): a serverless function validates the
+ *    password and sets an HttpOnly session cookie (`/api/login`,
+ *    `/api/session`, `/api/logout`). The password and signing secret live only
+ *    on the server; the browser never sees them and cannot forge the cookie.
+ *    This is the robust path.
  *
- * Generate the hash without revealing the password to anyone (type it yourself):
- *   printf '%s' 'LA_TUA_PASSWORD' | sha256sum
+ * 2. CLIENT mode (local `vite` dev without Netlify functions): falls back to a
+ *    client-side SHA-256 check against `VITE_STUDIO_*` env vars, with a
+ *    sessionStorage flag. Convenient for development; NOT used in production
+ *    because the functions answer `/api/session` there.
+ *
+ * Detection: on load we GET `/api/session`. If it answers with JSON we are in
+ * server mode; if it 404s or fails (no functions), we fall back to client mode.
  */
 
 import {
@@ -28,9 +28,9 @@ import {
   type ReactNode,
 } from "react";
 
-const SESSION_KEY = "zornade-studio-auth";
-/** Session lifetime: re-login required after this many hours. */
-const SESSION_HOURS = 12;
+const CLIENT_SESSION_KEY = "zornade-studio-auth";
+/** Client-mode session lifetime (hours). */
+const CLIENT_SESSION_HOURS = 12;
 
 const EXPECTED_USER = (import.meta.env.VITE_STUDIO_USER as string | undefined)?.trim();
 const EXPECTED_HASH = (
@@ -39,10 +39,14 @@ const EXPECTED_HASH = (
   ?.trim()
   .toLowerCase();
 
+type Mode = "loading" | "server" | "client";
+
 interface AuthContextValue {
-  /** Whether a valid, unexpired session exists. */
+  /** Whether a valid session exists. */
   isAuthed: boolean;
-  /** True when credentials are not configured (.env.local missing). */
+  /** Still detecting mode / checking the existing session. */
+  loading: boolean;
+  /** True when credentials are not configured (client mode only). */
   notConfigured: boolean;
   /** Attempt login; returns null on success or an error message. */
   login: (user: string, password: string) => Promise<string | null>;
@@ -68,9 +72,9 @@ function safeEqual(a: string, b: string): boolean {
   return diff === 0;
 }
 
-function readSession(): boolean {
+function readClientSession(): boolean {
   try {
-    const raw = sessionStorage.getItem(SESSION_KEY);
+    const raw = sessionStorage.getItem(CLIENT_SESSION_KEY);
     if (!raw) return false;
     const { exp } = JSON.parse(raw) as { exp: number };
     return typeof exp === "number" && Date.now() < exp;
@@ -80,55 +84,96 @@ function readSession(): boolean {
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const notConfigured = !EXPECTED_USER || !EXPECTED_HASH;
-  const [isAuthed, setIsAuthed] = useState<boolean>(() => readSession());
+  const [mode, setMode] = useState<Mode>("loading");
+  const [isAuthed, setIsAuthed] = useState(false);
 
-  // Drop the session automatically when it expires while the app is open.
+  // Detect mode and check any existing session on load.
   useEffect(() => {
-    if (!isAuthed) return undefined;
-    const raw = sessionStorage.getItem(SESSION_KEY);
-    if (!raw) return undefined;
-    try {
-      const { exp } = JSON.parse(raw) as { exp: number };
-      const ms = exp - Date.now();
-      if (ms <= 0) {
-        setIsAuthed(false);
-        return undefined;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/session", {
+          headers: { accept: "application/json" },
+        });
+        const ct = res.headers.get("content-type") ?? "";
+        if (res.ok && ct.includes("application/json")) {
+          const data = (await res.json()) as { authed?: boolean };
+          if (!cancelled) {
+            setMode("server");
+            setIsAuthed(Boolean(data.authed));
+          }
+          return;
+        }
+        throw new Error("no functions");
+      } catch {
+        // No functions reachable → client fallback (dev).
+        if (!cancelled) {
+          setMode("client");
+          setIsAuthed(readClientSession());
+        }
       }
-      const t = setTimeout(() => setIsAuthed(false), ms);
-      return () => clearTimeout(t);
-    } catch {
-      return undefined;
-    }
-  }, [isAuthed]);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const notConfigured = mode === "client" && (!EXPECTED_USER || !EXPECTED_HASH);
 
   const login = useCallback(
     async (user: string, password: string): Promise<string | null> => {
-      if (notConfigured) {
+      if (mode === "server") {
+        try {
+          const res = await fetch("/api/login", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ user, password }),
+          });
+          if (res.ok) {
+            setIsAuthed(true);
+            return null;
+          }
+          const data = (await res.json().catch(() => ({}))) as { error?: string };
+          return data.error ?? "Accesso negato.";
+        } catch {
+          return "Errore di rete durante l'accesso.";
+        }
+      }
+
+      // Client fallback (dev).
+      if (!EXPECTED_USER || !EXPECTED_HASH) {
         return "Accesso non configurato. Imposta VITE_STUDIO_USER e VITE_STUDIO_PASS_SHA256 in .env.local.";
       }
-      const userOk = safeEqual(user.trim(), EXPECTED_USER!);
+      const userOk = safeEqual(user.trim(), EXPECTED_USER);
       const hash = await sha256Hex(password);
-      const passOk = safeEqual(hash, EXPECTED_HASH!);
-      // Evaluate both regardless of the username result to avoid leaking which
-      // field was wrong.
+      const passOk = safeEqual(hash, EXPECTED_HASH);
       if (!userOk || !passOk) return "Utente o password non corretti.";
-      const exp = Date.now() + SESSION_HOURS * 60 * 60 * 1000;
-      sessionStorage.setItem(SESSION_KEY, JSON.stringify({ exp }));
+      const exp = Date.now() + CLIENT_SESSION_HOURS * 60 * 60 * 1000;
+      sessionStorage.setItem(CLIENT_SESSION_KEY, JSON.stringify({ exp }));
       setIsAuthed(true);
       return null;
     },
-    [notConfigured],
+    [mode],
   );
 
   const logout = useCallback(() => {
-    sessionStorage.removeItem(SESSION_KEY);
+    if (mode === "server") {
+      void fetch("/api/logout", { method: "POST" }).catch(() => {});
+    } else {
+      sessionStorage.removeItem(CLIENT_SESSION_KEY);
+    }
     setIsAuthed(false);
-  }, []);
+  }, [mode]);
 
   const value = useMemo<AuthContextValue>(
-    () => ({ isAuthed, notConfigured, login, logout }),
-    [isAuthed, notConfigured, login, logout],
+    () => ({
+      isAuthed,
+      loading: mode === "loading",
+      notConfigured,
+      login,
+      logout,
+    }),
+    [isAuthed, mode, notConfigured, login, logout],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

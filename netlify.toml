@@ -1,0 +1,22 @@
+# Netlify configuration for Zornade Studio.
+#
+# Build: Vite outputs to dist/. Functions live in netlify/functions and use the
+# v2 signature with explicit `config.path` (/api/login, /api/session, /api/logout).
+#
+# Server-side secrets (set in Netlify UI → Site settings → Environment variables,
+# NOT in this file and NOT in git):
+#   STUDIO_USER            the username
+#   STUDIO_PASS_SHA256     hex SHA-256 of the password
+#   STUDIO_SESSION_SECRET  long random string for signing session cookies
+
+[build]
+  command = "npm run build"
+  publish = "dist"
+  functions = "netlify/functions"
+
+# SPA fallback: serve index.html for client routes (but not /api/* which the
+# functions handle via their own config.path).
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

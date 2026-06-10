@@ -58,7 +58,18 @@ function Workspace() {
 }
 
 function StudioShell() {
-  const { isAuthed } = useAuth();
+  const { isAuthed, loading } = useAuth();
+  if (loading) {
+    return (
+      <div className="flex h-full items-center justify-center bg-slate-50">
+        <img
+          src="/zornade-icon.svg"
+          alt="Zornade"
+          className="h-10 w-10 animate-pulse opacity-70"
+        />
+      </div>
+    );
+  }
   if (!isAuthed) return <LoginScreen />;
   return (
     <StudioProvider>
