@@ -285,6 +285,31 @@ export const NEWSROOM_KITS: Record<PresetName, NewsroomKit> = {
 
 export const NEWSROOM_KIT_LIST: NewsroomKit[] = Object.values(NEWSROOM_KITS);
 
+/**
+ * Basemap choices. OpenFreeMap styles work with NO API key, no usage limits and
+ * allow commercial use (MIT; data © OpenMapTiles / OpenStreetMap, attribution
+ * auto-added by MapLibre). "none" renders the data on a transparent background.
+ * "custom" (a 100% Zornade self-hosted basemap) is on the roadmap.
+ */
+export interface MapBasemap {
+  id: string;
+  label: string;
+  /** External MapLibre style URL, or null for "no basemap" / "soon". */
+  styleUrl: string | null;
+  status?: FeatureStatus;
+}
+
+const OFM = "https://tiles.openfreemap.org/styles";
+
+export const MAP_BASEMAPS: MapBasemap[] = [
+  { id: "ofm-positron", label: "Chiaro (Positron)", styleUrl: `${OFM}/positron` },
+  { id: "ofm-bright", label: "Standard (Bright)", styleUrl: `${OFM}/bright` },
+  { id: "ofm-liberty", label: "Dettagliato (Liberty)", styleUrl: `${OFM}/liberty` },
+  { id: "ofm-dark", label: "Scuro (Dark)", styleUrl: `${OFM}/dark` },
+  { id: "none", label: "Nessuna (sfondo trasparente)", styleUrl: null },
+  { id: "custom", label: "Basemap Zornade (100%)", styleUrl: null, status: "soon" },
+];
+
 export interface NamedOption {
   id: string;
   label: string;

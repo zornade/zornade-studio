@@ -35,7 +35,7 @@ const INITIAL_BRAND: NewsroomBrand = { ...PRESETS.zornade };
 const INITIAL_DESIGN: DesignSettings = {
   titleFont: '"Space Grotesk", sans-serif',
   mapFont: "noto",
-  showBasemap: true,
+  basemap: "ofm-positron",
   colorScale: "teal-seq",
   classification: "quantile",
   legendType: "steps",

@@ -34,6 +34,12 @@ interface MapPreviewProps {
   mapFont?: { glyphs: string; regular: string; bold: string };
   /** Render the basemap. When false, the background is transparent. Default true. */
   basemap?: boolean;
+  /**
+   * External MapLibre style URL to use as the basemap (e.g. OpenFreeMap).
+   * When set, it takes priority over the bundled Protomaps/PMTiles style and
+   * the choropleth is overlaid on top of it.
+   */
+  basemapUrl?: string | null;
 }
 
 // Centred on the Italian peninsula.
@@ -56,6 +62,7 @@ export function MapPreview({
   zoomPan = true,
   mapFont,
   basemap = true,
+  basemapUrl = null,
 }: MapPreviewProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
@@ -113,6 +120,21 @@ export function MapPreview({
     );
   };
 
+  // Resolve the MapLibre style: an external URL (OpenFreeMap) takes priority,
+  // otherwise build the bundled Protomaps/PMTiles style.
+  const resolveStyle = ():
+    | string
+    | maplibregl.StyleSpecification => {
+    if (basemapUrl) return basemapUrl;
+    return buildStyle({
+      tilesUrl,
+      flavor,
+      lang,
+      mapFont,
+      basemap,
+    }) as maplibregl.StyleSpecification;
+  };
+
   // Initialise the map once.
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
@@ -121,7 +143,7 @@ export function MapPreview({
 
     const map = new maplibregl.Map({
       container: containerRef.current,
-      style: buildStyle({ tilesUrl, flavor, lang, mapFont, basemap }) as maplibregl.StyleSpecification,
+      style: resolveStyle(),
       center: INITIAL_CENTER,
       zoom: INITIAL_ZOOM,
       attributionControl: false,
@@ -130,7 +152,11 @@ export function MapPreview({
     navControlRef.current = nav;
     map.addControl(nav, "top-right");
     map.addControl(
-      new maplibregl.AttributionControl({ compact: true }),
+      new maplibregl.AttributionControl({
+        compact: true,
+        customAttribution:
+          'Dati e mappa: <a href="https://zornade.com" target="_blank" rel="noopener">Zornade</a>',
+      }),
       "bottom-right",
     );
 
@@ -184,17 +210,15 @@ export function MapPreview({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Re-apply the style whenever the flavor, tiles URL, language or label font
-  // changes. MapLibre preserves the current camera across setStyle().
+  // Re-apply the style whenever the flavor, tiles URL, language, label font or
+  // external basemap URL changes. MapLibre preserves the camera across setStyle.
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
-    map.setStyle(
-      buildStyle({ tilesUrl, flavor, lang, mapFont, basemap }) as maplibregl.StyleSpecification,
-    );
+    map.setStyle(resolveStyle());
     syncData(map);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tilesUrl, flavor, lang, mapFont, basemap]);
+  }, [tilesUrl, flavor, lang, mapFont, basemap, basemapUrl]);
 
   // Re-sync the overlay whenever the data layer changes.
   useEffect(() => {

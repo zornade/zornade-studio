@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { makeFlavor } from "../basemap";
 import { useStudio } from "../studio/StudioContext";
-import { COLOR_SCALES, MAP_FONTS } from "../studio/catalog";
+import { COLOR_SCALES, MAP_FONTS, MAP_BASEMAPS } from "../studio/catalog";
 import { MapPreview, type DataLayer } from "./MapPreview";
-import { TILES_AVAILABLE, TILES_URL } from "../lib/tiles";
+import { TILES_URL } from "../lib/tiles";
 import {
   GEO_LEVELS,
   joinChoropleth,
@@ -85,8 +85,11 @@ export function MapCanvas() {
   const showLegend =
     design.showLegend && (vizType === "choropleth" || vizType === "symbol");
 
-  // The basemap is shown only when the user wants it AND tiles are available.
-  const showBasemap = design.showBasemap && TILES_AVAILABLE;
+  // Resolve the chosen basemap. OpenFreeMap styles load by URL (no hosting/key);
+  // "none"/"custom" → no basemap (transparent background).
+  const basemapDef = MAP_BASEMAPS.find((b) => b.id === design.basemap);
+  const basemapUrl = basemapDef?.styleUrl ?? null;
+  const hasBasemap = Boolean(basemapUrl);
 
   const legendColors = joined
     ? sampleColors(scale.colors, joined.classes.breaks.length + 1)
@@ -95,7 +98,7 @@ export function MapCanvas() {
   return (
     <div
       className={`relative h-full w-full overflow-hidden ${
-        showBasemap ? "bg-slate-100" : "studio-transparent-bg"
+        hasBasemap ? "bg-slate-100" : "studio-transparent-bg"
       }`}
     >
       <MapPreview
@@ -106,7 +109,8 @@ export function MapCanvas() {
         tooltip={design.tooltip}
         zoomPan={design.zoomPan}
         mapFont={mapFont}
-        basemap={showBasemap}
+        basemap={false}
+        basemapUrl={basemapUrl}
       />
 
       {/* Title / subtitle overlay (top-left). */}

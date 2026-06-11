@@ -24,8 +24,8 @@ export interface DesignSettings {
   titleFont: string;
   /** id of the map-label font (see MAP_FONTS). */
   mapFont: string;
-  /** Show the basemap. When false the background is transparent. */
-  showBasemap: boolean;
+  /** id of the basemap (see MAP_BASEMAPS); "none" = transparent background. */
+  basemap: string;
   /** id of the data color scale (see COLOR_SCALES). */
   colorScale: string;
   /** id of the classification method (see CLASSIFICATION_METHODS). */

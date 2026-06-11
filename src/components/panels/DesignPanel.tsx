@@ -1,12 +1,12 @@
 import { useState } from "react";
 import { Upload, Image as ImageIcon } from "lucide-react";
 import { useStudio } from "../../studio/StudioContext";
-import type { VariantName } from "../../basemap";
 import {
   type PresetChoice,
   FONT_OPTIONS,
   COLOR_SCALES,
   MAP_FONTS,
+  MAP_BASEMAPS,
   CLASSIFICATION_METHODS,
   LEGEND_TYPES,
   ANNOTATION_TOOLS,
@@ -15,18 +15,10 @@ import {
   NEWSROOM_KITS,
 } from "../../studio/catalog";
 import { PanelSection, Field, SoonBadge } from "../primitives";
-import { TILES_AVAILABLE } from "../../lib/tiles";
 
 const PRESET_OPTIONS: { id: PresetChoice; label: string }[] = [
   ...NEWSROOM_KIT_LIST.map((k) => ({ id: k.id as PresetChoice, label: k.label })),
   { id: "custom", label: "Personalizzato" },
-];
-
-const VARIANTS: { id: VariantName; label: string }[] = [
-  { id: "positron", label: "Positron" },
-  { id: "carta", label: "Carta" },
-  { id: "ardesia", label: "Ardesia" },
-  { id: "inchiostro", label: "Inchiostro" },
 ];
 
 export function DesignPanel() {
@@ -199,76 +191,31 @@ export function DesignPanel() {
       </PanelSection>
 
       {/* ---- Stile mappa ---- */}
-      <PanelSection title="Stile della mappa">
-        <label
-          className={`flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 ${
-            TILES_AVAILABLE ? "" : "opacity-60"
-          }`}
-        >
-          <input
-            type="checkbox"
-            checked={design.showBasemap && TILES_AVAILABLE}
-            disabled={!TILES_AVAILABLE}
-            onChange={(e) => updateDesign({ showBasemap: e.target.checked })}
-            className="h-4 w-4 rounded accent-zornade"
-          />
-          Mostra la mappa di sfondo
-          <span className="ml-auto text-xs text-slate-400">
-            {design.showBasemap && TILES_AVAILABLE ? "" : "sfondo trasparente"}
-          </span>
-        </label>
-        {!TILES_AVAILABLE && (
-          <p className="text-xs text-slate-400">
-            Mappa di sfondo non configurata in questo ambiente: la mappa usa lo
-            sfondo trasparente. Imposta <code>VITE_TILES_URL</code> per attivarla.
-          </p>
-        )}
-
-        {design.showBasemap && TILES_AVAILABLE && (
-          <>
-            <div className="grid grid-cols-2 gap-2">
-              {VARIANTS.map((v) => (
-                <button
-                  key={v.id}
-                  onClick={() => updateBrand({ variant: v.id })}
-                  className={`rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
-                    brand.variant === v.id
-                      ? "border-zornade bg-zornade-50 text-zornade-700"
-                      : "border-slate-200 text-slate-600 hover:border-slate-300"
-                  }`}
-                >
-                  {v.label}
-                </button>
-              ))}
-            </div>
-
-            <Field
-              label={`Intensità tinta · ${Math.round((brand.tintStrength ?? 0.35) * 100)}%`}
-            >
-              <input
-                type="range"
-                min={0}
-                max={1}
-                step={0.05}
-                value={brand.tintStrength ?? 0.35}
-                onChange={(e) =>
-                  updateBrand({ tintStrength: Number(e.target.value) })
-                }
-                className="w-full accent-zornade"
-              />
-            </Field>
-
-            <label className="flex items-center gap-2 text-sm text-slate-600">
-              <input
-                type="checkbox"
-                checked={brand.tintWater ?? false}
-                onChange={(e) => updateBrand({ tintWater: e.target.checked })}
-                className="h-4 w-4 rounded accent-zornade"
-              />
-              Tinta anche l'acqua
-            </label>
-          </>
-        )}
+      <PanelSection
+        title="Mappa di sfondo"
+        hint="Tiles OpenFreeMap (nessuna chiave, dati © OpenStreetMap)."
+      >
+        <div className="space-y-1.5">
+          {MAP_BASEMAPS.map((b) => {
+            const soon = b.status === "soon";
+            const active = design.basemap === b.id;
+            return (
+              <button
+                key={b.id}
+                disabled={soon}
+                onClick={() => updateDesign({ basemap: b.id })}
+                className={`flex w-full items-center gap-2 rounded-lg border px-3 py-2 text-left text-sm transition-colors ${
+                  active
+                    ? "border-zornade bg-zornade-50 text-zornade-700"
+                    : "border-slate-200 text-slate-600 hover:border-slate-300"
+                } ${soon ? "cursor-not-allowed opacity-60" : ""}`}
+              >
+                <span className="flex-1">{b.label}</span>
+                {soon && <SoonBadge />}
+              </button>
+            );
+          })}
+        </div>
       </PanelSection>
 
       {/* ---- Colori dei dati ---- */}
