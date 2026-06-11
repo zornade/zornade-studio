@@ -211,23 +211,21 @@ export function DesignPanel() {
       >
         {data && (
           <>
-            {data.numericColumns.length > 1 && (
-              <Field label="Colonna da mappare">
-                <select
-                  value={data.valueColumn}
-                  onChange={(e) =>
-                    setData({ ...data, valueColumn: e.target.value })
-                  }
-                  className={inputCls}
-                >
-                  {data.numericColumns.map((c) => (
-                    <option key={c} value={c}>
-                      {c}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-            )}
+            <Field label="Colonna da mappare">
+              <select
+                value={data.valueColumn}
+                onChange={(e) =>
+                  setData({ ...data, valueColumn: e.target.value })
+                }
+                className={inputCls}
+              >
+                {data.numericColumns.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
+            </Field>
             <Field label="Nome del dato in mappa">
               <input
                 value={design.valueLabel}
