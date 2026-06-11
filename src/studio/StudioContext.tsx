@@ -53,7 +53,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   const [project, setProject] = useState<ProjectMeta>({
     title: "Mappa senza titolo",
     subtitle: "",
-    source: "Dati e mappa: Zornade",
+    source: "Fatto con Zornade Studio",
   });
   const [dataSource, setDataSource] = useState<DataSourceKind>(null);
   const [vizType, setVizType] = useState<string>("choropleth");

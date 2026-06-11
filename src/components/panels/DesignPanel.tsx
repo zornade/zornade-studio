@@ -31,6 +31,7 @@ export function DesignPanel() {
     design,
     updateDesign,
     data,
+    setData,
   } = useStudio();
 
   const [noData, setNoData] = useState("#e5e7eb");

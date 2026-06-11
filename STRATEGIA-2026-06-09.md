@@ -50,7 +50,7 @@ pacchetto, e **retainer** mensile per redazioni ricorrenti. Posizionamento di ri
 o di commissionare studi di dataviz esterni, **ma** con il plus dei dati italiani inclusi.
 
 **Strategia di crescita (il vero asset di lungo periodo).** Ogni mappa pubblicata su una testata è un
-**backlink "Dati e mappa: Zornade" da un dominio editoriale ad alta autorità** → SEO + esposizione del
+**backlink "Fatto con Zornade Studio" da un dominio editoriale ad alta autorità** → SEO + esposizione del
 brand presso altre redazioni. Lo strumento è insieme un generatore di fatturato (a mappa) **e** un
 motore di link-building/marketing che si auto-alimenta sulla lista outreach già esistente (138+ testate).
 
@@ -218,14 +218,14 @@ legenda, tooltip, formattazione numeri/date in italiano, annotazioni, dimensioni
 - Resize responsive con **pym.js (MIT)** o mini-resizer `postMessage` (evita la GPL di iframe-resizer v5).
 - **oEmbed** per i CMS (WordPress di Altreconomia): incolli l'URL e l'embed appare.
 - **Fallback statico SVG/PNG** dalla stessa spec (email, stampa, SEO, no-JS).
-- **Attribuzione**: link discreto "Dati e mappa: **Zornade**" → vedi §7. Sicurezza embed: `sandbox`,
+- **Attribuzione**: link discreto "Fatto con **Zornade Studio**" → vedi §7. Sicurezza embed: `sandbox`,
   CSP, niente esecuzione di codice del cliente lato server.
 
 ---
 
 ## 7. Attribuzione e flywheel SEO/brand
 
-Ogni mappa pubblicata su una testata porta un **backlink "Dati e mappa: Zornade"** verso il sito. Le
+Ogni mappa pubblicata su una testata porta un **backlink "Fatto con Zornade Studio** verso il sito. Le
 testate sono **domini ad altissima autorità** → ogni embed = **link editoriale di qualità** (forte
 beneficio SEO per `zornade.com`) **più** esposizione del brand presso altre redazioni che vedono
 l'embed. Il tutto si innesta sulla **lista outreach già esistente** (`outreach/comunicato_stampa_2026_05/`:

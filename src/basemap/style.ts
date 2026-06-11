@@ -20,7 +20,7 @@ import { type Flavor, layers } from "@protomaps/basemaps";
 
 const OSM_ZORNADE_ATTRIBUTION =
   '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>' +
-  ' · Dati e mappa: <a href="https://zornade.com" target="_blank" rel="noopener">Zornade</a>';
+  ' · Fatto con <a href="https://zornade.com/studio" target="_blank" rel="noopener">Zornade Studio</a>';
 
 /** Default fonts/sprite endpoints. Self-host these on R2 for production. */
 const DEFAULT_GLYPHS =

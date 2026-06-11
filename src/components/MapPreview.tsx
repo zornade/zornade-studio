@@ -159,7 +159,7 @@ export function MapPreview({
       new maplibregl.AttributionControl({
         compact: true,
         customAttribution:
-          'Dati e mappa: <a href="https://zornade.com" target="_blank" rel="noopener">Zornade</a>',
+          'Fatto con <a href="https://zornade.com/studio" target="_blank" rel="noopener">Zornade Studio</a>',
       }),
       "bottom-right",
     );
