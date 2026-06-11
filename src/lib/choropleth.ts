@@ -183,14 +183,25 @@ export function joinChoropleth(params: JoinParams): JoinResult {
   let noDataFeatures = 0;
 
   const features = geojson.features.map((f) => {
-    const featureKey = normaliseKey(
-      (f.properties as Record<string, unknown>)?.[def.joinField] as string,
-    );
-    const value = valueByKey.get(featureKey);
-    const properties = { ...(f.properties ?? {}) } as Record<string, unknown>;
+    const props = (f.properties as Record<string, unknown>) ?? {};
+    // Match the CSV key against either the code field (e.g. ISTAT code) or the
+    // human-readable name field, so name-based datasets join as readily as
+    // code-based ones.
+    const codeKey = normaliseKey(props[def.joinField] as string);
+    const nameKey = normaliseKey(props[def.nameField] as string);
+    let matchedKey = "";
+    let value: number | undefined;
+    if (valueByKey.has(codeKey)) {
+      matchedKey = codeKey;
+      value = valueByKey.get(codeKey);
+    } else if (valueByKey.has(nameKey)) {
+      matchedKey = nameKey;
+      value = valueByKey.get(nameKey);
+    }
+    const properties = { ...props };
     if (value != null) {
       properties.__value = value;
-      matched.add(featureKey);
+      matched.add(matchedKey);
     } else {
       delete properties.__value;
       noDataFeatures++;
