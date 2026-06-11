@@ -172,37 +172,6 @@ export const FONT_OPTIONS: FontOption[] = [
   { id: "custom", label: "Carica font redazione…", stack: '"Inter", sans-serif' },
 ];
 
-/**
- * Fonts available for the MAP LABELS themselves (places, roads…).
- *
- * Unlike title fonts (pure CSS), label fonts must exist in a glyphs endpoint
- * that MapLibre can fetch as `.pbf`. "noto" is the default (Protomaps' own
- * endpoint, unchanged); the others are served by the public, CORS-enabled
- * OpenMapTiles font server. `glyphs: null` means "use the style default".
- */
-export interface MapFontOption {
-  id: string;
-  label: string;
-  /** Glyphs endpoint template, or null to keep the Protomaps default. */
-  glyphs: string | null;
-  /** Regular fontstack name as served by the endpoint. */
-  regular: string;
-  /** Bold fontstack name as served by the endpoint. */
-  bold: string;
-}
-
-const OMT_GLYPHS = "https://fonts.openmaptiles.org/{fontstack}/{range}.pbf";
-
-// Only fontstacks actually served by the OpenMapTiles glyph server are listed.
-// (Others, e.g. Roboto / PT Sans / Lato, return an HTML 200 there and would
-// crash MapLibre with "Unimplemented type: 4" when parsed as a glyph pbf.)
-// "noto" keeps the Protomaps default endpoint, which serves Noto Sans only.
-export const MAP_FONTS: MapFontOption[] = [
-  { id: "noto", label: "Noto Sans (predefinito)", glyphs: null, regular: "Noto Sans Regular", bold: "Noto Sans Medium" },
-  { id: "opensans", label: "Open Sans", glyphs: OMT_GLYPHS, regular: "Open Sans Regular", bold: "Open Sans Bold" },
-  { id: "metropolis", label: "Metropolis", glyphs: OMT_GLYPHS, regular: "Metropolis Regular", bold: "Metropolis Bold" },
-];
-
 /** Data color scales for choropleth/symbol layers. */
 export interface ColorScale {
   id: string;
@@ -232,8 +201,6 @@ export interface NewsroomKit {
   label: string;
   /** CSS font stack for titles (matches a FONT_OPTIONS stack). */
   titleFont: string;
-  /** Map-label font id (see MAP_FONTS). */
-  mapFont: string;
   /** Default data color scale id (see COLOR_SCALES). */
   colorScale: string;
   /** Public path of the newsroom logo, or null if not yet provided. */
@@ -245,7 +212,6 @@ export const NEWSROOM_KITS: Record<PresetName, NewsroomKit> = {
     id: "zornade",
     label: "Zornade",
     titleFont: '"Space Grotesk", sans-serif',
-    mapFont: "noto",
     colorScale: "teal-seq",
     logo: "/zornade-icon.svg",
   },
@@ -253,7 +219,6 @@ export const NEWSROOM_KITS: Record<PresetName, NewsroomKit> = {
     id: "corriere",
     label: "Corriere della Sera",
     titleFont: 'Georgia, "Times New Roman", serif',
-    mapFont: "metropolis",
     colorScale: "blue-seq",
     logo: null,
   },
@@ -261,7 +226,6 @@ export const NEWSROOM_KITS: Record<PresetName, NewsroomKit> = {
     id: "internazionale",
     label: "Internazionale",
     titleFont: '"Inter", sans-serif',
-    mapFont: "opensans",
     colorScale: "div-rdbu",
     logo: null,
   },
@@ -269,7 +233,6 @@ export const NEWSROOM_KITS: Record<PresetName, NewsroomKit> = {
     id: "indipendente",
     label: "L'Indipendente",
     titleFont: 'Georgia, "Times New Roman", serif',
-    mapFont: "opensans",
     colorScale: "warm-seq",
     logo: null,
   },
@@ -277,7 +240,6 @@ export const NEWSROOM_KITS: Record<PresetName, NewsroomKit> = {
     id: "altreconomia",
     label: "Altreconomia",
     titleFont: 'Georgia, "Times New Roman", serif',
-    mapFont: "metropolis",
     colorScale: "warm-seq",
     logo: null,
   },

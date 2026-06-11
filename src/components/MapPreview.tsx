@@ -30,8 +30,6 @@ interface MapPreviewProps {
   tooltip?: boolean;
   /** Allow zoom & pan interactions. Default true. */
   zoomPan?: boolean;
-  /** Optional map-label font override (glyphs + fontstacks). */
-  mapFont?: { glyphs: string; regular: string; bold: string };
   /** Render the basemap. When false, the background is transparent. Default true. */
   basemap?: boolean;
   /**
@@ -60,7 +58,6 @@ export function MapPreview({
   dataLayer = null,
   tooltip = true,
   zoomPan = true,
-  mapFont,
   basemap = true,
   basemapUrl = null,
 }: MapPreviewProps) {
@@ -130,7 +127,6 @@ export function MapPreview({
       tilesUrl,
       flavor,
       lang,
-      mapFont,
       basemap,
     }) as maplibregl.StyleSpecification;
   };
@@ -218,7 +214,7 @@ export function MapPreview({
     map.setStyle(resolveStyle());
     syncData(map);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tilesUrl, flavor, lang, mapFont, basemap, basemapUrl]);
+  }, [tilesUrl, flavor, lang, basemap, basemapUrl]);
 
   // Re-sync the overlay whenever the data layer changes.
   useEffect(() => {

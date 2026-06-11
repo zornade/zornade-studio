@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { makeFlavor } from "../basemap";
 import { useStudio } from "../studio/StudioContext";
-import { COLOR_SCALES, MAP_FONTS, MAP_BASEMAPS } from "../studio/catalog";
+import { COLOR_SCALES, MAP_BASEMAPS } from "../studio/catalog";
 import { MapPreview, type DataLayer } from "./MapPreview";
 import { TILES_URL } from "../lib/tiles";
 import {
@@ -16,14 +16,6 @@ const NO_DATA_COLOR = "#e2e8f0";
 export function MapCanvas() {
   const { project, brand, vizType, design, data } = useStudio();
   const flavor = useMemo(() => makeFlavor(brand), [brand]);
-
-  // Resolve the map-label font. "noto" (or unknown) keeps the Protomaps
-  // default untouched by passing `undefined` down to buildStyle.
-  const mapFont = useMemo(() => {
-    const f = MAP_FONTS.find((m) => m.id === design.mapFont);
-    if (!f || !f.glyphs) return undefined;
-    return { glyphs: f.glyphs, regular: f.regular, bold: f.bold };
-  }, [design.mapFont]);
 
   const scale =
     COLOR_SCALES.find((s) => s.id === design.colorScale) ?? COLOR_SCALES[0];
@@ -108,7 +100,6 @@ export function MapCanvas() {
         dataLayer={dataLayer}
         tooltip={design.tooltip}
         zoomPan={design.zoomPan}
-        mapFont={mapFont}
         basemap={false}
         basemapUrl={basemapUrl}
       />

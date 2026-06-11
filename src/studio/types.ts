@@ -22,8 +22,6 @@ export interface ProjectMeta {
 export interface DesignSettings {
   /** CSS font-family applied to the title/subtitle overlay. */
   titleFont: string;
-  /** id of the map-label font (see MAP_FONTS). */
-  mapFont: string;
   /** id of the basemap (see MAP_BASEMAPS); "none" = transparent background. */
   basemap: string;
   /** id of the data color scale (see COLOR_SCALES). */

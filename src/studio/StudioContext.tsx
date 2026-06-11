@@ -34,7 +34,6 @@ const INITIAL_BRAND: NewsroomBrand = { ...PRESETS.zornade };
 
 const INITIAL_DESIGN: DesignSettings = {
   titleFont: '"Space Grotesk", sans-serif',
-  mapFont: "noto",
   basemap: "ofm-positron",
   colorScale: "teal-seq",
   classification: "quantile",
@@ -86,7 +85,6 @@ export function StudioProvider({ children }: { children: ReactNode }) {
             setDesign((d) => ({
               ...d,
               titleFont: kit.titleFont,
-              mapFont: kit.mapFont,
               colorScale: kit.colorScale,
             }));
           }

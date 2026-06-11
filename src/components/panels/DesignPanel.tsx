@@ -5,7 +5,6 @@ import {
   type PresetChoice,
   FONT_OPTIONS,
   COLOR_SCALES,
-  MAP_FONTS,
   MAP_BASEMAPS,
   CLASSIFICATION_METHODS,
   LEGEND_TYPES,
@@ -121,20 +120,6 @@ export function DesignPanel() {
             />
           </label>
         )}
-
-        <Field label="Font etichette mappa">
-          <select
-            value={design.mapFont}
-            onChange={(e) => updateDesign({ mapFont: e.target.value })}
-            className={inputCls}
-          >
-            {MAP_FONTS.map((f) => (
-              <option key={f.id} value={f.id}>
-                {f.label}
-              </option>
-            ))}
-          </select>
-        </Field>
 
         <Field label="Logo">
           {activeKit?.logo && (
