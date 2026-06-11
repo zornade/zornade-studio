@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, MapPinned } from "lucide-react";
 import { StudioProvider, useStudio } from "./studio/StudioContext";
 import { AuthProvider, useAuth } from "./auth/AuthContext";
 import { LoginScreen } from "./components/LoginScreen";
@@ -15,8 +15,28 @@ import type { StepId } from "./studio/types";
 
 const STEP_ORDER: StepId[] = ["data", "visualize", "design", "publish"];
 
+function MapEmptyState() {
+  return (
+    <div className="flex h-full w-full items-center justify-center bg-slate-50 p-8">
+      <div className="max-w-sm text-center">
+        <div className="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-2xl bg-zornade-50 text-zornade-700">
+          <MapPinned size={26} />
+        </div>
+        <h2 className="font-display text-lg font-semibold text-slate-800">
+          Scegli i dati di partenza
+        </h2>
+        <p className="mt-1.5 text-sm text-slate-500">
+          Nel pannello a sinistra scegli se usare una fonte di dati pronta dal
+          catalogo oppure caricare i tuoi dati. La mappa apparirà qui appena i
+          dati saranno caricati.
+        </p>
+      </div>
+    </div>
+  );
+}
+
 function Workspace() {
-  const { step, setStep } = useStudio();
+  const { step, setStep, data } = useStudio();
   const idx = STEP_ORDER.indexOf(step);
 
   return (
@@ -49,9 +69,13 @@ function Workspace() {
       </aside>
 
       <main className="min-w-0 flex-1">
-        <MapErrorBoundary>
-          <MapCanvas />
-        </MapErrorBoundary>
+        {data ? (
+          <MapErrorBoundary>
+            <MapCanvas />
+          </MapErrorBoundary>
+        ) : (
+          <MapEmptyState />
+        )}
       </main>
     </div>
   );
