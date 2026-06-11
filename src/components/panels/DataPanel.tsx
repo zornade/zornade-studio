@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ArrowLeft,
   Upload,
@@ -9,6 +9,8 @@ import {
   Search,
   ExternalLink,
   Sparkles,
+  Download,
+  Loader2,
 } from "lucide-react";
 import { useStudio } from "../../studio/StudioContext";
 import {
@@ -28,8 +30,61 @@ import {
   detectGeoLevel,
   detectKeyColumn,
 } from "../../lib/choropleth";
+import {
+  catalogApiAvailable,
+  searchCkan,
+  fetchResourceText,
+  CATALOG_PORTALS,
+  type CkanDataset,
+  type CkanResource,
+} from "../../lib/catalog-api";
+import type { DatasetState } from "../../studio/types";
 
 type DataMode = "home" | "catalog" | "own";
+
+/**
+ * Parse CSV text into a ready DatasetState, or return a human error message.
+ * Shared by file upload and the live catalogue loader.
+ */
+function buildDatasetFromCsv(
+  text: string,
+  fileName: string,
+): { dataset: DatasetState } | { error: string } {
+  const { columns, rows } = parseCsv(text);
+  if (columns.length === 0 || rows.length === 0) {
+    return { error: "Il file sembra vuoto o non leggibile." };
+  }
+  const geoLevel = detectGeoLevel(columns);
+  if (!geoLevel) {
+    return {
+      error:
+        "Nessuna colonna geografica riconosciuta (es. codice_istat, sigla, comune).",
+    };
+  }
+  if (!GEO_LEVELS[geoLevel].ready) {
+    return {
+      error: `Livello “${GEO_LEVELS[geoLevel].label}” riconosciuto, ma la geometria non è ancora disponibile. Per ora: Regioni.`,
+    };
+  }
+  const keyColumn = detectKeyColumn(geoLevel, columns)!;
+  const numericColumns = detectNumericColumns(columns, rows).filter(
+    (c) => c !== keyColumn,
+  );
+  if (numericColumns.length === 0) {
+    return { error: "Nessuna colonna numerica da mappare trovata." };
+  }
+  return {
+    dataset: {
+      fileName,
+      columns,
+      rows,
+      geoLevel,
+      keyColumn,
+      valueColumn: numericColumns[0],
+      numericColumns,
+    },
+  };
+}
 
 export function DataPanel() {
   const { dataSource, setDataSource } = useStudio();
@@ -156,6 +211,279 @@ export function DataPanel() {
 /* ------------------------------ Data catalog ------------------------------ */
 
 function DataCatalog({ onBack }: { onBack: () => void }) {
+  const [live, setLive] = useState<boolean | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    catalogApiAvailable().then((ok) => {
+      if (!cancelled) setLive(ok);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  if (live === null) {
+    return (
+      <div className="space-y-4">
+        <BackButton onClick={onBack} />
+        <div className="flex items-center justify-center gap-2 py-10 text-sm text-slate-400">
+          <Loader2 size={16} className="animate-spin" />
+          Carico il catalogo…
+        </div>
+      </div>
+    );
+  }
+
+  return live ? (
+    <LiveCatalog onBack={onBack} />
+  ) : (
+    <CuratedCatalog onBack={onBack} />
+  );
+}
+
+function BackButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      className="flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-slate-700"
+    >
+      <ArrowLeft size={14} />
+      Indietro
+    </button>
+  );
+}
+
+/* --------------------------- Live catalog (CKAN) -------------------------- */
+
+function LiveCatalog({ onBack }: { onBack: () => void }) {
+  const [portal, setPortal] = useState("nazionale");
+  const [query, setQuery] = useState("");
+  const [submitted, setSubmitted] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [data, setData] = useState<{ count: number; results: CkanDataset[] } | null>(
+    null,
+  );
+
+  const runSearch = async (q: string, p: string) => {
+    setLoading(true);
+    setError(null);
+    setSubmitted(q);
+    try {
+      const res = await searchCkan(q, p, 0, 25);
+      setData({ count: res.count, results: res.results });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Errore di ricerca.");
+      setData(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <BackButton onClick={onBack} />
+      <PanelSection
+        title="Catalogo dati"
+        hint="Cerca tra i dataset pubblicati dai portali open data italiani e caricali direttamente."
+      >
+        {/* Portal selector */}
+        <Field label="Portale">
+          <select
+            value={portal}
+            onChange={(e) => {
+              setPortal(e.target.value);
+              if (submitted) void runSearch(submitted, e.target.value);
+            }}
+            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-zornade focus:outline-none"
+          >
+            {CATALOG_PORTALS.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.label}
+              </option>
+            ))}
+          </select>
+        </Field>
+
+        {/* Search */}
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            void runSearch(query, portal);
+          }}
+          className="relative"
+        >
+          <Search
+            size={15}
+            className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+          />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Cerca: popolazione, prezzi case, scuole, rifiuti…"
+            className="w-full rounded-lg border border-slate-200 py-2 pl-9 pr-3 text-sm focus:border-zornade focus:outline-none focus:ring-2 focus:ring-zornade/20"
+          />
+        </form>
+
+        {loading && (
+          <div className="flex items-center justify-center gap-2 py-8 text-sm text-slate-400">
+            <Loader2 size={16} className="animate-spin" />
+            Cerco…
+          </div>
+        )}
+
+        {error && (
+          <p className="flex items-start gap-1.5 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700">
+            <AlertTriangle size={13} className="mt-0.5 flex-shrink-0" />
+            {error}
+          </p>
+        )}
+
+        {!loading && data && (
+          <>
+            <p className="text-[11px] text-slate-400">
+              {data.count.toLocaleString("it-IT")} dataset trovati
+              {submitted ? ` per “${submitted}”` : ""} · mostro i primi{" "}
+              {data.results.length}
+            </p>
+            <div className="space-y-2">
+              {data.results.map((d) => (
+                <LiveDatasetCard key={d.id} dataset={d} />
+              ))}
+              {data.results.length === 0 && (
+                <p className="rounded-lg bg-slate-50 px-3 py-6 text-center text-xs text-slate-400">
+                  Nessun dataset con risorse caricabili. Prova un'altra ricerca.
+                </p>
+              )}
+            </div>
+          </>
+        )}
+
+        {!loading && !data && !error && (
+          <p className="rounded-lg bg-slate-50 px-3 py-6 text-center text-xs text-slate-400">
+            Scrivi una parola chiave e premi Invio per cercare nei portali
+            open data.
+          </p>
+        )}
+
+        <p className="mt-1 text-[11px] text-slate-400">
+          I dati restano dei rispettivi enti pubblici: verifica licenza e
+          attribuzione sulla scheda della fonte.
+        </p>
+      </PanelSection>
+    </div>
+  );
+}
+
+function LiveDatasetCard({ dataset }: { dataset: CkanDataset }) {
+  const { setData, setStep } = useStudio();
+  const [open, setOpen] = useState(false);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const loadResource = async (r: CkanResource) => {
+    if (r.format !== "CSV") {
+      setError(
+        `Per ora si può caricare in mappa solo il CSV. “${r.format}”: usa “Apri la fonte”.`,
+      );
+      return;
+    }
+    setBusy(r.url);
+    setError(null);
+    try {
+      const text = await fetchResourceText(r.url);
+      const out = buildDatasetFromCsv(text, r.name || dataset.title);
+      if ("error" in out) {
+        setError(out.error);
+        return;
+      }
+      setData(out.dataset);
+      setStep("visualize");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Caricamento fallito.");
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  return (
+    <div className="rounded-xl border border-slate-200 bg-white p-3">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="w-full text-left"
+      >
+        <p className="text-sm font-medium text-slate-800">{dataset.title}</p>
+        <p className="text-[11px] font-medium uppercase tracking-wide text-zornade-700">
+          {dataset.publisher}
+        </p>
+        {dataset.notes && (
+          <p className="mt-1 line-clamp-2 text-xs leading-snug text-slate-500">
+            {dataset.notes}
+          </p>
+        )}
+        <div className="mt-2 flex flex-wrap items-center gap-1">
+          {[...new Set(dataset.resources.map((r) => r.format))].map((f) => (
+            <span
+              key={f}
+              className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] text-slate-500"
+            >
+              {f}
+            </span>
+          ))}
+        </div>
+      </button>
+
+      {open && (
+        <div className="mt-3 space-y-1.5 border-t border-slate-100 pt-3">
+          {dataset.resources.map((r) => (
+            <div
+              key={r.url}
+              className="flex items-center gap-2 rounded-lg bg-slate-50 px-2.5 py-1.5"
+            >
+              <span className="rounded bg-white px-1.5 py-0.5 text-[10px] font-medium text-slate-600">
+                {r.format}
+              </span>
+              <span className="min-w-0 flex-1 truncate text-xs text-slate-600">
+                {r.name || "risorsa"}
+              </span>
+              <button
+                onClick={() => void loadResource(r)}
+                disabled={busy === r.url}
+                title="Carica nella mappa"
+                className="flex items-center gap-1 rounded-md bg-zornade px-2 py-1 text-[11px] font-medium text-white transition-colors hover:bg-zornade-700 disabled:opacity-60"
+              >
+                {busy === r.url ? (
+                  <Loader2 size={12} className="animate-spin" />
+                ) : (
+                  <Download size={12} />
+                )}
+                Carica
+              </button>
+            </div>
+          ))}
+          <a
+            href={dataset.landing}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1 pt-1 text-[11px] font-medium text-slate-500 hover:text-zornade-700"
+          >
+            <ExternalLink size={12} />
+            Apri la fonte
+          </a>
+          {error && (
+            <p className="rounded-lg bg-amber-50 px-2.5 py-1.5 text-[11px] text-amber-700">
+              {error}
+            </p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ----------------------- Curated catalog (fallback) ----------------------- */
+
+function CuratedCatalog({ onBack }: { onBack: () => void }) {
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<string | null>(null);
   const results = useMemo(
@@ -305,41 +633,12 @@ function UploadSource() {
       return;
     }
     const text = await file.text();
-    const { columns, rows } = parseCsv(text);
-    if (columns.length === 0 || rows.length === 0) {
-      setError("Il file sembra vuoto o non leggibile.");
+    const out = buildDatasetFromCsv(text, file.name);
+    if ("error" in out) {
+      setError(out.error);
       return;
     }
-    const geoLevel = detectGeoLevel(columns);
-    if (!geoLevel) {
-      setError(
-        "Nessuna colonna geografica riconosciuta (es. codice_istat, sigla, comune).",
-      );
-      return;
-    }
-    if (!GEO_LEVELS[geoLevel].ready) {
-      setError(
-        `Livello “${GEO_LEVELS[geoLevel].label}” riconosciuto, ma la geometria non è ancora disponibile. Per ora: Regioni.`,
-      );
-      return;
-    }
-    const keyColumn = detectKeyColumn(geoLevel, columns)!;
-    const numericColumns = detectNumericColumns(columns, rows).filter(
-      (c) => c !== keyColumn,
-    );
-    if (numericColumns.length === 0) {
-      setError("Nessuna colonna numerica da mappare trovata.");
-      return;
-    }
-    setData({
-      fileName: file.name,
-      columns,
-      rows,
-      geoLevel,
-      keyColumn,
-      valueColumn: numericColumns[0],
-      numericColumns,
-    });
+    setData(out.dataset);
     // Don't pre-pick a viz: the next step is the visualization choice, where
     // only compatible options are enabled.
     setStep("visualize");
