@@ -292,7 +292,7 @@ function DataCatalogCard({ entry }: { entry: DataSourceEntry }) {
 }
 
 function UploadSource() {
-  const { data, setData, setVizType, setStep } = useStudio();
+  const { data, setData, setStep } = useStudio();
   const [error, setError] = useState<string | null>(null);
 
   const handleFile = async (file: File) => {
@@ -340,8 +340,9 @@ function UploadSource() {
       valueColumn: numericColumns[0],
       numericColumns,
     });
-    setVizType("choropleth");
-    setStep("design");
+    // Don't pre-pick a viz: the next step is the visualization choice, where
+    // only compatible options are enabled.
+    setStep("visualize");
   };
 
   if (data) {

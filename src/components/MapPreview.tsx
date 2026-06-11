@@ -38,6 +38,12 @@ interface MapPreviewProps {
    * the choropleth is overlaid on top of it.
    */
   basemapUrl?: string | null;
+  /**
+   * Changing this string triggers an auto fit-bounds to the data extent.
+   * Keep it stable across basemap/style changes so the camera is only refit
+   * when the underlying dataset changes (not on every restyle).
+   */
+  fitKey?: string | null;
 }
 
 // Centred on the Italian peninsula.
@@ -60,6 +66,7 @@ export function MapPreview({
   zoomPan = true,
   basemap = true,
   basemapUrl = null,
+  fitKey = null,
 }: MapPreviewProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
@@ -69,6 +76,7 @@ export function MapPreview({
   const popupRef = useRef<maplibregl.Popup | null>(null);
   const tooltipEnabledRef = useRef<boolean>(tooltip);
   tooltipEnabledRef.current = tooltip;
+  const lastFitRef = useRef<string | null>(null);
 
   // Add/update/remove the choropleth source + layers. Re-runs after every
   // setStyle (which wipes custom layers), so it is idempotent.
@@ -233,6 +241,23 @@ export function MapPreview({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dataLayer]);
 
+  // Auto fit-bounds to the data extent when the dataset changes (fitKey).
+  // Guarded by lastFitRef so restyling (basemap change) does not refit and
+  // override the user's manual zoom.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !dataLayer || !fitKey) return;
+    if (lastFitRef.current === fitKey) return;
+    const bounds = computeBounds(dataLayer.geojson);
+    if (!bounds) return;
+    const doFit = () =>
+      map.fitBounds(bounds, { padding: 48, duration: 600, maxZoom: 9 });
+    if (map.isStyleLoaded()) doFit();
+    else map.once("idle", doFit);
+    lastFitRef.current = fitKey;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fitKey, dataLayer]);
+
   // Enable/disable zoom & pan interactions and the navigation control.
   useEffect(() => {
     const map = mapRef.current;
@@ -273,4 +298,54 @@ function escapeHtml(s: string): string {
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
+}
+
+/**
+ * Compute the bounding box of the features that carry a numeric `__value`
+ * (i.e. the data the user actually mapped), falling back to all features.
+ * Handles Polygon / MultiPolygon / Point geometries. Returns null if empty.
+ */
+function computeBounds(
+  geojson: GeoJSON.FeatureCollection,
+): [[number, number], [number, number]] | null {
+  let minLng = Infinity;
+  let minLat = Infinity;
+  let maxLng = -Infinity;
+  let maxLat = -Infinity;
+
+  const visit = (lng: number, lat: number) => {
+    if (lng < minLng) minLng = lng;
+    if (lat < minLat) minLat = lat;
+    if (lng > maxLng) maxLng = lng;
+    if (lat > maxLat) maxLat = lat;
+  };
+
+  const walk = (coords: unknown): void => {
+    if (!Array.isArray(coords)) return;
+    if (
+      coords.length >= 2 &&
+      typeof coords[0] === "number" &&
+      typeof coords[1] === "number"
+    ) {
+      visit(coords[0], coords[1]);
+      return;
+    }
+    for (const c of coords) walk(c);
+  };
+
+  const withValue = geojson.features.filter(
+    (f) => typeof (f.properties as Record<string, unknown>)?.__value === "number",
+  );
+  const features = withValue.length > 0 ? withValue : geojson.features;
+  for (const f of features) {
+    if (f.geometry && "coordinates" in f.geometry) {
+      walk((f.geometry as { coordinates: unknown }).coordinates);
+    }
+  }
+
+  if (!Number.isFinite(minLng) || !Number.isFinite(maxLng)) return null;
+  return [
+    [minLng, minLat],
+    [maxLng, maxLat],
+  ];
 }

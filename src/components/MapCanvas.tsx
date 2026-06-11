@@ -102,6 +102,9 @@ export function MapCanvas() {
         zoomPan={design.zoomPan}
         basemap={false}
         basemapUrl={basemapUrl}
+        fitKey={
+          data ? `${data.fileName}:${data.geoLevel}:${data.valueColumn}` : null
+        }
       />
 
       {/* Title / subtitle overlay (top-left). */}
