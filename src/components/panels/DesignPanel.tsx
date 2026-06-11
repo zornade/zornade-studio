@@ -203,13 +203,13 @@ export function DesignPanel() {
         </div>
       </PanelSection>
 
-      {/* ---- Colori dei dati ---- */}
+      {/* ---- Dato, colori e legenda ---- */}
       <PanelSection
-        title="Colori dei dati"
-        hint="Scala, classi e legenda della coropletica."
+        title="Dato e legenda"
+        hint="Etichetta del dato, scala colore, classi e legenda."
       >
         {data && (
-          <div className="grid grid-cols-[1fr_auto] gap-2">
+          <>
             <Field label="Nome del dato in mappa">
               <input
                 value={design.valueLabel}
@@ -218,15 +218,15 @@ export function DesignPanel() {
                 className={inputCls}
               />
             </Field>
-            <Field label="Unità">
+            <Field label="Unità di misura (opzionale)">
               <input
                 value={design.valueUnit}
                 onChange={(e) => updateDesign({ valueUnit: e.target.value })}
-                placeholder="es. %"
-                className={`${inputCls} w-20`}
+                placeholder="es. %, €/m², ab/km²"
+                className={inputCls}
               />
             </Field>
-          </div>
+          </>
         )}
 
         <Field label="Scala colore">
