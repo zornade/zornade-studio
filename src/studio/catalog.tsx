@@ -269,7 +269,7 @@ export const MAP_BASEMAPS: MapBasemap[] = [
   { id: "ofm-liberty", label: "Dettagliato (Liberty)", styleUrl: `${OFM}/liberty` },
   { id: "ofm-dark", label: "Scuro (Dark)", styleUrl: `${OFM}/dark` },
   { id: "none", label: "Nessuna (sfondo trasparente)", styleUrl: null },
-  { id: "custom", label: "Basemap Zornade (100%)", styleUrl: null, status: "soon" },
+  { id: "custom", label: "Custom", styleUrl: null, status: "soon" },
 ];
 
 export interface NamedOption {

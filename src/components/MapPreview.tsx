@@ -208,11 +208,21 @@ export function MapPreview({
 
   // Re-apply the style whenever the flavor, tiles URL, language, label font or
   // external basemap URL changes. MapLibre preserves the camera across setStyle.
+  //
+  // setStyle() loads asynchronously (especially an external style URL) and
+  // wipes custom sources/layers. We must wait for the NEW style to finish
+  // loading before re-adding the choropleth — calling syncData synchronously
+  // would add layers while the old style is still reported as loaded, and they
+  // would then be removed when the new style takes over (the data "disappears"
+  // when switching basemap). The "idle" event fires once the new style is
+  // loaded and rendered, so it is the safe point to re-sync.
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
     map.setStyle(resolveStyle());
-    syncData(map);
+    map.once("idle", () => {
+      if (mapRef.current) syncData(map);
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tilesUrl, flavor, lang, basemap, basemapUrl]);
 
