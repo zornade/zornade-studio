@@ -3,15 +3,13 @@ import { makeFlavor } from "../basemap";
 import { useStudio } from "../studio/StudioContext";
 import { COLOR_SCALES, MAP_FONTS } from "../studio/catalog";
 import { MapPreview, type DataLayer } from "./MapPreview";
+import { TILES_AVAILABLE, TILES_URL } from "../lib/tiles";
 import {
   GEO_LEVELS,
   joinChoropleth,
   buildFillColorExpression,
   sampleColors,
 } from "../lib/choropleth";
-
-const TILES_URL =
-  (import.meta.env.VITE_TILES_URL as string | undefined) ?? "/italia.pmtiles";
 
 const NO_DATA_COLOR = "#e2e8f0";
 
@@ -87,6 +85,9 @@ export function MapCanvas() {
   const showLegend =
     design.showLegend && (vizType === "choropleth" || vizType === "symbol");
 
+  // The basemap is shown only when the user wants it AND tiles are available.
+  const showBasemap = design.showBasemap && TILES_AVAILABLE;
+
   const legendColors = joined
     ? sampleColors(scale.colors, joined.classes.breaks.length + 1)
     : scale.colors;
@@ -94,7 +95,7 @@ export function MapCanvas() {
   return (
     <div
       className={`relative h-full w-full overflow-hidden ${
-        design.showBasemap ? "bg-slate-100" : "studio-transparent-bg"
+        showBasemap ? "bg-slate-100" : "studio-transparent-bg"
       }`}
     >
       <MapPreview
@@ -105,7 +106,7 @@ export function MapCanvas() {
         tooltip={design.tooltip}
         zoomPan={design.zoomPan}
         mapFont={mapFont}
-        basemap={design.showBasemap}
+        basemap={showBasemap}
       />
 
       {/* Title / subtitle overlay (top-left). */}

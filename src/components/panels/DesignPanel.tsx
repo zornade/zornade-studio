@@ -15,6 +15,7 @@ import {
   NEWSROOM_KITS,
 } from "../../studio/catalog";
 import { PanelSection, Field, SoonBadge } from "../primitives";
+import { TILES_AVAILABLE } from "../../lib/tiles";
 
 const PRESET_OPTIONS: { id: PresetChoice; label: string }[] = [
   ...NEWSROOM_KIT_LIST.map((k) => ({ id: k.id as PresetChoice, label: k.label })),
@@ -199,20 +200,31 @@ export function DesignPanel() {
 
       {/* ---- Stile mappa ---- */}
       <PanelSection title="Stile della mappa">
-        <label className="flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700">
+        <label
+          className={`flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 ${
+            TILES_AVAILABLE ? "" : "opacity-60"
+          }`}
+        >
           <input
             type="checkbox"
-            checked={design.showBasemap}
+            checked={design.showBasemap && TILES_AVAILABLE}
+            disabled={!TILES_AVAILABLE}
             onChange={(e) => updateDesign({ showBasemap: e.target.checked })}
             className="h-4 w-4 rounded accent-zornade"
           />
           Mostra la mappa di sfondo
           <span className="ml-auto text-xs text-slate-400">
-            {design.showBasemap ? "" : "sfondo trasparente"}
+            {design.showBasemap && TILES_AVAILABLE ? "" : "sfondo trasparente"}
           </span>
         </label>
+        {!TILES_AVAILABLE && (
+          <p className="text-xs text-slate-400">
+            Mappa di sfondo non configurata in questo ambiente: la mappa usa lo
+            sfondo trasparente. Imposta <code>VITE_TILES_URL</code> per attivarla.
+          </p>
+        )}
 
-        {design.showBasemap && (
+        {design.showBasemap && TILES_AVAILABLE && (
           <>
             <div className="grid grid-cols-2 gap-2">
               {VARIANTS.map((v) => (

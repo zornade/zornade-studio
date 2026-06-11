@@ -23,7 +23,17 @@ export default async (req: Request): Promise<Response> => {
   const passHash = process.env.STUDIO_PASS_SHA256?.toLowerCase();
   const secret = process.env.STUDIO_SESSION_SECRET;
   if (!user || !passHash || !secret) {
-    return json({ error: "Auth non configurata sul server." }, 500);
+    const missing = [
+      !user && "STUDIO_USER",
+      !passHash && "STUDIO_PASS_SHA256",
+      !secret && "STUDIO_SESSION_SECRET",
+    ].filter(Boolean);
+    return json(
+      {
+        error: `Auth non configurata sul server. Variabili mancanti: ${missing.join(", ")}.`,
+      },
+      500,
+    );
   }
 
   let body: { user?: string; password?: string };
