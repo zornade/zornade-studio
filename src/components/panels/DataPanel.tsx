@@ -11,6 +11,8 @@ import {
   Sparkles,
   Download,
   Loader2,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { useStudio } from "../../studio/StudioContext";
 import {
@@ -255,22 +257,26 @@ function BackButton({ onClick }: { onClick: () => void }) {
 
 /* --------------------------- Live catalog (CKAN) -------------------------- */
 
+const PAGE_SIZE = 25;
+
 function LiveCatalog({ onBack }: { onBack: () => void }) {
   const [portal, setPortal] = useState("nazionale");
   const [query, setQuery] = useState("");
   const [submitted, setSubmitted] = useState("");
+  const [page, setPage] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<{ count: number; results: CkanDataset[] } | null>(
     null,
   );
 
-  const runSearch = async (q: string, p: string) => {
+  const runSearch = async (q: string, p: string, pg: number) => {
     setLoading(true);
     setError(null);
     setSubmitted(q);
+    setPage(pg);
     try {
-      const res = await searchCkan(q, p, 0, 25);
+      const res = await searchCkan(q, p, pg * PAGE_SIZE, PAGE_SIZE);
       setData({ count: res.count, results: res.results });
     } catch (e) {
       setError(e instanceof Error ? e.message : "Errore di ricerca.");
@@ -279,6 +285,10 @@ function LiveCatalog({ onBack }: { onBack: () => void }) {
       setLoading(false);
     }
   };
+
+  const totalPages = data ? Math.ceil(data.count / PAGE_SIZE) : 0;
+  const from = data ? page * PAGE_SIZE + 1 : 0;
+  const to = data ? page * PAGE_SIZE + data.results.length : 0;
 
   return (
     <div className="space-y-4">
@@ -293,7 +303,7 @@ function LiveCatalog({ onBack }: { onBack: () => void }) {
             value={portal}
             onChange={(e) => {
               setPortal(e.target.value);
-              if (submitted) void runSearch(submitted, e.target.value);
+              if (submitted) void runSearch(submitted, e.target.value, 0);
             }}
             className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-zornade focus:outline-none"
           >
@@ -309,7 +319,7 @@ function LiveCatalog({ onBack }: { onBack: () => void }) {
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            void runSearch(query, portal);
+            void runSearch(query, portal, 0);
           }}
           className="relative"
         >
@@ -343,8 +353,8 @@ function LiveCatalog({ onBack }: { onBack: () => void }) {
           <>
             <p className="text-[11px] text-slate-400">
               {data.count.toLocaleString("it-IT")} dataset trovati
-              {submitted ? ` per “${submitted}”` : ""} · mostro i primi{" "}
-              {data.results.length}
+              {submitted ? ` per “${submitted}”` : ""}
+              {data.results.length > 0 ? ` · ${from}–${to}` : ""}
             </p>
             <div className="space-y-2">
               {data.results.map((d) => (
@@ -352,10 +362,36 @@ function LiveCatalog({ onBack }: { onBack: () => void }) {
               ))}
               {data.results.length === 0 && (
                 <p className="rounded-lg bg-slate-50 px-3 py-6 text-center text-xs text-slate-400">
-                  Nessun dataset con risorse caricabili. Prova un'altra ricerca.
+                  Nessun dataset con risorse caricabili in questa pagina. Prova
+                  la pagina successiva o un'altra ricerca.
                 </p>
               )}
             </div>
+
+            {/* Pager */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between gap-2 pt-1">
+                <button
+                  onClick={() => void runSearch(submitted, portal, page - 1)}
+                  disabled={page === 0}
+                  className="flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-medium text-slate-600 transition-colors hover:border-slate-300 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  <ChevronLeft size={14} />
+                  Precedenti
+                </button>
+                <span className="text-[11px] text-slate-400">
+                  Pagina {page + 1} di {totalPages.toLocaleString("it-IT")}
+                </span>
+                <button
+                  onClick={() => void runSearch(submitted, portal, page + 1)}
+                  disabled={page + 1 >= totalPages}
+                  className="flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-medium text-slate-600 transition-colors hover:border-slate-300 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Successivi
+                  <ChevronRight size={14} />
+                </button>
+              </div>
+            )}
           </>
         )}
 
