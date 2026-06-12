@@ -14,7 +14,7 @@ export interface ParsedCsv {
 
 /** Detect the most likely delimiter by counting occurrences on the header. */
 function detectDelimiter(headerLine: string): string {
-  const candidates = [",", ";", "\t"];
+  const candidates = [",", ";", "\t", "|"];
   let best = ",";
   let bestCount = -1;
   for (const d of candidates) {

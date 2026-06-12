@@ -183,27 +183,39 @@ export function resolveGeoJoin(
   if (sets.size === 0) return null;
 
   const sample = rows.length > sampleSize ? rows.slice(0, sampleSize) : rows;
-  const candidates: GeoCandidate[] = [];
+  // Track per-candidate whether the source column looks numeric (a measure):
+  // a numeric column that coincidentally matches ISTAT codes must not beat a
+  // genuine non-numeric key column on a score tie.
+  const candidates: (GeoCandidate & { numeric: boolean })[] = [];
 
   for (const col of columns) {
     const normalised: string[] = [];
+    let numericCells = 0;
+    let nonEmpty = 0;
     for (const row of sample) {
       const v = row[col];
       if (v == null || String(v).trim() === "") continue;
+      nonEmpty++;
+      if (parseNumber(String(v)) != null) numericCells++;
       normalised.push(normaliseKey(v));
     }
     if (normalised.length === 0) continue;
+    const numeric = nonEmpty > 0 && numericCells / nonEmpty >= 0.85;
     for (const [level, set] of sets) {
       let matched = 0;
       for (const n of normalised) if (n !== "" && set.has(n)) matched++;
       const score = matched / normalised.length;
-      if (score >= minScore) candidates.push({ level, keyColumn: col, score });
+      if (score >= minScore) candidates.push({ level, keyColumn: col, score, numeric });
     }
   }
   if (candidates.length === 0) return null;
 
   candidates.sort((a, b) => {
     if (Math.abs(a.score - b.score) <= tieWindow) {
+      // On a near-tie, a non-numeric key column beats a numeric one (the latter
+      // is more likely a measure that coincidentally matches codes)…
+      if (a.numeric !== b.numeric) return a.numeric ? 1 : -1;
+      // …then prefer the finer geographic level.
       return GEO_GRANULARITY[b.level] - GEO_GRANULARITY[a.level];
     }
     return b.score - a.score;
@@ -215,9 +227,9 @@ export function resolveGeoJoin(
   for (const c of candidates) {
     if (seen.has(c.level)) continue;
     seen.add(c.level);
-    alternatives.push(c);
+    alternatives.push({ level: c.level, keyColumn: c.keyColumn, score: c.score });
   }
-  return { ...best, alternatives };
+  return { level: best.level, keyColumn: best.keyColumn, score: best.score, alternatives };
 }
 
 /** Best key column for a specific level (used when the user overrides level). */

@@ -437,10 +437,16 @@ L'utente incolla **host / utente / password** (credenziali read-only generate a 
 - **O1.5** Embed iframe statico + export PNG
 
 ### Onda 2 — Dati & punti
-- **O2.1** **Pipeline di ingestione robusta + profilazione colonne** (§1.12): codifica/delimitatore/numeri/date
-   IT, tipi semantici con confidenza, **motore di compatibilità viz** (sostituisce il set hardcoded) e
-   **pannello "cosa abbiamo capito" con override**. È il prerequisito che rende affidabile tutto il resto.
-- **O2.2** **Suite di test + golden file** (§1.13): introdurre `vitest`, corpus di file reali sporchi, gate CI.
+- **O2.1** ✅ **Pipeline di profilazione + compatibilità viz** (§1.12). `lib/profile.ts`
+   (tipi semantici con confidenza + `THRESHOLDS`), `lib/viz-compat.ts` (`evaluateCompatibility`:
+   profilo→viz con motivo del “perché spento”), disambiguazione geografica **value-based**
+   (`resolveGeoJoin` + `public/geo/keys.json`). `VisualizePanel` non usa più il set hardcoded e mostra
+   il pannello **“cosa abbiamo capito”**; override livello/chiave nel passo Design. *(Restano da fare:
+   parser date più ampio, melt wide→long, decode Win-1252 — §1.12.3.)*
+- **O2.2** ✅ **Suite di test + golden file** (§1.13): **Vitest 3.2.6** + 39 test, tra cui un **corpus di
+   20 dataset realistici** (`src/lib/__fixtures__/datasets.ts`) che esercita parsing→profilo→geo-resolve
+   →compat→join end-to-end (delimitatori `,;\t|`, numeri/valuta IT, tutti i livelli geo per nome/codice/ISO,
+   ACI misto, lat/lon, wide, BOM/accenti). `npm test` = gate.
 - **O2.3** Parser dei formati: Excel (SheetJS da CDN), Shapefile, KML/KMZ, GeoTIFF (§1.11).
 - **O2.4** Layer di **punti** da CSV/GeoJSON (simboli, categorie)
 - **O2.5** **Query OSM (Overpass)** con selettore guidato
