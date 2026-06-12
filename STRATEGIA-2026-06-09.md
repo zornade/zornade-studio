@@ -128,11 +128,12 @@ contaminare il codice del prodotto.
 |---|---|---|---|
 | **MapLibre GL JS** | Rendering mappe nel browser | **BSD-3-Clause** | Permissiva, nessun vincolo. |
 | **Protomaps PMTiles** | Basemap/layer come singolo file statico su R2 | **BSD-3-Clause** (spec CC0/PD) | Permissiva. |
+| **deck.gl** | Overlay GPU su MapLibre: heatmap, hexbin, dot-density, flussi, estrusione 3D | **MIT** (OpenJS) | Permissiva; integrazione ufficiale `MapboxOverlay` con MapLibre. Anche la libreria mappe "di moda" oggi. |
 | **tippecanoe** (fork Felt) | Generazione vector tiles/PMTiles (ha `--visvalingam`, shared borders) | **BSD-2-Clause** | Permissiva; usato come CLI di build. |
 | **mapshaper** | Semplificazione **topology-aware** dei confini | **MPL-2.0** | Copyleft *a livello di file*: usato come tool di build, nessun obbligo sul nostro codice. |
-| **Vega-Lite** | Spec dichiarativa per grafici | **BSD-3-Clause** | Permissiva. |
-| **Observable Plot** | Grafici (alternativa/complemento) | **ISC** | Permissiva. |
-| **Apache ECharts** | Grafici ricchi (alternativa) | **Apache-2.0** | Permissiva. |
+| **Observable Plot** | Grafici **statistici** (motore primario, SVG) | **ISC** | Permissiva. Barre/linee/aree/dispersione/istogramma/box plot/beeswarm/ridgeline/dumbbell/slope. |
+| **Apache ECharts** | Grafici **ricchi/relazionali/animati/3D** | **Apache-2.0** | Permissiva. Torta/funnel/gauge/sankey/chord/rete/treemap/sunburst/parallel/radar/calendar/candele/streamgraph/bar-chart-race. |
+| **Vega-Lite** | Spec dichiarativa / interscambio & export | **BSD-3-Clause** | Permissiva. Tenuta come formato di spec, **non** come terzo runtime di default. |
 | **Scrollama** | Scrollytelling (trigger su scroll) | **MIT** | Permissiva. |
 | **Turf.js** | Operazioni geo lato client | **MIT** | Permissiva. |
 | **DuckDB / DuckDB-WASM** | Profiling/aggregazione dati veloce | **MIT** | Permissiva. |
@@ -144,6 +145,24 @@ contaminare il codice del prodotto.
 si usa **pym.js (MIT)** o si scrive un piccolo resizer `postMessage` (poche righe). I tile basemap
 derivati da **OpenStreetMap** richiedono l'**attribuzione ODbL** (peraltro coerente con la nostra
 attribuzione a Zornade).
+
+**Librerie di grafica "di moda" valutate (2026-06-12).** Chart.js (MIT), ApexCharts (MIT), Plotly.js
+(MIT), Recharts (MIT), Nivo (MIT), visx (MIT), D3 (ISC), TradingView Lightweight Charts (Apache-2.0):
+le licenze sono **tutte permissive** e quindi compatibili. **Verdetto:** non si aggiunge un quarto
+runtime di grafici — **Observable Plot** (statistici) + **Apache ECharts** (ricchi/animati/3D) coprono
+l'intero catalogo, e Plotly.js (~3 MB) o i wrapper React (Recharts/Nivo/visx) sarebbero ridondanti e
+pesanti. L'unica **aggiunta strategica** è **deck.gl (MIT)** per le mappe GPU (heatmap/hexbin/flussi/3D),
+che nessun altro motore copre altrettanto bene. La mappatura completa tipo-di-viz → motore è in
+`ROADMAP.md` §1.11.
+
+> **Fonte canonica dello stack:** versioni, licenze e pesi gzip **verificati** (npm registry +
+> Bundlephobia + release notes, 2026-06-12) vivono in **`ROADMAP.md` §1.11–§1.13**. In sintesi
+> verificata: MapLibre 5.24.0 (BSD-3, ~268 KB gz), deck.gl 9.3.4 (MIT), Observable Plot 0.6.17 (ISC,
+> ~125 KB gz), Apache ECharts 6.1.0 (Apache-2.0, ~359 KB gz), Vega-Lite 6.4.3 (BSD-3). Parser formati:
+> SheetJS `xlsx` 0.20.3 (Apache-2.0) **solo da CDN ufficiale** (npm fermo a 0.18.5, pre-fix
+> prototype-pollution 0.19.3), `shapefile` 0.6.6 (BSD-3), `@tmcw/togeojson` 7.1.2 (BSD-2), `geotiff`
+> 3.0.5 (MIT), DuckDB-WASM (MIT, lazy). MapLibre **v5** confermato (globe, GlobeControl; migrazione
+> da v4.7.1 con breaking change documentati).
 
 ---
 
@@ -181,8 +200,8 @@ flowchart TB
 ### 6.2 Il cuore: architettura "spec-driven"
 
 Ogni visualizzazione è un **documento JSON dichiarativo** separato dal motore di rendering:
-- **Grafico** → spec **Vega-Lite** (o Observable Plot).
-- **Mappa** → spec **MapLibre style** + riferimento al layer PMTiles + encoding (campo → colore/scala).
+- **Grafico** → **Observable Plot** (statistici) o **Apache ECharts** (ricchi/animati/3D); Vega-Lite come spec di interscambio. Un dispatch `vizType → engine` sceglie il renderer (vedi `ROADMAP.md` §1.11).
+- **Mappa** → spec **MapLibre style** + layer PMTiles + encoding (campo → colore/scala); **deck.gl** come overlay GPU per heatmap/hexbin/flussi/3D.
 - **Tabella** → spec colonne/formattazione.
 - **Scrollytelling** → sequenza di *step* (testo + spec di viz), trigger con **Scrollama**.
 
@@ -196,6 +215,13 @@ cambia se in seguito ritocco il progetto).
 1. **Geo-join.** Il dato del cliente con chiave CAP/codice comune ISTAT/provincia viene unito alle
    **geometrie Zornade in PostGIS** → layer pronto. È il valore che gli strumenti generalisti non
    danno pronto per l'Italia.
+
+   > **Nota di coerenza con l'implementazione (2026-06-12).** Esistono **due percorsi di join**, non in
+   > conflitto: **(a)** per i **CSV caricati dall'utente** il join è **client-side** nel browser contro
+   > le geometrie bundled (oggi `src/lib/choropleth.ts`, livello regioni; ROADMAP O1.3) — zero
+   > infrastruttura, embed statico; **(b)** per i **dataset DB Zornade** (OMI/rischio/solare) il join è
+   > **server-side in PostGIS** dietro il proxy read-only (ROADMAP O3.1), dove le geometrie già
+   > risiedono. La semplificazione topologica qui sotto resta uno step di **build** in entrambi i casi.
 2. **Semplificazione mantenendo la topologia.** Attenzione tecnica chiave:
    - `ST_SimplifyPreserveTopology` di PostGIS preserva la topologia **della singola geometria**, ma su
      poligoni confinanti **introduce buchi/sovrapposizioni** lungo i confini condivisi.
