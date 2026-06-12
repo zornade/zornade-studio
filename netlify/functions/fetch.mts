@@ -73,21 +73,77 @@ export default async (req: Request): Promise<Response> => {
     upstream = await fetch(target.toString(), {
       headers: { "user-agent": "ZornadeStudio/1.0", accept: "*/*" },
       redirect: "follow",
-      signal: AbortSignal.timeout(25000),
+      // Keep this safely BELOW Netlify's synchronous-function execution limit
+      // (~10s). A longer timeout is pointless: the platform would kill the
+      // function first and return an opaque 502 with no JSON body — which the
+      // client could only show as a generic "Download fallito". Failing fast
+      // here lets us return a clear, actionable error instead.
+      signal: AbortSignal.timeout(8500),
     });
-  } catch {
-    return json({ error: "Download fallito." }, 502);
+  } catch (e) {
+    // Distinguish the common real-world failures so the user knows what to do.
+    const name = e instanceof Error ? e.name : "";
+    const code = (e as { cause?: { code?: string } } | undefined)?.cause?.code;
+    if (name === "TimeoutError" || name === "AbortError") {
+      return json(
+        { error: "La sorgente è troppo lenta a rispondere (timeout). Riprova o usa “Apri la fonte”." },
+        504,
+      );
+    }
+    if (code && /CERT|SSL|TLS|DEPTH_ZERO|SELF_SIGNED/i.test(code)) {
+      return json(
+        { error: "La sorgente ha un certificato HTTPS non valido: scaricala da “Apri la fonte”." },
+        502,
+      );
+    }
+    return json(
+      { error: "Impossibile raggiungere la sorgente (server non disponibile)." },
+      502,
+    );
   }
-  if (!upstream.ok) return json({ error: `Sorgente ${upstream.status}.` }, 502);
+  if (!upstream.ok) {
+    // A 404/410/403 from the source is not a gateway failure: report it as
+    // "resource unavailable" so the user understands the link is dead/blocked,
+    // rather than a misleading 502.
+    if ([401, 403, 404, 410].includes(upstream.status)) {
+      return json(
+        { error: `La risorsa non è più disponibile alla fonte (${upstream.status}).` },
+        404,
+      );
+    }
+    return json({ error: `La sorgente ha risposto con un errore (${upstream.status}).` }, 502);
+  }
 
   const ct = upstream.headers.get("content-type") ?? "application/octet-stream";
   if (!ALLOWED_CT.test(ct)) {
-    return json({ error: `Tipo non supportato: ${ct}.` }, 415);
+    // Frequently the resource URL points to an HTML landing page, not the file.
+    return json(
+      {
+        error:
+          "Il link non punta a un file di dati ma a una pagina web: apri la fonte e scarica il file diretto (CSV/JSON).",
+      },
+      415,
+    );
   }
   const len = Number(upstream.headers.get("content-length") ?? "0");
   if (len > MAX_BYTES) return json({ error: "File troppo grande." }, 413);
 
-  const buf = await upstream.arrayBuffer();
+  // The fetch abort signal also covers body streaming, so a slow/huge download
+  // aborts here rather than letting the platform kill the function with an
+  // opaque 502. Catch it and report a clear, actionable timeout.
+  let buf: ArrayBuffer;
+  try {
+    buf = await upstream.arrayBuffer();
+  } catch (e) {
+    const name = e instanceof Error ? e.name : "";
+    if (name === "TimeoutError" || name === "AbortError") {
+      return json(
+        { error: "Il file è troppo lento/grande da scaricare entro il limite. Usa “Apri la fonte”." },
+        504,
+      );
+    }
+    return json({ error: "Download interrotto dalla sorgente." }, 502);
+  }
   if (buf.byteLength > MAX_BYTES) return json({ error: "File troppo grande." }, 413);
 
   return new Response(buf, {
