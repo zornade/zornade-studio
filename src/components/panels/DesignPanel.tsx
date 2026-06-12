@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Upload, Image as ImageIcon } from "lucide-react";
 import { useStudio } from "../../studio/StudioContext";
 import {
@@ -13,6 +13,12 @@ import {
   NEWSROOM_KIT_LIST,
   NEWSROOM_KITS,
 } from "../../studio/catalog";
+import {
+  GEO_LEVELS,
+  bestKeyColumnForLevel,
+  type GeoLevel,
+} from "../../lib/choropleth";
+import { loadGeoKeys } from "../../lib/geo-keys";
 import { PanelSection, Field, SoonBadge } from "../primitives";
 
 const PRESET_OPTIONS: { id: PresetChoice; label: string }[] = [
@@ -35,6 +41,19 @@ export function DesignPanel() {
   } = useStudio();
 
   const [noData, setNoData] = useState("#e5e7eb");
+  // Geo-key index for level overrides (value-based best key column per level).
+  const [geoKeys, setGeoKeys] = useState<Record<string, Set<string>> | null>(
+    null,
+  );
+  useEffect(() => {
+    let alive = true;
+    loadGeoKeys().then((k) => {
+      if (alive) setGeoKeys(k);
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
   const activeKit = preset !== "custom" ? NEWSROOM_KITS[preset] : null;
   // Cap classes at the number of source rows (each row can be its own class).
   const maxClasses = data ? Math.max(2, data.rows.length) : 9;
@@ -211,6 +230,54 @@ export function DesignPanel() {
       >
         {data && (
           <>
+            <Field
+              label="Livello geografico"
+              hint="Riconosciuto dai dati. Cambialo se l'abbinamento è sbagliato."
+            >
+              <select
+                value={data.geoLevel}
+                onChange={(e) => {
+                  const level = e.target.value as GeoLevel;
+                  const keyColumn =
+                    (geoKeys &&
+                      bestKeyColumnForLevel(
+                        level,
+                        data.columns,
+                        data.rows,
+                        geoKeys,
+                      )) ||
+                    data.keyColumn;
+                  setData({ ...data, geoLevel: level, keyColumn });
+                }}
+                className={inputCls}
+              >
+                {Object.values(GEO_LEVELS)
+                  .filter((l) => l.ready)
+                  .map((l) => (
+                    <option key={l.id} value={l.id}>
+                      {l.label}
+                    </option>
+                  ))}
+              </select>
+            </Field>
+            <Field
+              label="Colonna chiave (abbinamento geografico)"
+              hint="La colonna che identifica l'area (nome o codice)."
+            >
+              <select
+                value={data.keyColumn}
+                onChange={(e) =>
+                  setData({ ...data, keyColumn: e.target.value })
+                }
+                className={inputCls}
+              >
+                {data.columns.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
+            </Field>
             <Field label="Colonna da mappare">
               <select
                 value={data.valueColumn}

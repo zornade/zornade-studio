@@ -122,6 +122,138 @@ export function detectKeyColumn(
   return null;
 }
 
+/** Finer levels rank higher: used as a tie-break when match scores are close. */
+const GEO_GRANULARITY: Record<GeoLevel, number> = {
+  comuni: 4,
+  province: 3,
+  regioni: 2,
+  paesi: 1,
+};
+
+export interface GeoCandidate {
+  level: GeoLevel;
+  keyColumn: string;
+  /** Fraction of non-empty cells in `keyColumn` that match this level (0..1). */
+  score: number;
+}
+
+export interface GeoResolution extends GeoCandidate {
+  /** Best candidate for each *other* level, for a manual override in the UI. */
+  alternatives: GeoCandidate[];
+}
+
+export interface ResolveOptions {
+  /** Minimum match fraction for a column to be considered a key (default 0.5). */
+  minScore?: number;
+  /** Max rows sampled when scoring (default 1000). */
+  sample?: number;
+  /** Score gap within which the finer level wins the tie (default 0.15). */
+  tieWindow?: number;
+}
+
+/**
+ * Resolve the geographic level AND key column by matching actual CSV *values*
+ * against the real geometry keys of each level — not by guessing from column
+ * names. This is what tells a *comune* dataset (e.g. ACI "enteTerritoriale")
+ * apart from its parent-*provincia* context column, which name-based detection
+ * gets wrong.
+ *
+ * For every column × level it computes the fraction of cells that match that
+ * level's keys; the best wins, with finer levels preferred on near-ties (a
+ * comunal key column beats the province context column when both match well).
+ * Returns null if nothing matches — the caller can fall back to name hints.
+ *
+ * @param keysByLevel normalised join keys per level (from /geo/keys.json).
+ */
+export function resolveGeoJoin(
+  columns: string[],
+  rows: Record<string, string>[],
+  keysByLevel: Record<string, Iterable<string>>,
+  opts: ResolveOptions = {},
+): GeoResolution | null {
+  const minScore = opts.minScore ?? 0.5;
+  const sampleSize = opts.sample ?? 1000;
+  const tieWindow = opts.tieWindow ?? 0.15;
+
+  const sets = new Map<GeoLevel, Set<string>>();
+  for (const level of Object.keys(GEO_LEVELS) as GeoLevel[]) {
+    const keys = keysByLevel[level];
+    if (keys) sets.set(level, keys instanceof Set ? keys : new Set(keys));
+  }
+  if (sets.size === 0) return null;
+
+  const sample = rows.length > sampleSize ? rows.slice(0, sampleSize) : rows;
+  const candidates: GeoCandidate[] = [];
+
+  for (const col of columns) {
+    const normalised: string[] = [];
+    for (const row of sample) {
+      const v = row[col];
+      if (v == null || String(v).trim() === "") continue;
+      normalised.push(normaliseKey(v));
+    }
+    if (normalised.length === 0) continue;
+    for (const [level, set] of sets) {
+      let matched = 0;
+      for (const n of normalised) if (n !== "" && set.has(n)) matched++;
+      const score = matched / normalised.length;
+      if (score >= minScore) candidates.push({ level, keyColumn: col, score });
+    }
+  }
+  if (candidates.length === 0) return null;
+
+  candidates.sort((a, b) => {
+    if (Math.abs(a.score - b.score) <= tieWindow) {
+      return GEO_GRANULARITY[b.level] - GEO_GRANULARITY[a.level];
+    }
+    return b.score - a.score;
+  });
+
+  const best = candidates[0];
+  const seen = new Set<GeoLevel>([best.level]);
+  const alternatives: GeoCandidate[] = [];
+  for (const c of candidates) {
+    if (seen.has(c.level)) continue;
+    seen.add(c.level);
+    alternatives.push(c);
+  }
+  return { ...best, alternatives };
+}
+
+/** Best key column for a specific level (used when the user overrides level). */
+export function bestKeyColumnForLevel(
+  level: GeoLevel,
+  columns: string[],
+  rows: Record<string, string>[],
+  keysByLevel: Record<string, Iterable<string>>,
+  opts: ResolveOptions = {},
+): string | null {
+  const keys = keysByLevel[level];
+  if (!keys) return null;
+  const set = keys instanceof Set ? keys : new Set(keys);
+  const sampleSize = opts.sample ?? 1000;
+  const sample = rows.length > sampleSize ? rows.slice(0, sampleSize) : rows;
+  let bestCol: string | null = null;
+  let bestScore = -1;
+  for (const col of columns) {
+    let total = 0;
+    let matched = 0;
+    for (const row of sample) {
+      const v = row[col];
+      if (v == null || String(v).trim() === "") continue;
+      total++;
+      if (set.has(normaliseKey(v))) matched++;
+    }
+    if (total === 0) continue;
+    const score = matched / total;
+    if (score > bestScore) {
+      bestScore = score;
+      bestCol = col;
+    }
+  }
+  return bestCol;
+}
+
 export interface ClassBreaks {
   /** Upper bounds of each class except the last (length = nClasses - 1). */
   breaks: number[];

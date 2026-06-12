@@ -136,6 +136,63 @@ def build_municipalities(tmp: str) -> None:
     _write(out, "comuni.geojson")
 
 
+# Join-key fields per level — MUST mirror GEO_LEVELS in src/lib/choropleth.ts
+# (joinField, nameField, aliasFields). Used to build the keys index.
+LEVEL_KEY_FIELDS = {
+    "paesi": ["iso_a3", "name", "iso_a2", "name_en"],
+    "regioni": ["reg_istat_code", "reg_name"],
+    "province": ["prov_acr", "prov_name", "prov_istat_code"],
+    "comuni": ["com_istat_code", "com_name", "com_istat_code_num"],
+}
+
+
+def _normalise_key(raw) -> str:
+    """Mirror of normaliseKey() in src/lib/choropleth.ts — keep in sync."""
+    import re
+    import unicodedata
+
+    if raw is None:
+        return ""
+    s = str(raw).strip().lower()
+    if re.fullmatch(r"\d", s):  # zero-pad single-digit ISTAT codes ("1"->"01")
+        s = "0" + s
+    s = s.split("/")[0].strip()  # drop bilingual variants
+    s = "".join(
+        c for c in unicodedata.normalize("NFD", s)
+        if unicodedata.category(c) != "Mn"
+    )
+    return s
+
+
+def build_keys_index() -> None:
+    """
+    Emit public/geo/keys.json: { level: [normalised join keys] } for every level
+    whose geometry exists. Powers value-based geo-level resolution in the app
+    (lib/choropleth.ts resolveGeoJoin) — far smaller than loading geometries.
+    """
+    index: dict[str, list[str]] = {}
+    for level, fields in LEVEL_KEY_FIELDS.items():
+        path = os.path.join(OUT_DIR, f"{level}.geojson")
+        if not os.path.exists(path):
+            continue
+        with open(path, encoding="utf-8") as fh:
+            data = json.load(fh)
+        keys: set[str] = set()
+        for feat in data["features"]:
+            props = feat.get("properties") or {}
+            for field in fields:
+                k = _normalise_key(props.get(field))
+                if k:
+                    keys.add(k)
+        index[level] = sorted(keys)
+    dest = os.path.join(OUT_DIR, "keys.json")
+    with open(dest, "w", encoding="utf-8") as fh:
+        json.dump(index, fh, ensure_ascii=False, separators=(",", ":"))
+    kb = os.path.getsize(dest) // 1024
+    counts = ", ".join(f"{lvl} {len(v)}" for lvl, v in index.items())
+    print(f"  wrote keys.json: {kb} KB ({counts})")
+
+
 def _write(gdf: gpd.GeoDataFrame, filename: str) -> None:
     dest = os.path.join(OUT_DIR, filename)
     geojson = json.loads(gdf.to_json())
@@ -155,6 +212,8 @@ def main() -> None:
     build_provinces(tmp)
     print("Building comuni.geojson …")
     build_municipalities(tmp)
+    print("Building keys.json …")
+    build_keys_index()
     print("Done.")
 
 

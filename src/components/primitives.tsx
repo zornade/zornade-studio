@@ -62,14 +62,17 @@ export function SoonBadge() {
 
 export function Field({
   label,
+  hint,
   children,
 }: {
   label: string;
+  hint?: string;
   children: ReactNode;
 }) {
   return (
     <label className="block space-y-1.5">
       <span className="text-xs font-medium text-slate-600">{label}</span>
+      {hint && <span className="block text-xs font-normal text-slate-400">{hint}</span>}
       {children}
     </label>
   );

@@ -31,7 +31,10 @@ import {
   GEO_LEVELS,
   detectGeoLevel,
   detectKeyColumn,
+  resolveGeoJoin,
+  type GeoLevel,
 } from "../../lib/choropleth";
+import { loadGeoKeys } from "../../lib/geo-keys";
 import {
   catalogApiAvailable,
   searchCkan,
@@ -47,32 +50,52 @@ type DataMode = "home" | "catalog" | "own";
 /**
  * Parse CSV text into a ready DatasetState, or return a human error message.
  * Shared by file upload and the live catalogue loader.
+ *
+ * Geo level + key column are resolved by matching actual values against the
+ * real geometry keys ({@link resolveGeoJoin}); name-based detection is only a
+ * fallback when the keys index is unavailable.
  */
-function buildDatasetFromCsv(
+async function buildDatasetFromCsv(
   text: string,
   fileName: string,
-): { dataset: DatasetState } | { error: string } {
+): Promise<{ dataset: DatasetState } | { error: string }> {
   const { columns, rows } = parseCsv(text);
   if (columns.length === 0 || rows.length === 0) {
     return { error: "Il file sembra vuoto o non leggibile." };
   }
-  const geoLevel = detectGeoLevel(columns);
-  if (!geoLevel) {
-    return {
-      error:
-        "Nessuna colonna geografica riconosciuta (es. codice_istat, sigla, comune).",
-    };
+
+  let geoLevel: GeoLevel;
+  let keyColumn: string;
+
+  const keys = await loadGeoKeys();
+  const resolved =
+    Object.keys(keys).length > 0 ? resolveGeoJoin(columns, rows, keys) : null;
+
+  if (resolved) {
+    geoLevel = resolved.level;
+    keyColumn = resolved.keyColumn;
+  } else {
+    // Fallback: name-based detection (keys index unavailable).
+    const detected = detectGeoLevel(columns);
+    if (!detected) {
+      return {
+        error:
+          "Nessuna colonna geografica riconosciuta (es. codice_istat, sigla, comune).",
+      };
+    }
+    if (!GEO_LEVELS[detected].ready) {
+      const ready = Object.values(GEO_LEVELS)
+        .filter((l) => l.ready)
+        .map((l) => l.label)
+        .join(", ");
+      return {
+        error: `Livello “${GEO_LEVELS[detected].label}” riconosciuto, ma la geometria non è ancora disponibile. Per ora: ${ready}.`,
+      };
+    }
+    geoLevel = detected;
+    keyColumn = detectKeyColumn(detected, columns)!;
   }
-  if (!GEO_LEVELS[geoLevel].ready) {
-    const ready = Object.values(GEO_LEVELS)
-      .filter((l) => l.ready)
-      .map((l) => l.label)
-      .join(", ");
-    return {
-      error: `Livello “${GEO_LEVELS[geoLevel].label}” riconosciuto, ma la geometria non è ancora disponibile. Per ora: ${ready}.`,
-    };
-  }
-  const keyColumn = detectKeyColumn(geoLevel, columns)!;
+
   const numericColumns = detectNumericColumns(columns, rows).filter(
     (c) => c !== keyColumn,
   );
@@ -454,7 +477,7 @@ function LiveDatasetCard({ dataset }: { dataset: CkanDataset }) {
     setError(null);
     try {
       const text = await fetchResourceText(r.url);
-      const out = buildDatasetFromCsv(text, r.name || dataset.title);
+      const out = await buildDatasetFromCsv(text, r.name || dataset.title);
       if ("error" in out) {
         setError(out.error);
         return;
@@ -698,7 +721,7 @@ function UploadSource() {
       return;
     }
     const text = await file.text();
-    const out = buildDatasetFromCsv(text, file.name);
+    const out = await buildDatasetFromCsv(text, file.name);
     if ("error" in out) {
       setError(out.error);
       return;
