@@ -424,9 +424,16 @@ L'utente incolla **host / utente / password** (credenziali read-only generate a 
 ### Onda 1 — Fondamenta (in corso)
 - **O1.1** ✅ Basemap PMTiles + sistema flavor + tinta brand
 - **O1.2** ✅ Shell frontend (stepper Dati→Visualizza→Design→Pubblica, UX pulita, font Zornade)
-- **O1.3** Coropletica da CSV con geo-join client-side (CAP/comune/provincia) + tooltip,
-   con **metodi di classificazione** (quantile/Jenks/intervalli/manuali), legenda a gradini e gestione no-data
-- **O1.4** Titolo/sottotitolo/nota fonte + formattazione numeri IT
+- **O1.3** Coropletica da CSV con geo-join client-side + tooltip, con **metodi di classificazione**
+   (quantile/Jenks/intervalli/manuali), legenda a gradini e gestione no-data. **Geometrie attive
+   (`public/geo/`, generate da `scripts/build_geo.py`): Paesi** (177, Natural Earth 1:110m,
+   **pubblico dominio**; join per nome IT/EN, ISO-A3 o ISO-A2), **Regioni** (20), **Province** (107) e
+   **Comuni** (7.899) italiani (openpolis/geojson-italy, **CC-BY-4.0**, dati © ISTAT; join per nome,
+   sigla o codice ISTAT). Il join (`joinChoropleth`) prova in ordine **codice → nome → alias**.
+   *(L'attribuzione CC-BY ISTAT va riportata negli embed che usano regioni/province/comuni.)*
+- **O1.4** Titolo/sottotitolo/nota fonte + formattazione numeri IT. **Fatto in parte**: caricando una
+   **fonte di catalogo pronta**, titolo/sottotitolo/nota-fonte di default ereditano titolo/descrizione/ente
+   del dataset (editabili nel passo Design).
 - **O1.5** Embed iframe statico + export PNG
 
 ### Onda 2 — Dati & punti

@@ -9,7 +9,7 @@
 
 import { parseNumber } from "./csv";
 
-export type GeoLevel = "regioni" | "province" | "comuni";
+export type GeoLevel = "paesi" | "regioni" | "province" | "comuni";
 
 export interface GeoLevelDef {
   id: GeoLevel;
@@ -20,6 +20,11 @@ export interface GeoLevelDef {
   joinField: string;
   /** Feature property holding the human-readable name. */
   nameField: string;
+  /**
+   * Extra feature properties that may also carry a join key (e.g. an alternate
+   * code like ISO-A2 alongside the primary ISO-A3). Matched after code + name.
+   */
+  aliasFields?: string[];
   /** CSV column names that, if present, signal this level (case-insensitive). */
   keyHints: string[];
   /** Whether the bundled geometry is available. */
@@ -27,6 +32,27 @@ export interface GeoLevelDef {
 }
 
 export const GEO_LEVELS: Record<GeoLevel, GeoLevelDef> = {
+  paesi: {
+    id: "paesi",
+    label: "Paesi",
+    url: "/geo/paesi.geojson",
+    joinField: "iso_a3",
+    nameField: "name",
+    aliasFields: ["iso_a2", "name_en"],
+    keyHints: [
+      "iso_a3",
+      "iso_a2",
+      "iso",
+      "iso3",
+      "iso2",
+      "codice_iso",
+      "paese",
+      "nazione",
+      "stato",
+      "country",
+    ],
+    ready: true,
+  },
   regioni: {
     id: "regioni",
     label: "Regioni",
@@ -42,8 +68,9 @@ export const GEO_LEVELS: Record<GeoLevel, GeoLevelDef> = {
     url: "/geo/province.geojson",
     joinField: "prov_acr",
     nameField: "prov_name",
+    aliasFields: ["prov_istat_code"],
     keyHints: ["sigla", "prov_acr", "provincia", "targa"],
-    ready: false,
+    ready: true,
   },
   comuni: {
     id: "comuni",
@@ -51,8 +78,9 @@ export const GEO_LEVELS: Record<GeoLevel, GeoLevelDef> = {
     url: "/geo/comuni.geojson",
     joinField: "com_istat_code",
     nameField: "com_name",
-    keyHints: ["com_istat_code", "pro_com", "comune"],
-    ready: false,
+    aliasFields: ["com_istat_code_num"],
+    keyHints: ["com_istat_code", "pro_com", "comune", "codice_comune"],
+    ready: true,
   },
 };
 
@@ -184,19 +212,23 @@ export function joinChoropleth(params: JoinParams): JoinResult {
 
   const features = geojson.features.map((f) => {
     const props = (f.properties as Record<string, unknown>) ?? {};
-    // Match the CSV key against either the code field (e.g. ISTAT code) or the
-    // human-readable name field, so name-based datasets join as readily as
-    // code-based ones.
-    const codeKey = normaliseKey(props[def.joinField] as string);
-    const nameKey = normaliseKey(props[def.nameField] as string);
+    // Match the CSV key against the code field, then the human-readable name,
+    // then any alternate code (alias) field — so a dataset keyed by ISO-A3,
+    // ISO-A2, full name, province code or acronym all join equally well.
+    const candidates = [
+      props[def.joinField],
+      props[def.nameField],
+      ...(def.aliasFields ?? []).map((field) => props[field]),
+    ];
     let matchedKey = "";
     let value: number | undefined;
-    if (valueByKey.has(codeKey)) {
-      matchedKey = codeKey;
-      value = valueByKey.get(codeKey);
-    } else if (valueByKey.has(nameKey)) {
-      matchedKey = nameKey;
-      value = valueByKey.get(nameKey);
+    for (const candidate of candidates) {
+      const key = normaliseKey(candidate as string);
+      if (key !== "" && valueByKey.has(key)) {
+        matchedKey = key;
+        value = valueByKey.get(key);
+        break;
+      }
     }
     const properties = { ...props };
     if (value != null) {

@@ -40,7 +40,7 @@ import {
   type CkanDataset,
   type CkanResource,
 } from "../../lib/catalog-api";
-import type { DatasetState } from "../../studio/types";
+import type { DatasetState, ProjectMeta } from "../../studio/types";
 
 type DataMode = "home" | "catalog" | "own";
 
@@ -64,8 +64,12 @@ function buildDatasetFromCsv(
     };
   }
   if (!GEO_LEVELS[geoLevel].ready) {
+    const ready = Object.values(GEO_LEVELS)
+      .filter((l) => l.ready)
+      .map((l) => l.label)
+      .join(", ");
     return {
-      error: `Livello “${GEO_LEVELS[geoLevel].label}” riconosciuto, ma la geometria non è ancora disponibile. Per ora: Regioni.`,
+      error: `Livello “${GEO_LEVELS[geoLevel].label}” riconosciuto, ma la geometria non è ancora disponibile. Per ora: ${ready}.`,
     };
   }
   const keyColumn = detectKeyColumn(geoLevel, columns)!;
@@ -86,6 +90,28 @@ function buildDatasetFromCsv(
       numericColumns,
     },
   };
+}
+
+/**
+ * Use a ready catalogue dataset's own title/description as the default project
+ * title/subtitle (and publisher as the source line). The subtitle is trimmed to
+ * keep map overlays readable; everything stays editable in the Design step.
+ */
+function applyDatasetMeta(
+  updateProject: (patch: Partial<ProjectMeta>) => void,
+  dataset: CkanDataset,
+): void {
+  const patch: Partial<ProjectMeta> = {};
+  const title = dataset.title?.trim();
+  if (title) patch.title = title;
+  const subtitle = dataset.notes?.trim();
+  if (subtitle) {
+    patch.subtitle =
+      subtitle.length > 160 ? `${subtitle.slice(0, 157).trimEnd()}…` : subtitle;
+  }
+  const publisher = dataset.publisher?.trim();
+  if (publisher) patch.source = `Fonte: ${publisher} · Fatto con Zornade Studio`;
+  if (Object.keys(patch).length > 0) updateProject(patch);
 }
 
 export function DataPanel() {
@@ -412,7 +438,7 @@ function LiveCatalog({ onBack }: { onBack: () => void }) {
 }
 
 function LiveDatasetCard({ dataset }: { dataset: CkanDataset }) {
-  const { setData, setStep } = useStudio();
+  const { setData, setStep, updateProject } = useStudio();
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -434,6 +460,9 @@ function LiveDatasetCard({ dataset }: { dataset: CkanDataset }) {
         return;
       }
       setData(out.dataset);
+      // A ready catalogue source carries its own title/description: use them as
+      // the default project title/subtitle (still editable in the Design step).
+      applyDatasetMeta(updateProject, dataset);
       setStep("visualize");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Caricamento fallito.");
