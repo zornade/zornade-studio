@@ -8,11 +8,28 @@
 #   STUDIO_USER            the username
 #   STUDIO_PASS_SHA256     hex SHA-256 of the password
 #   STUDIO_SESSION_SECRET  long random string for signing session cookies
+#   SPACES_KEY             DigitalOcean Spaces access key (publish)
+#   SPACES_SECRET          DigitalOcean Spaces secret key (publish)
+#   SPACES_BUCKET          "zornade-studio-embed"
+#   SPACES_REGION          "fra1"
+# Optional: EMBED_BASE_URL (default https://studio.zornade.com),
+#           EMBED_GEO_BASE (default https://studio.zornade.com/geo)
 
 [build]
   command = "npm run build"
   publish = "dist"
   functions = "netlify/functions"
+
+# Published embeds live on DigitalOcean Spaces (bucket "zornade-studio-embed",
+# region fra1) but are served behind the Zornade domain via this proxy, so an
+# already-published embed keeps working even if storage later moves (e.g. to
+# self-hosted Garage). The reader sees studio.zornade.com/embed/… with Netlify's
+# TLS; the bytes come from the Spaces CDN. Must precede the SPA fallback.
+[[redirects]]
+  from = "/embed/*"
+  to = "https://zornade-studio-embed.fra1.cdn.digitaloceanspaces.com/embed/:splat"
+  status = 200
+  force = true
 
 # SPA fallback: serve index.html for client routes (but not /api/* which the
 # functions handle via their own config.path).

@@ -15,8 +15,10 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "^3.1068.0",
     "@maplibre/maplibre-gl-style-spec": "^23.3.0",
     "@protomaps/basemaps": "^5.6.0",
+    "html-to-image": "^1.11.13",
     "lucide-react": "^1.17.0",
     "maplibre-gl": "^4.7.1",
     "pmtiles": "^4.3.0",

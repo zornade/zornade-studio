@@ -108,7 +108,8 @@ Dallo schema PostGIS/Supabase reale. Tutto interrogabile in sola lettura (creden
 
 ### 1.7 Pubblicazione & export
 - Embed responsive (iframe + resizer no-GPL) + varianti mobile dedicate
-- Snapshot statico immutabile su R2/CDN ("funziona per sempre")
+- Snapshot statico immutabile su **DO Spaces (CDN)** dietro dominio Zornade ("funziona per sempre";
+  decisione 2026-06-15, vedi STRATEGIA §6.5 — self-hosting Garage più avanti)
 - oEmbed (WordPress)
 - Export PNG / SVG / PDF + grafica social / poster / alta risoluzione per stampa
 - Export animazione GIF / MP4
@@ -424,17 +425,34 @@ L'utente incolla **host / utente / password** (credenziali read-only generate a 
 ### Onda 1 — Fondamenta (in corso)
 - **O1.1** ✅ Basemap PMTiles + sistema flavor + tinta brand
 - **O1.2** ✅ Shell frontend (stepper Dati→Visualizza→Design→Pubblica, UX pulita, font Zornade)
-- **O1.3** Coropletica da CSV con geo-join client-side + tooltip, con **metodi di classificazione**
-   (quantile/Jenks/intervalli/manuali), legenda a gradini e gestione no-data. **Geometrie attive
+- **O1.3** ✅ Coropletica da CSV con geo-join client-side + tooltip, con **tutti e 4 i metodi di
+   classificazione** (quantile, **natural breaks/Jenks**, intervalli uguali, **soglie manuali**) —
+   `quantileBreaks`/`equalBreaks`/`jenksBreaks`/`manualBreaks` in `lib/choropleth.ts`, testati
+   (`classification.test.ts`); legenda a gradini e gestione no-data. **Geometrie attive
    (`public/geo/`, generate da `scripts/build_geo.py`): Paesi** (177, Natural Earth 1:110m,
    **pubblico dominio**; join per nome IT/EN, ISO-A3 o ISO-A2), **Regioni** (20), **Province** (107) e
    **Comuni** (7.899) italiani (openpolis/geojson-italy, **CC-BY-4.0**, dati © ISTAT; join per nome,
    sigla o codice ISTAT). Il join (`joinChoropleth`) prova in ordine **codice → nome → alias**.
    *(L'attribuzione CC-BY ISTAT va riportata negli embed che usano regioni/province/comuni.)*
-- **O1.4** Titolo/sottotitolo/nota fonte + formattazione numeri IT. **Fatto in parte**: caricando una
-   **fonte di catalogo pronta**, titolo/sottotitolo/nota-fonte di default ereditano titolo/descrizione/ente
-   del dataset (editabili nel passo Design).
-- **O1.5** Embed iframe statico + export PNG
+- **O1.4** ✅ Titolo/sottotitolo/nota fonte + **formattazione numeri IT** (`Intl.NumberFormat("it-IT")`
+   in legenda e tooltip). Editabili nel passo Design; default automatici: da **fonte di catalogo**
+   (titolo/descrizione/ente del dataset) e, per i **file caricati**, dal **nome file** (`titleFromFileName`,
+   ignora nomi opachi tipo UUID).
+- **O1.5** **Export PNG** ✅ (client-side): `PublishPanel` esporta la mappa viva con gli overlay
+   (titolo/legenda/fonte) via **`html-to-image`** (MIT, caricata **lazy**), `preserveDrawingBuffer: true`
+   su MapLibre per leggere il canvas WebGL; nodo mappa esposto da `MapCanvas` tramite `exportNodeRef`
+   nel contesto. *(Da fare: smoke-test visivo in browser.)*
+   **Embed snapshot — implementato ✅, da attivare con le credenziali.** `lib/spec.ts` (`buildSpec`:
+   serializzazione **spec-driven** versionata e deterministica) + `lib/publish-key.ts` (path
+   **content-addressed** `embed/{slug}/{hash}` → immutabilità) + `lib/embed-html.ts` (embed HTML
+   **self-contained**, MapLibre pinnato, **escaping XSS** testato) + `netlify/functions/publish.mts`
+   (POST `/api/publish` auth-gated → upload `spec.json`+`index.html` su **DO Spaces** via
+   `@aws-sdk/client-s3`) + bottone **“Pubblica”** in `PublishPanel`. **Servizio via proxy Netlify**
+   (`netlify.toml`: `/embed/* → bucket CDN`), perché il DNS è su Netlify e il custom-domain DO
+   richiederebbe la delega NS — così l'embed resta su `studio.zornade.com` con TLS Netlify, byte dal
+   CDN Spaces. **Da fare (operativo):** creare il bucket `zornade-studio-embed` (fra1, CDN, public-read),
+   generare le Spaces access key e impostare le env su Netlify (`SPACES_KEY/SECRET/BUCKET/REGION`), poi
+   smoke-test. Self-hosting **Garage** (AGPL) più avanti — vedi STRATEGIA §6.5.
 
 ### Onda 2 — Dati & punti
 - **O2.1** ✅ **Pipeline di profilazione + compatibilità viz** (§1.12). `lib/profile.ts`

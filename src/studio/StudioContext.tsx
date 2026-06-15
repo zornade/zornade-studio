@@ -2,7 +2,9 @@ import {
   createContext,
   useContext,
   useMemo,
+  useRef,
   useState,
+  type MutableRefObject,
   type ReactNode,
 } from "react";
 import { PRESETS, type NewsroomBrand } from "../basemap";
@@ -26,6 +28,8 @@ interface StudioContextValue extends StudioState {
   updateBrand: (patch: Partial<NewsroomBrand>) => void;
   updateDesign: (patch: Partial<DesignSettings>) => void;
   setData: (data: DatasetState | null) => void;
+  /** Ref to the map container node, for PNG export (set by MapCanvas). */
+  exportNodeRef: MutableRefObject<HTMLElement | null>;
 }
 
 const StudioContext = createContext<StudioContextValue | null>(null);
@@ -37,6 +41,7 @@ const INITIAL_DESIGN: DesignSettings = {
   basemap: "ofm-positron",
   colorScale: "teal-seq",
   classification: "quantile",
+  manualBreaks: [],
   legendType: "steps",
   nClasses: 5,
   valueLabel: "",
@@ -61,6 +66,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   const [brand, setBrand] = useState<NewsroomBrand>(INITIAL_BRAND);
   const [design, setDesign] = useState<DesignSettings>(INITIAL_DESIGN);
   const [data, setData] = useState<DatasetState | null>(null);
+  const exportNodeRef = useRef<HTMLElement | null>(null);
 
   const value = useMemo<StudioContextValue>(
     () => ({
@@ -96,6 +102,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       },
       updateDesign: (patch) => setDesign((d) => ({ ...d, ...patch })),
       setData,
+      exportNodeRef,
     }),
     [step, project, dataSource, vizType, preset, brand, design, data],
   );

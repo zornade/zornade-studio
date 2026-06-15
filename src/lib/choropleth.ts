@@ -299,6 +299,98 @@ export function equalBreaks(values: number[], nClasses: number): ClassBreaks {
   return { breaks: ascendingUnique(raw), min, max };
 }
 
+/**
+ * Natural breaks (Fisher–Jenks) — minimises within-class variance, the method
+ * cartographers expect for "natural breaks". Uses the classic dynamic-program;
+ * for large inputs the sorted values are down-sampled to {@link JENKS_MAX} to
+ * keep it fast (breaks computed on a representative subsample are virtually
+ * identical to the full result, and far cheaper than the O(k·n²) full run on
+ * thousands of comuni).
+ */
+const JENKS_MAX = 600;
+export function jenksBreaks(values: number[], nClasses: number): ClassBreaks {
+  const sorted = [...values].sort((a, b) => a - b);
+  const min = sorted[0] ?? 0;
+  const max = sorted[sorted.length - 1] ?? 0;
+
+  // Down-sample (keeping the extremes) when there are too many points.
+  let data = sorted;
+  if (sorted.length > JENKS_MAX) {
+    const step = (sorted.length - 1) / (JENKS_MAX - 1);
+    data = [];
+    for (let i = 0; i < JENKS_MAX; i++) data.push(sorted[Math.round(i * step)]);
+  }
+
+  const n = data.length;
+  const k = Math.min(nClasses, n);
+  if (k <= 1) return { breaks: [], min, max };
+  if (k >= n) return { breaks: ascendingUnique(data.slice(1)), min, max };
+
+  // Dynamic programming matrices (1-indexed).
+  const lowerClass: number[][] = Array.from({ length: n + 1 }, () =>
+    new Array(k + 1).fill(0),
+  );
+  const variance: number[][] = Array.from({ length: n + 1 }, () =>
+    new Array(k + 1).fill(Infinity),
+  );
+  for (let i = 1; i <= k; i++) {
+    lowerClass[1][i] = 1;
+    variance[1][i] = 0;
+  }
+
+  for (let l = 2; l <= n; l++) {
+    let sum = 0;
+    let sumSq = 0;
+    let count = 0;
+    for (let m = 1; m <= l; m++) {
+      const lower = l - m + 1; // index of the value entering the window
+      const val = data[lower - 1];
+      count++;
+      sum += val;
+      sumSq += val * val;
+      const v = sumSq - (sum * sum) / count; // variance × count of the window
+      const i4 = lower - 1;
+      if (i4 !== 0) {
+        for (let j = 2; j <= k; j++) {
+          if (variance[l][j] >= v + variance[i4][j - 1]) {
+            lowerClass[l][j] = lower;
+            variance[l][j] = v + variance[i4][j - 1];
+          }
+        }
+      }
+    }
+    lowerClass[l][1] = 1;
+    variance[l][1] = sumSq - (sum * sum) / count;
+  }
+
+  // Back-track the class lower bounds into break values.
+  const raw: number[] = [];
+  let kk = k;
+  let idx = n;
+  while (kk > 1) {
+    const id = lowerClass[idx][kk] - 2;
+    raw.push(data[id + 1]);
+    idx = lowerClass[idx][kk] - 1;
+    kk--;
+  }
+  raw.reverse();
+  return { breaks: ascendingUnique(raw), min, max };
+}
+
+/**
+ * Manual class breaks: the operator supplies the thresholds explicitly. Invalid
+ * or out-of-order entries are sanitised (ascending, deduped); empty → no
+ * classes (single colour). `min`/`max` come from the data for the legend.
+ */
+export function manualBreaks(values: number[], thresholds: number[]): ClassBreaks {
+  const min = values.length ? Math.min(...values) : 0;
+  const max = values.length ? Math.max(...values) : 0;
+  const clean = ascendingUnique(
+    thresholds.filter((t) => Number.isFinite(t)).sort((a, b) => a - b),
+  );
+  return { breaks: clean, min, max };
+}
+
 /** Keep only strictly ascending values (drops duplicates that would break a
  * MapLibre `step` expression, which requires strictly ascending stops). */
 function ascendingUnique(values: number[]): number[] {
@@ -329,6 +421,8 @@ export interface JoinParams {
   valueColumn: string;
   nClasses: number;
   method: string;
+  /** Thresholds used when method === "manual". */
+  manualBreaks?: number[];
 }
 
 /**
@@ -395,7 +489,11 @@ export function joinChoropleth(params: JoinParams): JoinResult {
       ? { breaks: [], min: 0, max: 0 }
       : method === "equal"
         ? equalBreaks(values, nClasses)
-        : quantileBreaks(values, nClasses);
+        : method === "jenks"
+          ? jenksBreaks(values, nClasses)
+          : method === "manual"
+            ? manualBreaks(values, params.manualBreaks ?? [])
+            : quantileBreaks(values, nClasses);
 
   return {
     geojson: { type: "FeatureCollection", features },

@@ -28,6 +28,8 @@ export interface DesignSettings {
   colorScale: string;
   /** id of the classification method (see CLASSIFICATION_METHODS). */
   classification: string;
+  /** Manual class thresholds, used when classification === "manual". */
+  manualBreaks: number[];
   /** id of the legend type (see LEGEND_TYPES). */
   legendType: string;
   /** Number of classes for the choropleth (capped at distinct values). */

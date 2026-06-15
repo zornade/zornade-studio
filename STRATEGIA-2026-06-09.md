@@ -240,7 +240,22 @@ legenda, tooltip, formattazione numeri/date in italiano, annotazioni, dimensioni
 
 ### 6.5 Embed "a prova di futuro" + attribuzione
 
-- Embed = **snapshot statico** (HTML + asset) su **R2/CDN**, versionato/immutabile.
+> **Decisione storage (2026-06-15): DigitalOcean Spaces ora → self-hosting (Garage) più avanti.**
+> Spaces è **già nello stack** (vedi `grafana/terraform/`: bucket/policy/CORS in regione **fra1**, UE,
+> con pattern Terraform riutilizzabili) → zero nuovi vendor. È **S3-compatibile con CDN incluso**:
+> **$5/mese** = 250 GiB storage **+ 1 TiB di egress incluso**, poi **$0,01/GiB**. Stima: l'embed serve
+> solo HTML+JS (~320 KB gz, cacheato) + il GeoJSON della singola mappa (~0,2–0,5 MB) — la **basemap
+> resta esterna** (OpenFreeMap) → ~0,5–1 MB/visualizzazione → **~1–2 milioni di view/mese** dentro il
+> TiB incluso. **L'egress è ampiamente coperto** alla scala editoriale prevista. Poiché Spaces è
+> S3-compatibile, la migrazione futura a **Garage** (AGPL, europeo, self-host) è a basso costo.
+> **Salvaguardia non negoziabile**: gli embed puntano sempre a un **dominio Zornade**
+> (es. `studio.zornade.com/embed/…` o `maps.zornade.com`), **mai** all'URL grezzo del provider, così
+> cambiare storage non rompe un solo embed già pubblicato. *(Avvertenza: quando si self-hosterà la
+> **basemap PMTiles**, quei tile pesanti sposteranno l'egress — è il momento giusto per passare al
+> self-hosting.)*
+
+- Embed = **snapshot statico** (HTML + asset) su **DO Spaces (CDN)**, versionato/immutabile, dietro
+  dominio Zornade.
 - Resize responsive con **pym.js (MIT)** o mini-resizer `postMessage` (evita la GPL di iframe-resizer v5).
 - **oEmbed** per i CMS (WordPress di Altreconomia): incolli l'URL e l'embed appare.
 - **Fallback statico SVG/PNG** dalla stessa spec (email, stampa, SEO, no-JS).
@@ -292,9 +307,10 @@ margine ricorrente arriva dai **retainer**.
 
 - **Artefatti statici su CDN**: gli embed sono per lo più file statici cache-abili → scala senza
   costi server per-richiesta.
-- **Mappe a costo marginale ~zero**: PMTiles su R2 (niente fatture per "map views").
-- **Riuso** dell'infrastruttura esistente (`app/`): Supabase/Postgres/PostGIS, R2, React/Vite,
-  design system shadcn/Tailwind.
+- **Mappe a costo marginale ~basso**: file statici su **DO Spaces** (1 TiB egress incluso, poi
+  $0,01/GiB) → nessuna fattura per "map views" alla scala prevista; la basemap resta esterna.
+- **Riuso** dell'infrastruttura esistente: Supabase/Postgres/PostGIS, **DigitalOcean (Spaces + Droplet,
+  vedi `grafana/`)**, React/Vite, design system shadcn/Tailwind.
 - **Estensione additiva** grazie all'architettura spec-driven.
 
 ---

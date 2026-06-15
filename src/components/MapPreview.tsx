@@ -151,6 +151,8 @@ export function MapPreview({
       center: INITIAL_CENTER,
       zoom: INITIAL_ZOOM,
       attributionControl: false,
+      // Required so the WebGL canvas can be read back for PNG export (O1.5).
+      preserveDrawingBuffer: true,
     });
     const nav = new maplibregl.NavigationControl({ showCompass: false });
     navControlRef.current = nav;

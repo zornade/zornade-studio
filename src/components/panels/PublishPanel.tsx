@@ -16,8 +16,14 @@ import { useStudio } from "../../studio/StudioContext";
 import { PanelSection, Button, SoonBadge } from "../primitives";
 
 export function PublishPanel() {
-  const { project } = useStudio();
+  const studio = useStudio();
+  const { project, data, exportNodeRef } = studio;
   const [copied, setCopied] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
+  const [publishing, setPublishing] = useState(false);
+  const [publishError, setPublishError] = useState<string | null>(null);
+  const [publishedUrl, setPublishedUrl] = useState<string | null>(null);
 
   const slug =
     project.title
@@ -27,7 +33,85 @@ export function PublishPanel() {
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/(^-|-$)/g, "") || "mappa";
 
-  const embed = `<!--
+  /** Build the spec, send it to /api/publish, and keep the immutable URL. */
+  const publish = async () => {
+    setPublishing(true);
+    setPublishError(null);
+    try {
+      const { buildSpec } = await import("../../lib/spec");
+      const out = buildSpec({
+        step: studio.step,
+        project: studio.project,
+        dataSource: studio.dataSource,
+        vizType: studio.vizType,
+        preset: studio.preset,
+        brand: studio.brand,
+        design: studio.design,
+        data: studio.data,
+      });
+      if ("error" in out) {
+        setPublishError(out.error);
+        return;
+      }
+      const res = await fetch("/api/publish", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ spec: out.spec }),
+      });
+      const body = (await res.json().catch(() => ({}))) as {
+        url?: string;
+        error?: string;
+      };
+      if (!res.ok || !body.url) {
+        setPublishError(body.error ?? `Pubblicazione fallita (${res.status}).`);
+        return;
+      }
+      setPublishedUrl(body.url);
+    } catch (e) {
+      setPublishError(
+        e instanceof Error ? `Pubblicazione fallita: ${e.message}` : "Errore di rete.",
+      );
+    } finally {
+      setPublishing(false);
+    }
+  };
+
+  /** Export the live map (with title/legend/source overlays) as a PNG. */
+  const exportPng = async () => {
+    const node = exportNodeRef.current;
+    if (!node) {
+      setExportError("Apri prima la mappa (passo Dati).");
+      return;
+    }
+    setExporting(true);
+    setExportError(null);
+    try {
+      // Lazy-load html-to-image so it isn't in the initial bundle.
+      const { toPng } = await import("html-to-image");
+      const dataUrl = await toPng(node, {
+        pixelRatio: 2,
+        cacheBust: true,
+        // The map tiles are same-origin/CORS-enabled; skip nodes that taint the
+        // canvas just in case (defensive — keeps the export from failing hard).
+        filter: (el) =>
+          !(el instanceof HTMLElement && el.dataset.exportIgnore === "true"),
+      });
+      const a = document.createElement("a");
+      a.href = dataUrl;
+      a.download = `${slug}.png`;
+      a.click();
+    } catch (e) {
+      setExportError(
+        e instanceof Error ? `Export fallito: ${e.message}` : "Export fallito.",
+      );
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  // The embed snippet only makes sense once a real, immutable URL exists.
+  const embed = publishedUrl
+    ? `<!--
   Mappa realizzata con Zornade Studio — https://zornade.com/studio
   ATTRIBUZIONE OBBLIGATORIA. Questa mappa contiene dati © OpenStreetMap (licenza
   ODbL) ed elaborazioni proprietarie Zornade. Il mantenimento dei crediti e del
@@ -36,13 +120,15 @@ export function PublishPanel() {
   Non rimuovere né nascondere questo blocco e la didascalia sottostante.
 -->
 <figure style="margin:0">
-  <iframe src="https://studio.zornade.com/embed/${slug}" width="100%" height="520" frameborder="0" scrolling="no" title="${project.title}" loading="lazy"></iframe>
+  <iframe src="${publishedUrl}" width="100%" height="520" frameborder="0" scrolling="no" title="${project.title}" loading="lazy"></iframe>
   <figcaption style="font:13px/1.45 system-ui,-apple-system,sans-serif;color:#475569;margin-top:6px">
-    <a href="https://zornade.com/mappe/${slug}/" target="_blank" rel="noopener">${project.title} — Mappa di Zornade</a> · Dati © OpenStreetMap
+    <a href="${publishedUrl}" target="_blank" rel="noopener">${project.title} — Mappa di Zornade</a> · Dati © OpenStreetMap
   </figcaption>
-</figure>`;
+</figure>`
+    : "";
 
   const copy = () => {
+    if (!embed) return;
     navigator.clipboard?.writeText(embed);
     setCopied(true);
     setTimeout(() => setCopied(false), 1600);
@@ -51,27 +137,53 @@ export function PublishPanel() {
   return (
     <div className="space-y-6">
       <PanelSection
-        title="Incorpora"
-        hint="Codice responsive da incollare nel tuo articolo."
+        title="Pubblica & incorpora"
+        hint="Genera uno snapshot immutabile e ottieni il codice da incollare."
       >
-        <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-          <code className="block whitespace-pre-wrap break-all font-mono text-xs text-slate-600">
-            {embed}
-          </code>
-        </div>
-        <Button variant="primary" onClick={copy} className="w-full">
-          {copied ? <Check size={16} /> : <Copy size={16} />}
-          {copied ? "Copiato!" : "Copia codice embed"}
-        </Button>
-        <p className="text-xs text-slate-500">
-          Lo snapshot statico verrà pubblicato su CDN e resterà raggiungibile in
-          modo permanente.
-        </p>
-        <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700">
-          Lo snippet include i crediti e il link a Zornade: l'attribuzione è
-          richiesta dalle licenze dei dati (ODbL di OpenStreetMap) e dai Termini
-          di servizio. Non va rimossa.
-        </p>
+        <button
+          onClick={publish}
+          disabled={!data || publishing}
+          className={`flex w-full items-center justify-center gap-2 rounded-xl border py-3 text-sm font-medium transition-colors ${
+            !data || publishing
+              ? "cursor-not-allowed border-slate-200 bg-slate-50 text-slate-400"
+              : "border-zornade bg-zornade text-white hover:opacity-90"
+          }`}
+        >
+          {publishing ? "Pubblico…" : publishedUrl ? "Ripubblica" : "Pubblica mappa"}
+        </button>
+        {publishError && (
+          <p className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700">
+            {publishError}
+          </p>
+        )}
+        {!data && (
+          <p className="text-xs text-slate-500">
+            Carica i dati e scegli la mappa prima di pubblicare.
+          </p>
+        )}
+
+        {publishedUrl && (
+          <>
+            <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+              <code className="block whitespace-pre-wrap break-all font-mono text-xs text-slate-600">
+                {embed}
+              </code>
+            </div>
+            <Button variant="primary" onClick={copy} className="w-full">
+              {copied ? <Check size={16} /> : <Copy size={16} />}
+              {copied ? "Copiato!" : "Copia codice embed"}
+            </Button>
+            <p className="text-xs text-slate-500">
+              Snapshot statico immutabile su CDN: questo URL resta raggiungibile
+              in modo permanente e non cambia se in seguito modifichi il progetto.
+            </p>
+            <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700">
+              Lo snippet include i crediti e il link a Zornade: l'attribuzione è
+              richiesta dalle licenze dei dati (ODbL di OpenStreetMap) e dai
+              Termini di servizio. Non va rimossa.
+            </p>
+          </>
+        )}
         <label className="flex items-center gap-2 text-sm text-slate-600">
           <input type="checkbox" disabled className="h-4 w-4 rounded accent-zornade" />
           Genera variante mobile dedicata
@@ -81,9 +193,30 @@ export function PublishPanel() {
       </PanelSection>
 
       <PanelSection title="Esporta">
+        <button
+          onClick={exportPng}
+          disabled={!data || exporting}
+          className={`flex w-full items-center justify-center gap-2 rounded-xl border py-3 text-sm font-medium transition-colors ${
+            !data || exporting
+              ? "cursor-not-allowed border-slate-200 bg-slate-50 text-slate-400"
+              : "border-zornade bg-zornade-50 text-zornade-700 hover:bg-zornade-100"
+          }`}
+        >
+          <FileImage size={18} />
+          {exporting ? "Genero PNG…" : "Scarica PNG"}
+        </button>
+        {exportError && (
+          <p className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700">
+            {exportError}
+          </p>
+        )}
+        {!data && (
+          <p className="text-xs text-slate-500">
+            Carica i dati e apri la mappa per esportarla.
+          </p>
+        )}
         <div className="grid grid-cols-3 gap-2">
           {[
-            { label: "PNG", icon: FileImage },
             { label: "SVG", icon: FileCode2 },
             { label: "PDF", icon: FileText },
             { label: "Social", icon: Share2 },
@@ -105,7 +238,7 @@ export function PublishPanel() {
         </div>
         <div className="flex items-center gap-2 text-xs text-slate-500">
           <SoonBadge />
-          Export immagini, social e animazioni in arrivo.
+          Export SVG, social e animazioni in arrivo.
         </div>
       </PanelSection>
 

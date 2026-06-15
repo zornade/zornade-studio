@@ -349,6 +349,28 @@ export function DesignPanel() {
           </select>
         </Field>
 
+        {design.classification === "manual" && (
+          <Field
+            label="Soglie manuali"
+            hint="Valori separati da virgola; decimali col punto (es. 100, 500.5, 1000)."
+          >
+            <input
+              type="text"
+              defaultValue={design.manualBreaks.join(", ")}
+              onChange={(e) =>
+                updateDesign({
+                  manualBreaks: e.target.value
+                    .split(",")
+                    .map((s) => Number(s.trim()))
+                    .filter((n) => Number.isFinite(n)),
+                })
+              }
+              placeholder="es. 100, 500, 1000"
+              className={inputCls}
+            />
+          </Field>
+        )}
+
         <Field label={`Numero di classi · ${design.nClasses}`}>
           <input
             type="range"

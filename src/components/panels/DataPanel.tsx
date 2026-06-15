@@ -35,6 +35,7 @@ import {
   type GeoLevel,
 } from "../../lib/choropleth";
 import { loadGeoKeys } from "../../lib/geo-keys";
+import { readFileSmart } from "../../lib/ingest/decode";
 import {
   catalogApiAvailable,
   searchCkan,
@@ -116,10 +117,21 @@ async function buildDatasetFromCsv(
 }
 
 /**
- * Use a ready catalogue dataset's own title/description as the default project
- * title/subtitle (and publisher as the source line). The subtitle is trimmed to
- * keep map overlays readable; everything stays editable in the Design step.
+ * Derive a human title from a file name: drop the extension, turn separators
+ * into spaces, collapse whitespace and capitalise the first letter. Returns ""
+ * for opaque names (UUID/hex exports) that carry no human signal — detected by
+ * requiring at least one run of 3+ consecutive letters (real words have it,
+ * hex/UUID chunks like "ba5f" do not).
  */
+export function titleFromFileName(fileName: string): string {
+  const base = fileName.replace(/\.[a-z0-9]+$/i, "");
+  const cleaned = base
+    .replace(/[_\-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!/[a-zA-Z]{3,}/.test(cleaned)) return "";
+  return cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
+}
 function applyDatasetMeta(
   updateProject: (patch: Partial<ProjectMeta>) => void,
   dataset: CkanDataset,
@@ -708,7 +720,7 @@ function DataCatalogCard({ entry }: { entry: DataSourceEntry }) {
 }
 
 function UploadSource() {
-  const { data, setData, setStep } = useStudio();
+  const { data, setData, setStep, project, updateProject } = useStudio();
   const [error, setError] = useState<string | null>(null);
 
   const handleFile = async (file: File) => {
@@ -720,13 +732,20 @@ function UploadSource() {
       );
       return;
     }
-    const text = await file.text();
+    // Decode with UTF-8 → Windows-1252 fallback (Italian Excel exports).
+    const { text } = await readFileSmart(file);
     const out = await buildDatasetFromCsv(text, file.name);
     if ("error" in out) {
       setError(out.error);
       return;
     }
     setData(out.dataset);
+    // Default the title from the file name (a CSV has no title metadata), only
+    // if the operator hasn't already set one — never overwrite manual input.
+    if (!project.title || project.title === "Mappa senza titolo") {
+      const t = titleFromFileName(file.name);
+      if (t) updateProject({ title: t });
+    }
     // Don't pre-pick a viz: the next step is the visualization choice, where
     // only compatible options are enabled.
     setStep("visualize");

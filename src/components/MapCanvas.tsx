@@ -14,7 +14,7 @@ import {
 const NO_DATA_COLOR = "#e2e8f0";
 
 export function MapCanvas() {
-  const { project, brand, vizType, design, data } = useStudio();
+  const { project, brand, vizType, design, data, exportNodeRef } = useStudio();
   const flavor = useMemo(() => makeFlavor(brand), [brand]);
 
   const scale =
@@ -53,8 +53,9 @@ export function MapCanvas() {
       valueColumn: data.valueColumn,
       nClasses: design.nClasses,
       method: design.classification,
+      manualBreaks: design.manualBreaks,
     });
-  }, [data, rawGeo, vizType, design.nClasses, design.classification]);
+  }, [data, rawGeo, vizType, design.nClasses, design.classification, design.manualBreaks]);
 
   const valueLabel = (design.valueLabel || data?.valueColumn) ?? "";
 
@@ -89,6 +90,9 @@ export function MapCanvas() {
 
   return (
     <div
+      ref={(node) => {
+        exportNodeRef.current = node;
+      }}
       className={`relative h-full w-full overflow-hidden ${
         hasBasemap ? "bg-slate-100" : "studio-transparent-bg"
       }`}
