@@ -108,6 +108,25 @@ export function detectGeoLevel(columns: string[]): GeoLevel | null {
   return null;
 }
 
+/** Default colour for features with no value (shared by app + embed). */
+export const DEFAULT_NO_DATA_COLOR = "#e2e8f0";
+
+/**
+ * Ordered list of feature properties to try when joining a CSV key onto this
+ * level's geometry: primary code → human name → any alternate code. The app's
+ * join and the embed renderer must use the *same* order to match identically.
+ */
+export function geoJoinFields(level: GeoLevel): {
+  fields: string[];
+  nameField: string;
+} {
+  const def = GEO_LEVELS[level];
+  return {
+    fields: [def.joinField, def.nameField, ...(def.aliasFields ?? [])],
+    nameField: def.nameField,
+  };
+}
+
 /** Pick the CSV column matching this level's key hints. */
 export function detectKeyColumn(
   level: GeoLevel,
@@ -291,12 +310,24 @@ export function quantileBreaks(values: number[], nClasses: number): ClassBreaks 
 
 /** Equal-interval class breaks (strictly ascending, deduped). */
 export function equalBreaks(values: number[], nClasses: number): ClassBreaks {
-  const min = Math.min(...values);
-  const max = Math.max(...values);
+  const [min, max] = minMaxOf(values);
   const step = (max - min) / nClasses;
   const raw: number[] = [];
   for (let i = 1; i < nClasses; i++) raw.push(min + step * i);
   return { breaks: ascendingUnique(raw), min, max };
+}
+
+/** Min/max via a single pass (safe for large arrays, unlike `Math.min(...xs)`
+ * which can overflow the call stack on thousands of comuni). */
+function minMaxOf(values: number[]): [number, number] {
+  let min = Infinity;
+  let max = -Infinity;
+  for (const v of values) {
+    if (v < min) min = v;
+    if (v > max) max = v;
+  }
+  if (!Number.isFinite(min)) return [0, 0];
+  return [min, max];
 }
 
 /**
@@ -383,12 +414,35 @@ export function jenksBreaks(values: number[], nClasses: number): ClassBreaks {
  * classes (single colour). `min`/`max` come from the data for the legend.
  */
 export function manualBreaks(values: number[], thresholds: number[]): ClassBreaks {
-  const min = values.length ? Math.min(...values) : 0;
-  const max = values.length ? Math.max(...values) : 0;
+  const [min, max] = minMaxOf(values);
   const clean = ascendingUnique(
     thresholds.filter((t) => Number.isFinite(t)).sort((a, b) => a - b),
   );
   return { breaks: clean, min, max };
+}
+
+/**
+ * Canonical classification dispatch shared by the live map and the published
+ * embed, so a map always classifies the same way wherever it is rendered.
+ * Empty input → no classes (single colour); unknown method → quantile.
+ */
+export function computeBreaks(
+  values: number[],
+  method: string,
+  nClasses: number,
+  manualThresholds: number[] = [],
+): ClassBreaks {
+  if (values.length === 0) return { breaks: [], min: 0, max: 0 };
+  switch (method) {
+    case "equal":
+      return equalBreaks(values, nClasses);
+    case "jenks":
+      return jenksBreaks(values, nClasses);
+    case "manual":
+      return manualBreaks(values, manualThresholds);
+    default:
+      return quantileBreaks(values, nClasses);
+  }
 }
 
 /** Keep only strictly ascending values (drops duplicates that would break a
@@ -447,6 +501,11 @@ export function joinChoropleth(params: JoinParams): JoinResult {
 
   const matched = new Set<string>();
   let noDataFeatures = 0;
+  // Values actually painted onto a feature. Classification MUST use these, not
+  // every CSV row: an aggregate/total row (e.g. "Italia") or a row whose area
+  // isn't in the geometry would otherwise skew the breaks so that no rendered
+  // feature reaches the top class (the darkest colour would never appear).
+  const renderedValues: number[] = [];
 
   const features = geojson.features.map((f) => {
     const props = (f.properties as Record<string, unknown>) ?? {};
@@ -472,6 +531,7 @@ export function joinChoropleth(params: JoinParams): JoinResult {
     if (value != null) {
       properties.__value = value;
       matched.add(matchedKey);
+      renderedValues.push(value);
     } else {
       delete properties.__value;
       noDataFeatures++;
@@ -483,17 +543,12 @@ export function joinChoropleth(params: JoinParams): JoinResult {
     if (!matched.has(key)) unmatchedCsv.push(key);
   }
 
-  const values = [...valueByKey.values()];
-  const classes =
-    values.length === 0
-      ? { breaks: [], min: 0, max: 0 }
-      : method === "equal"
-        ? equalBreaks(values, nClasses)
-        : method === "jenks"
-          ? jenksBreaks(values, nClasses)
-          : method === "manual"
-            ? manualBreaks(values, params.manualBreaks ?? [])
-            : quantileBreaks(values, nClasses);
+  const classes = computeBreaks(
+    renderedValues,
+    method,
+    nClasses,
+    params.manualBreaks ?? [],
+  );
 
   return {
     geojson: { type: "FeatureCollection", features },
@@ -502,6 +557,35 @@ export function joinChoropleth(params: JoinParams): JoinResult {
     noDataFeatures,
     classes,
   };
+}
+
+/**
+ * Values actually painted onto features, in feature order — i.e. the exact
+ * distribution a choropleth renders for this geometry. Mirrors the join in
+ * {@link joinChoropleth} (same candidate fields + normalisation) but returns
+ * only the numbers, so the publish path can classify on the **same** rendered
+ * values the live editor uses, without re-parsing strings.
+ *
+ * @param valueByKey normalised CSV key → numeric value (last value wins).
+ */
+export function matchedFeatureValues(
+  geojson: GeoJSON.FeatureCollection,
+  level: GeoLevel,
+  valueByKey: Map<string, number>,
+): number[] {
+  const { fields } = geoJoinFields(level);
+  const out: number[] = [];
+  for (const f of geojson.features) {
+    const props = (f.properties as Record<string, unknown>) ?? {};
+    for (const field of fields) {
+      const key = normaliseKey(props[field] as string);
+      if (key !== "" && valueByKey.has(key)) {
+        out.push(valueByKey.get(key)!);
+        break;
+      }
+    }
+  }
+  return out;
 }
 
 /**
@@ -516,6 +600,13 @@ export function buildFillColorExpression(
   // Choose evenly spaced colors from the ramp for the number of classes.
   const nClasses = classes.breaks.length + 1;
   const ramp = sampleColors(colors, nClasses);
+  const hasValue: unknown = ["==", ["typeof", ["get", "__value"]], "number"];
+
+  // With no thresholds there is a single class: a MapLibre `step` with zero
+  // stops is invalid, so paint a solid colour for any value, no-data otherwise.
+  if (classes.breaks.length === 0) {
+    return ["case", hasValue, ramp[0], noDataColor];
+  }
 
   // step expression: [step, input, color0, break0, color1, break1, ...]
   const step: unknown[] = ["step", ["to-number", ["get", "__value"]], ramp[0]];
@@ -523,12 +614,7 @@ export function buildFillColorExpression(
     step.push(b, ramp[i + 1]);
   });
 
-  return [
-    "case",
-    ["==", ["typeof", ["get", "__value"]], "number"],
-    step,
-    noDataColor,
-  ];
+  return ["case", hasValue, step, noDataColor];
 }
 
 /** Sample n colors from a ramp, interpolating between stops for smoothness. */

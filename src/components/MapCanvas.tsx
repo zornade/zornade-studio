@@ -9,9 +9,10 @@ import {
   joinChoropleth,
   buildFillColorExpression,
   sampleColors,
+  DEFAULT_NO_DATA_COLOR,
 } from "../lib/choropleth";
 
-const NO_DATA_COLOR = "#e2e8f0";
+const NO_DATA_COLOR = DEFAULT_NO_DATA_COLOR;
 
 export function MapCanvas() {
   const { project, brand, vizType, design, data, exportNodeRef } = useStudio();

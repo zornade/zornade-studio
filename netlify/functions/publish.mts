@@ -26,6 +26,12 @@ import { verifyToken, readCookie } from "./_session.mts";
 import { isChoroplethSpec, type ChoroplethSpec } from "../../src/lib/spec";
 import { buildEmbedHtml } from "../../src/lib/embed-html";
 import { publishKeys } from "../../src/lib/publish-key";
+import {
+  computeBreaks,
+  matchedFeatureValues,
+  normaliseKey,
+  type ClassBreaks,
+} from "../../src/lib/choropleth";
 
 const DEFAULT_BASE = "https://studio.zornade.com";
 const DEFAULT_GEO = "https://studio.zornade.com/geo";
@@ -74,7 +80,12 @@ export default async (req: Request): Promise<Response> => {
   // the Spaces CDN does not auto-resolve a directory index for a trailing slash.
   const keys = publishKeys(spec);
   const selfUrl = `${baseUrl}/${keys.embed}`;
-  const html = buildEmbedHtml(spec, { geoBaseUrl: geoBase, selfUrl });
+  // Classify against the REAL geometry so the published map uses exactly the
+  // values it renders (an aggregate/total row or an unmatched area must not
+  // skew the breaks). Falls back to spec-data classification if geometry is
+  // unreachable at publish time.
+  const classes = await classifyAgainstGeometry(spec, geoBase);
+  const html = buildEmbedHtml(spec, { geoBaseUrl: geoBase, selfUrl, classes });
 
   // 5. Upload to Spaces (S3-compatible). Immutable, cacheable, public-read.
   const client = new S3Client({
@@ -122,6 +133,40 @@ function json(data: unknown, status = 200): Response {
     status,
     headers: { "content-type": "application/json" },
   });
+}
+
+/**
+ * Compute the choropleth class breaks against the actual geometry, using the
+ * canonical pipeline (same matching + classification as the live editor). This
+ * guarantees the published map is classified on the values it really renders.
+ * Returns undefined on any failure so the embed can fall back to spec-data
+ * classification rather than failing the whole publish.
+ */
+async function classifyAgainstGeometry(
+  spec: ChoroplethSpec,
+  geoBase: string,
+): Promise<ClassBreaks | undefined> {
+  try {
+    const res = await fetch(`${geoBase}/${spec.geo.level}.geojson`);
+    if (!res.ok) return undefined;
+    const geojson = (await res.json()) as GeoJSON.FeatureCollection;
+    // Normalised key → numeric value (last value wins), matching buildEmbedHtml.
+    const valueByKey = new Map<string, number>();
+    for (const d of spec.data) {
+      const k = normaliseKey(d.key);
+      if (k !== "") valueByKey.set(k, d.value);
+    }
+    const values = matchedFeatureValues(geojson, spec.geo.level, valueByKey);
+    if (values.length === 0) return undefined;
+    return computeBreaks(
+      values,
+      spec.design.classification,
+      spec.design.nClasses,
+      spec.design.manualBreaks,
+    );
+  } catch {
+    return undefined;
+  }
 }
 
 export const config = { path: "/api/publish" };

@@ -13,6 +13,16 @@
  */
 
 import type { ChoroplethSpec } from "./spec";
+import {
+  computeBreaks,
+  geoJoinFields,
+  buildFillColorExpression,
+  sampleColors,
+  normaliseKey,
+  DEFAULT_NO_DATA_COLOR,
+  type ClassBreaks,
+} from "./choropleth";
+import { colorsForScale, basemapStyleUrl } from "../studio/palettes";
 
 /** Pinned MapLibre version for embeds (matches the app's maplibre-gl). */
 export const EMBED_MAPLIBRE_VERSION = "4.7.1";
@@ -22,6 +32,12 @@ export interface EmbedOptions {
   geoBaseUrl: string;
   /** Public URL of this embed (for the canonical/attribution link). */
   selfUrl?: string;
+  /**
+   * Class breaks computed by the canonical pipeline against the real geometry
+   * (so the embed classifies on exactly the values the editor rendered). When
+   * omitted, breaks are computed from the spec data as a fallback.
+   */
+  classes?: ClassBreaks;
 }
 
 /** Escape a string for safe inclusion in HTML text/attribute context. */
@@ -55,11 +71,59 @@ export function buildEmbedHtml(
   opts: EmbedOptions,
 ): string {
   const mlVer = EMBED_MAPLIBRE_VERSION;
+  const d = spec.design;
   const title = escapeHtml(spec.project.title || "Mappa Zornade");
   const subtitle = escapeHtml(spec.project.subtitle || "");
   const source = escapeHtml(spec.project.source || "");
+  const titleFont = escapeHtml(d.titleFont || "system-ui, sans-serif");
   const geoUrl = `${opts.geoBaseUrl}/${spec.geo.level}.geojson`;
   const canonical = opts.selfUrl ? escapeHtml(opts.selfUrl) : "";
+
+  // --- Render config, computed ONCE with the same canonical functions the
+  // editor uses, so the published map is faithful to the live preview. The
+  // renderer below only *applies* these values; it never re-derives breaks. ---
+  // Values keyed by normalised key, mirroring joinChoropleth's valueByKey
+  // (last value wins for duplicate keys); breaks come from these values.
+  const keyed: Record<string, number> = {};
+  for (const datum of spec.data) {
+    const k = normaliseKey(datum.key);
+    if (k === "") continue;
+    keyed[k] = datum.value;
+  }
+  // Prefer the breaks computed against the real geometry (matched values only);
+  // fall back to classifying the raw spec data when none were supplied.
+  const classes =
+    opts.classes ??
+    computeBreaks(Object.values(keyed), d.classification, d.nClasses, d.manualBreaks);
+  const scaleColors = colorsForScale(d.colorScale);
+  const noData = DEFAULT_NO_DATA_COLOR;
+  const fill = buildFillColorExpression(classes, scaleColors, noData);
+  const legendColors = sampleColors(scaleColors, classes.breaks.length + 1);
+  const { fields, nameField } = geoJoinFields(spec.geo.level);
+  const valueLabel = d.valueLabel || spec.geo.valueColumn || "Valore";
+
+  const embed = {
+    geoUrl,
+    fields,
+    nameField,
+    keyed,
+    fill,
+    basemapStyle: basemapStyleUrl(d.basemap),
+    center: [12.5, 42] as [number, number],
+    zoom: 4.4,
+    interactive: !!d.zoomPan,
+    tooltip: !!d.tooltip,
+    showLegend: !!d.showLegend,
+    legendType: d.legendType,
+    legendColors,
+    scaleColors,
+    min: classes.min,
+    max: classes.max,
+    noData,
+    valueLabel,
+    valueUnit: d.valueUnit || "",
+    noDataLabel: "Dato non disponibile",
+  };
 
   return `<!doctype html>
 <html lang="it">
@@ -76,7 +140,15 @@ ${canonical ? `<link rel="canonical" href="${canonical}">` : ""}
     padding:8px 12px;border-radius:10px;box-shadow:0 1px 6px rgba(0,0,0,.12);z-index:2}
   .ttl h1{margin:0;font-size:16px;color:#0f172a}
   .ttl p{margin:2px 0 0;font-size:13px;color:#475569}
-  .src{position:absolute;left:12px;bottom:24px;font-size:11px;color:#475569;z-index:2}
+  .src{position:absolute;left:12px;bottom:12px;font-size:11px;color:#475569;z-index:2}
+  .lgd{position:absolute;left:12px;bottom:46px;background:rgba(255,255,255,.92);
+    padding:8px 12px;border-radius:10px;box-shadow:0 1px 6px rgba(0,0,0,.12);z-index:2;font-size:11px}
+  .lgd-t{margin:0 0 6px;font-size:11px;font-weight:600;text-transform:uppercase;
+    letter-spacing:.04em;color:#64748b}
+  .lgd-bar{display:flex;height:10px;width:160px;overflow:hidden;border-radius:999px}
+  .lgd-mm{display:flex;justify-content:space-between;margin-top:4px;color:#64748b;font-size:10px}
+  .lgd-nd{display:flex;align-items:center;gap:6px;margin-top:6px;color:#94a3b8;font-size:10px}
+  .lgd-sw{display:inline-block;width:10px;height:10px;border-radius:3px}
   .attr{position:absolute;right:8px;bottom:6px;font-size:11px;z-index:2;
     background:rgba(255,255,255,.85);padding:2px 6px;border-radius:6px}
   .attr a{color:#01646f;text-decoration:none}
@@ -84,13 +156,12 @@ ${canonical ? `<link rel="canonical" href="${canonical}">` : ""}
 </head>
 <body>
 <div id="map"></div>
-${spec.design.showTitle && title ? `<div class="ttl"><h1>${title}</h1>${subtitle ? `<p>${subtitle}</p>` : ""}</div>` : ""}
+${spec.design.showTitle && title ? `<div class="ttl"><h1 style="font-family:${titleFont}">${title}</h1>${subtitle ? `<p style="font-family:${titleFont}">${subtitle}</p>` : ""}</div>` : ""}
 ${spec.design.showSource && source ? `<div class="src">${source}</div>` : ""}
 <div class="attr"><a href="https://zornade.com/studio" target="_blank" rel="noopener">Fatto con Zornade Studio</a> · Dati © OpenStreetMap</div>
 <script src="https://unpkg.com/maplibre-gl@${mlVer}/dist/maplibre-gl.js"></script>
 <script>
-const SPEC = ${jsonForScript(spec)};
-const GEO_URL = ${jsonForScript(geoUrl)};
+const EMBED = ${jsonForScript(embed)};
 ${EMBED_RENDERER}
 </script>
 </body>
@@ -98,82 +169,78 @@ ${EMBED_RENDERER}
 }
 
 /**
- * The inline renderer: fetches the geometry, joins the spec data by normalised
- * key (code → name → alias mirror of joinChoropleth), computes quantile/equal
- * breaks, and paints the choropleth. Kept as a string so it ships inside the
- * static embed with no build step.
+ * The inline renderer is a **dumb applier**: it fetches the geometry, joins the
+ * pre-computed values by normalised key, and paints the choropleth using the
+ * breaks/colours/fill-expression already computed by the canonical functions in
+ * choropleth.ts (injected as `EMBED`). It never re-derives classes, so the
+ * published map is identical to the editor preview. Kept as a string so it ships
+ * inside the static embed with no build step.
+ *
+ * NOTE: `nk()` must stay byte-identical to `normaliseKey()` in choropleth.ts —
+ * it is the only logic duplicated here, because geometry keys are normalised in
+ * the browser at runtime (the geometry is fetched, not bundled).
  */
 const EMBED_RENDERER = String.raw`
+(function(){
+var E=EMBED;
 function nk(v){if(v==null)return"";var s=String(v).trim().toLowerCase();
   if(/^\d$/.test(s))s="0"+s;s=s.split("/")[0].trim();
   return s.normalize("NFD").replace(/[\u0300-\u036f]/g,"");}
-var FIELDS={paesi:["iso_a3","name","iso_a2","name_en"],
-  regioni:["reg_istat_code","reg_name"],
-  province:["prov_acr","prov_name","prov_istat_code"],
-  comuni:["com_istat_code","com_name","com_istat_code_num"]};
-var NAMEF={paesi:"name",regioni:"reg_name",province:"prov_name",comuni:"com_name"};
-var SCALES={"teal-seq":["#e6f5f6","#9ad6db","#32a4ae","#01646f"],
-  "blue-seq":["#eaf2fb","#9ec5e8","#4a90d9","#1b4f8a"],
-  "warm-seq":["#fff3e0","#ffb74d","#f57c00","#bf360c"],
-  "div-rdbu":["#b2182b","#f4a582","#f7f7f7","#92c5de","#2166ac"]};
-var NO_DATA="#e2e8f0";
-function hx(h){var m=/^#?([0-9a-f]{6})$/i.exec(h);if(!m)return[0,0,0];
-  var n=parseInt(m[1],16);return[(n>>16)&255,(n>>8)&255,n&255];}
-function lerp(a,b,t){var x=hx(a),y=hx(b);
-  return"#"+[0,1,2].map(function(i){var v=Math.round(x[i]+(y[i]-x[i])*t);
-    return("0"+v.toString(16)).slice(-2);}).join("");}
-function ramp(cs,n){if(n<=1)return[cs[cs.length-1]];var o=[];
-  for(var i=0;i<n;i++){var p=(i/(n-1))*(cs.length-1),lo=Math.floor(p),hi=Math.ceil(p);
-    o.push(lerp(cs[lo],cs[hi],p-lo));}return o;}
-function quantile(v,k){var s=v.slice().sort(function(a,b){return a-b;}),r=[];
-  for(var i=1;i<k;i++){var q=(i/k)*(s.length-1),lo=Math.floor(q),hi=Math.ceil(q);
-    r.push(s[lo]+(s[hi]-s[lo])*(q-lo));}return asc(r);}
-function equal(v,k){var mn=Math.min.apply(null,v),mx=Math.max.apply(null,v),st=(mx-mn)/k,r=[];
-  for(var i=1;i<k;i++)r.push(mn+st*i);return asc(r);}
-function asc(a){var o=[];for(var i=0;i<a.length;i++)if(!o.length||a[i]>o[o.length-1])o.push(a[i]);return o;}
-fetch(GEO_URL).then(function(r){return r.json();}).then(function(geo){
-  var byKey={};SPEC.data.forEach(function(d){byKey[nk(d.key)]=d.value;});
-  var fields=FIELDS[SPEC.geo.level]||[],vals=[];
-  geo.features.forEach(function(f){var p=f.properties||{},val;
-    for(var i=0;i<fields.length;i++){var kk=nk(p[fields[i]]);
-      if(kk&&byKey.hasOwnProperty(kk)){val=byKey[kk];break;}}
-    if(val!=null){p.__value=val;vals.push(val);}else{delete p.__value;}});
-  var k=Math.max(2,Math.min(SPEC.design.nClasses||5,vals.length||2));
-  var br=vals.length?(SPEC.design.classification==="equal"?equal(vals,k):
-    SPEC.design.classification==="manual"&&SPEC.design.manualBreaks.length?asc(SPEC.design.manualBreaks.slice().sort(function(a,b){return a-b;})):
-    quantile(vals,k)):[];
-  var cs=SCALES[SPEC.design.colorScale]||SCALES["teal-seq"],rmp=ramp(cs,br.length+1);
-  var step=["step",["to-number",["get","__value"]],rmp[0]];
-  br.forEach(function(b,i){step.push(b,rmp[i+1]);});
-  var fill=["case",["==",["typeof",["get","__value"]],"number"],step,NO_DATA];
-  var styleUrl="https://tiles.openfreemap.org/styles/"+(SPEC.design.basemap&&SPEC.design.basemap.indexOf("ofm-")===0?SPEC.design.basemap.slice(4):"positron");
-  var map=new maplibregl.Map({container:"map",style:styleUrl,center:[12.5,42],zoom:4.4,
-    attributionControl:false,interactive:!!SPEC.design.zoomPan});
-  map.addControl(new maplibregl.AttributionControl({compact:true}));
-  map.on("load",function(){
-    map.addSource("d",{type:"geojson",data:geo});
-    var firstSym=(map.getStyle().layers||[]).filter(function(l){return l.type==="symbol";})[0];
-    map.addLayer({id:"d-fill",type:"fill",source:"d",
-      paint:{"fill-color":fill,"fill-opacity":.82}},firstSym&&firstSym.id);
-    map.addLayer({id:"d-line",type:"line",source:"d",
-      paint:{"line-color":"#fff","line-width":.6}},firstSym&&firstSym.id);
-    try{var b=new maplibregl.LngLatBounds();
-      geo.features.forEach(function(f){
-        var g=f.geometry;if(!g)return;var cc=g.type==="Polygon"?[g.coordinates]:
-          g.type==="MultiPolygon"?g.coordinates:null;if(!cc)return;
-        cc.forEach(function(poly){poly[0].forEach(function(pt){b.extend(pt);});});});
-      if(!b.isEmpty())map.fitBounds(b,{padding:24,duration:0,maxZoom:9});}catch(e){}
-    if(SPEC.design.tooltip){
-      var pop=new maplibregl.Popup({closeButton:false,closeOnClick:false});
-      var nf=new Intl.NumberFormat("it-IT",{maximumFractionDigits:2});
-      var unit=SPEC.design.valueUnit?("\u00a0"+SPEC.design.valueUnit):"";
-      var lbl=SPEC.design.valueLabel||SPEC.geo.valueColumn||"Valore";
-      map.on("mousemove","d-fill",function(e){var f=e.features&&e.features[0];if(!f)return;
-        var p=f.properties||{};if(p.__value==null){pop.remove();return;}
-        var nm=p[NAMEF[SPEC.geo.level]]||"";
-        pop.setLngLat(e.lngLat).setHTML("<strong>"+nm+"</strong><br>"+lbl+": "+nf.format(p.__value)+unit).addTo(map);
-        map.getCanvas().style.cursor="pointer";});
-      map.on("mouseleave","d-fill",function(){pop.remove();map.getCanvas().style.cursor="";});
-    }
-  });
-});`;
+function esc(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;")
+  .replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");}
+var NF=new Intl.NumberFormat("it-IT",{maximumFractionDigits:2});
+function fmt(n){var s=NF.format(n);return E.valueUnit?(s+"\u00a0"+E.valueUnit):s;}
+var map=new maplibregl.Map({container:"map",
+  style:E.basemapStyle||{version:8,sources:{},layers:[]},
+  center:E.center,zoom:E.zoom,attributionControl:false,interactive:E.interactive});
+map.addControl(new maplibregl.AttributionControl({compact:true}));
+var GEO=null,ready=false;
+map.on("load",function(){ready=true;if(GEO)build();});
+fetch(E.geoUrl).then(function(r){return r.json();}).then(function(g){GEO=g;if(ready)build();});
+function build(){
+  var noData=0;
+  GEO.features.forEach(function(f){var p=f.properties||(f.properties={});var val;
+    for(var i=0;i<E.fields.length;i++){var k=nk(p[E.fields[i]]);
+      if(k&&Object.prototype.hasOwnProperty.call(E.keyed,k)){val=E.keyed[k];break;}}
+    if(val!=null){p.__value=val;}else{delete p.__value;noData++;}});
+  map.addSource("d",{type:"geojson",data:GEO});
+  var firstSym=(map.getStyle().layers||[]).filter(function(l){return l.type==="symbol";})[0];
+  var before=firstSym&&firstSym.id;
+  map.addLayer({id:"d-fill",type:"fill",source:"d",
+    paint:{"fill-color":E.fill,"fill-opacity":0.82}},before);
+  map.addLayer({id:"d-line",type:"line",source:"d",
+    paint:{"line-color":"#fff","line-width":0.6}},before);
+  fit();
+  if(E.showLegend)legend(noData);
+  if(E.tooltip)tooltip();
+}
+function fit(){try{var b=new maplibregl.LngLatBounds();
+  GEO.features.forEach(function(f){var g=f.geometry;if(!g)return;
+    var cc=g.type==="Polygon"?[g.coordinates]:g.type==="MultiPolygon"?g.coordinates:null;
+    if(!cc)return;cc.forEach(function(poly){poly[0].forEach(function(pt){b.extend(pt);});});});
+  if(!b.isEmpty())map.fitBounds(b,{padding:24,duration:0,maxZoom:9});}catch(e){}}
+function legend(noData){
+  var box=document.createElement("div");box.className="lgd";
+  var t=document.createElement("p");t.className="lgd-t";t.textContent=E.valueLabel||"Legenda";box.appendChild(t);
+  var bar=document.createElement("div");bar.className="lgd-bar";
+  if(E.legendType==="steps"){E.legendColors.forEach(function(c){
+    var sp=document.createElement("span");sp.style.background=c;sp.style.flex="1";bar.appendChild(sp);});}
+  else{bar.style.background="linear-gradient(to right,"+E.scaleColors.join(",")+")";}
+  box.appendChild(bar);
+  var mm=document.createElement("div");mm.className="lgd-mm";
+  mm.innerHTML="<span>"+esc(fmt(E.min))+"</span><span>"+esc(fmt(E.max))+"</span>";box.appendChild(mm);
+  if(noData>0){var nd=document.createElement("div");nd.className="lgd-nd";
+    nd.innerHTML='<span class="lgd-sw" style="background:'+esc(E.noData)+'"></span>'+esc(E.noDataLabel)+" ("+noData+")";
+    box.appendChild(nd);}
+  document.body.appendChild(box);
+}
+function tooltip(){
+  var pop=new maplibregl.Popup({closeButton:false,closeOnClick:false});
+  map.on("mousemove","d-fill",function(e){var f=e.features&&e.features[0];if(!f)return;
+    var p=f.properties||{};if(p.__value==null){pop.remove();return;}
+    var nm=p[E.nameField]||"";
+    pop.setLngLat(e.lngLat).setHTML("<strong>"+esc(nm)+"</strong><br>"+esc(E.valueLabel)+": "+esc(fmt(p.__value))).addTo(map);
+    map.getCanvas().style.cursor="pointer";});
+  map.on("mouseleave","d-fill",function(){pop.remove();map.getCanvas().style.cursor="";});
+}
+})();`;

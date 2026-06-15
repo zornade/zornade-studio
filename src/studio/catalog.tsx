@@ -866,20 +866,10 @@ export const FONT_OPTIONS: FontOption[] = [
   { id: "custom", label: "Carica font redazione…", stack: '"Inter", sans-serif' },
 ];
 
-/** Data color scales for choropleth/symbol layers. */
-export interface ColorScale {
-  id: string;
-  label: string;
-  type: "sequenziale" | "divergente" | "categorica";
-  colors: string[];
-}
-export const COLOR_SCALES: ColorScale[] = [
-  { id: "teal-seq", label: "Teal", type: "sequenziale", colors: ["#e6f5f6", "#9ad6db", "#32a4ae", "#01646f"] },
-  { id: "blue-seq", label: "Blu", type: "sequenziale", colors: ["#eaf2fb", "#9ec5e8", "#4a90d9", "#1b4f8a"] },
-  { id: "warm-seq", label: "Caldo", type: "sequenziale", colors: ["#fff3e0", "#ffb74d", "#f57c00", "#bf360c"] },
-  { id: "div-rdbu", label: "Rosso–Blu", type: "divergente", colors: ["#b2182b", "#f4a582", "#f7f7f7", "#92c5de", "#2166ac"] },
-  { id: "cat", label: "Categorica", type: "categorica", colors: ["#32a4ae", "#f57c00", "#7e57c2", "#43a047", "#e53935"] },
-];
+// Colour scales live in a React-free module so the embed/publish path can reuse
+// them without importing the UI bundle. Re-exported here for the editor.
+export type { ColorScale } from "./palettes";
+export { COLOR_SCALES } from "./palettes";
 
 /**
  * Newsroom "basekit": the design side of a preset (title font + data color
@@ -942,29 +932,11 @@ export const NEWSROOM_KITS: Record<PresetName, NewsroomKit> = {
 export const NEWSROOM_KIT_LIST: NewsroomKit[] = Object.values(NEWSROOM_KITS);
 
 /**
- * Basemap choices. OpenFreeMap styles work with NO API key, no usage limits and
- * allow commercial use (MIT; data © OpenMapTiles / OpenStreetMap, attribution
- * auto-added by MapLibre). "none" renders the data on a transparent background.
- * "custom" (a 100% Zornade self-hosted basemap) is on the roadmap.
+ * Basemaps live in the React-free palettes module (shared with the embed/publish
+ * path); re-exported here for the editor UI.
  */
-export interface MapBasemap {
-  id: string;
-  label: string;
-  /** External MapLibre style URL, or null for "no basemap" / "soon". */
-  styleUrl: string | null;
-  status?: FeatureStatus;
-}
-
-const OFM = "https://tiles.openfreemap.org/styles";
-
-export const MAP_BASEMAPS: MapBasemap[] = [
-  { id: "ofm-positron", label: "Chiaro (Positron)", styleUrl: `${OFM}/positron` },
-  { id: "ofm-bright", label: "Standard (Bright)", styleUrl: `${OFM}/bright` },
-  { id: "ofm-liberty", label: "Dettagliato (Liberty)", styleUrl: `${OFM}/liberty` },
-  { id: "ofm-dark", label: "Scuro (Dark)", styleUrl: `${OFM}/dark` },
-  { id: "none", label: "Nessuna (sfondo trasparente)", styleUrl: null },
-  { id: "custom", label: "Custom", styleUrl: null, status: "soon" },
-];
+export type { MapBasemap } from "./palettes";
+export { MAP_BASEMAPS } from "./palettes";
 
 export interface NamedOption {
   id: string;

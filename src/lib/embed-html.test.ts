@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { buildEmbedHtml, escapeHtml, EMBED_MAPLIBRE_VERSION } from "./embed-html";
+import { computeBreaks } from "./choropleth";
 import type { ChoroplethSpec } from "./spec";
 
 function spec(over: Partial<ChoroplethSpec> = {}): ChoroplethSpec {
@@ -44,8 +45,8 @@ describe("buildEmbedHtml", () => {
     expect(html).toContain("https://embed.x/geo/regioni.geojson");
   });
 
-  it("includes the spec data and title", () => {
-    expect(html).toContain("Lombardia");
+  it("includes the (normalised) join keys and the title", () => {
+    expect(html).toContain("lombardia");
     expect(html).toContain("Arrivi 2024");
   });
 
@@ -69,14 +70,85 @@ describe("buildEmbedHtml", () => {
     expect(out).toContain("&lt;script&gt;alert(1)");
   });
 
-  it("does not let spec data break out of the inline <script>", () => {
+  it("does not let injected config break out of the inline <script>", () => {
     const evil = spec({
-      data: [{ key: "</script><script>alert(3)</script>", value: 1 }],
+      design: { ...spec().design, valueLabel: `</script><script>alert(3)</script>` },
     });
     const out = buildEmbedHtml(evil, { geoBaseUrl: "https://embed.x/geo" });
-    // The </script> inside the JSON must be neutralised to \u003c.
+    // The </script> inside the injected JSON must be neutralised to \u003c.
     expect(out).not.toContain("</script><script>alert(3)");
     expect(out).toContain("\\u003c/script");
+  });
+
+  it("bakes the SAME breaks the canonical classifier produces (parity)", () => {
+    const data = [
+      { key: "a", value: 1 }, { key: "b", value: 5 },
+      { key: "c", value: 9 }, { key: "d", value: 30 },
+    ];
+    const out = buildEmbedHtml(
+      spec({ data, design: { ...spec().design, classification: "quantile", nClasses: 4 } }),
+      { geoBaseUrl: "https://embed.x/geo" },
+    );
+    const { breaks } = computeBreaks([1, 5, 9, 30], "quantile", 4, []);
+    expect(breaks.length).toBeGreaterThan(0);
+    for (const b of breaks) expect(out).toContain(String(b));
+  });
+
+  it("classifies with the chosen method (jenks) without falling back to quantile", () => {
+    const data = [1, 2, 3, 50, 80, 81].map((v, i) => ({
+      key: String.fromCharCode(97 + i),
+      value: v,
+    }));
+    const out = buildEmbedHtml(
+      spec({ data, design: { ...spec().design, classification: "jenks", nClasses: 3 } }),
+      { geoBaseUrl: "https://embed.x/geo" },
+    );
+    const { breaks } = computeBreaks([1, 2, 3, 50, 80, 81], "jenks", 3, []);
+    for (const b of breaks) expect(out).toContain(String(b));
+  });
+
+  it("manual classification with no thresholds paints a single solid class", () => {
+    const out = buildEmbedHtml(
+      spec({ design: { ...spec().design, classification: "manual", manualBreaks: [] } }),
+      { geoBaseUrl: "https://embed.x/geo" },
+    );
+    // A MapLibre `step` with zero stops is invalid, so there must be none.
+    expect(out).not.toContain('"step"');
+  });
+
+  it("resolves the basemap from the catalog", () => {
+    const none = buildEmbedHtml(
+      spec({ design: { ...spec().design, basemap: "none" } }),
+      { geoBaseUrl: "https://embed.x/geo" },
+    );
+    expect(none).toContain('"basemapStyle":null');
+    const dark = buildEmbedHtml(
+      spec({ design: { ...spec().design, basemap: "ofm-dark" } }),
+      { geoBaseUrl: "https://embed.x/geo" },
+    );
+    expect(dark).toContain("tiles.openfreemap.org/styles/dark");
+  });
+
+  it("carries the legend flag through to the embed", () => {
+    expect(html).toContain('"showLegend":true');
+    const off = buildEmbedHtml(
+      spec({ design: { ...spec().design, showLegend: false } }),
+      { geoBaseUrl: "https://embed.x/geo" },
+    );
+    expect(off).toContain('"showLegend":false');
+  });
+
+  it("uses injected canonical classes instead of recomputing (parity)", () => {
+    // Supplying explicit breaks (as the publish path does from real geometry)
+    // must win over classifying the raw spec data.
+    const out = buildEmbedHtml(spec(), {
+      geoBaseUrl: "https://embed.x/geo",
+      classes: { breaks: [111, 222], min: 7, max: 999 },
+    });
+    expect(out).toContain("111");
+    expect(out).toContain("222");
+    expect(out).toContain('"min":7');
+    expect(out).toContain('"max":999');
   });
 
   it("omits title/source blocks when toggled off", () => {
