@@ -38,6 +38,10 @@ export interface DesignSettings {
   valueLabel: string;
   /** Optional unit of measure appended to values (e.g. "%", "€/m²", "ha"). */
   valueUnit: string;
+  /** Point layer: colour of points without a category (and category fallback). */
+  pointColor: string;
+  /** Point layer: base radius in px (also the centre of the size scale). */
+  pointSize: number;
   showTitle: boolean;
   showLegend: boolean;
   showSource: boolean;

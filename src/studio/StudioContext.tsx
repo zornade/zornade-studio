@@ -46,6 +46,8 @@ const INITIAL_DESIGN: DesignSettings = {
   nClasses: 5,
   valueLabel: "",
   valueUnit: "",
+  pointColor: "#01646f",
+  pointSize: 7,
   showTitle: true,
   showLegend: true,
   showSource: true,

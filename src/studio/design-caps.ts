@@ -1,0 +1,40 @@
+/**
+ * Design capability registry — which Design-panel controls each visualisation
+ * exposes (the integration contract between viz types and the Design step).
+ *
+ * The Design panel renders a control block **only** if the active visualisation
+ * declares the matching capability, and the renderer reads the same design
+ * fields. Adding a new visualisation therefore means: (1) declare its
+ * capabilities here, (2) reuse an existing block or add one guarded by a new
+ * capability. This keeps every viz coherent with Design by construction —
+ * controls that don't apply never show, and every shown control is wired.
+ *
+ * Universal sections (texts, font & logo, brand, basemap, interactivity) are
+ * always shown and are not gated by a capability.
+ */
+
+export type DesignCapability =
+  /** Geographic binding for area datasets: geo level + key column. */
+  | "geoBinding"
+  /** Data label + unit (legend/tooltip text). */
+  | "valueLabel"
+  /** Sequential/diverging/categorical colour ramp selector. */
+  | "colorScale"
+  /** Choropleth classification: method, classes, manual breaks, legend, no-data. */
+  | "classification"
+  /** Point styling: uniform colour + base size. */
+  | "pointStyle";
+
+/** Capabilities per visualisation type (catalog id → blocks). */
+export const VIZ_DESIGN_CAPS: Record<string, DesignCapability[]> = {
+  choropleth: ["geoBinding", "valueLabel", "colorScale", "classification"],
+  points: ["valueLabel", "colorScale", "pointStyle"],
+  // Declared for when their rendering lands; controls already coherent.
+  symbol: ["geoBinding", "valueLabel", "colorScale", "pointStyle"],
+  locator: ["pointStyle"],
+};
+
+/** Capability set for a visualisation type (empty for unknown types). */
+export function designCaps(vizType: string): Set<DesignCapability> {
+  return new Set(VIZ_DESIGN_CAPS[vizType] ?? []);
+}

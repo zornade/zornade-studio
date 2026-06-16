@@ -14,7 +14,8 @@ function state(title: string, value: string): StudioState {
     design: {
       titleFont: "Inter", basemap: "ofm-positron", colorScale: "teal-seq",
       classification: "quantile", manualBreaks: [], legendType: "steps",
-      nClasses: 5, valueLabel: "", valueUnit: "", showTitle: true,
+      nClasses: 5, valueLabel: "", valueUnit: "", pointColor: "#01646f",
+      pointSize: 7, showTitle: true,
       showLegend: true, showSource: true, tooltip: true, zoomPan: true,
     },
     data: {

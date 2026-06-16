@@ -101,20 +101,31 @@ export function MapCanvas() {
       };
     }
     if (points && data?.kind === "point") {
+      const categoryPalette =
+        scale.colors.length > 0 ? scale.colors : CAT_PALETTE;
       return {
         kind: "point",
         geojson: points.geojson,
         circleColor: data.categoryColumn
-          ? buildPointColorExpression(points.categories, CAT_PALETTE, scale.colors[scale.colors.length - 1])
-          : scale.colors[scale.colors.length - 1],
-        circleRadius: buildPointRadiusExpression(points.valueRange, 4, 18, 6),
+          ? buildPointColorExpression(
+              points.categories,
+              categoryPalette,
+              design.pointColor,
+            )
+          : design.pointColor,
+        circleRadius: buildPointRadiusExpression(
+          points.valueRange,
+          Math.max(2, design.pointSize * 0.6),
+          design.pointSize * 2.6,
+          design.pointSize,
+        ),
         nameField: data.nameColumn || data.categoryColumn ? "__name" : undefined,
         valueLabel,
         valueUnit: design.valueUnit || undefined,
       };
     }
     return null;
-  }, [joined, points, scale.colors, data, valueLabel, design.valueUnit]);
+  }, [joined, points, scale.colors, data, valueLabel, design.valueUnit, design.pointColor, design.pointSize]);
 
   const showLegend =
     design.showLegend && (vizType === "choropleth" || vizType === "symbol");

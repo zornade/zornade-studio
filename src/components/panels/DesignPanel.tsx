@@ -19,6 +19,7 @@ import {
   type GeoLevel,
 } from "../../lib/choropleth";
 import { loadGeoKeys } from "../../lib/geo-keys";
+import { designCaps } from "../../studio/design-caps";
 import { PanelSection, Field, SoonBadge } from "../primitives";
 
 const PRESET_OPTIONS: { id: PresetChoice; label: string }[] = [
@@ -38,8 +39,11 @@ export function DesignPanel() {
     updateDesign,
     data,
     setData,
+    vizType,
   } = useStudio();
 
+  // Which Design blocks the active visualisation exposes (see design-caps.ts).
+  const caps = designCaps(vizType);
   const [noData, setNoData] = useState("#e5e7eb");
   // Geo-key index for level overrides (value-based best key column per level).
   const [geoKeys, setGeoKeys] = useState<Record<string, Set<string>> | null>(
@@ -228,60 +232,61 @@ export function DesignPanel() {
         title="Dato e legenda"
         hint="Etichetta del dato, scala colore, classi e legenda."
       >
-        {data && (
+        {data && caps.has("geoBinding") && data.kind === "area" && (
           <>
-            {data.kind === "area" && (
-              <>
-                <Field
-                  label="Livello geografico"
-                  hint="Riconosciuto dai dati. Cambialo se l'abbinamento è sbagliato."
-                >
-                  <select
-                    value={data.geoLevel}
-                    onChange={(e) => {
-                      const level = e.target.value as GeoLevel;
-                      const keyColumn =
-                        (geoKeys &&
-                          bestKeyColumnForLevel(
-                            level,
-                            data.columns,
-                            data.rows,
-                            geoKeys,
-                          )) ||
-                        data.keyColumn;
-                      setData({ ...data, geoLevel: level, keyColumn });
-                    }}
-                    className={inputCls}
-                  >
-                    {Object.values(GEO_LEVELS)
-                      .filter((l) => l.ready)
-                      .map((l) => (
-                        <option key={l.id} value={l.id}>
-                          {l.label}
-                        </option>
-                      ))}
-                  </select>
-                </Field>
-                <Field
-                  label="Colonna chiave (abbinamento geografico)"
-                  hint="La colonna che identifica l'area (nome o codice)."
-                >
-                  <select
-                    value={data.keyColumn}
-                    onChange={(e) =>
-                      setData({ ...data, keyColumn: e.target.value })
-                    }
-                    className={inputCls}
-                  >
-                    {data.columns.map((c) => (
-                      <option key={c} value={c}>
-                        {c}
-                      </option>
-                    ))}
-                  </select>
-                </Field>
-              </>
-            )}
+            <Field
+              label="Livello geografico"
+              hint="Riconosciuto dai dati. Cambialo se l'abbinamento è sbagliato."
+            >
+              <select
+                value={data.geoLevel}
+                onChange={(e) => {
+                  const level = e.target.value as GeoLevel;
+                  const keyColumn =
+                    (geoKeys &&
+                      bestKeyColumnForLevel(
+                        level,
+                        data.columns,
+                        data.rows,
+                        geoKeys,
+                      )) ||
+                    data.keyColumn;
+                  setData({ ...data, geoLevel: level, keyColumn });
+                }}
+                className={inputCls}
+              >
+                {Object.values(GEO_LEVELS)
+                  .filter((l) => l.ready)
+                  .map((l) => (
+                    <option key={l.id} value={l.id}>
+                      {l.label}
+                    </option>
+                  ))}
+              </select>
+            </Field>
+            <Field
+              label="Colonna chiave (abbinamento geografico)"
+              hint="La colonna che identifica l'area (nome o codice)."
+            >
+              <select
+                value={data.keyColumn}
+                onChange={(e) =>
+                  setData({ ...data, keyColumn: e.target.value })
+                }
+                className={inputCls}
+              >
+                {data.columns.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          </>
+        )}
+
+        {data && caps.has("valueLabel") && (
+          <>
             <Field label={data.kind === "area" ? "Colonna da mappare" : "Dimensione dei punti"}>
               <select
                 value={data.valueColumn}
@@ -319,106 +324,168 @@ export function DesignPanel() {
           </>
         )}
 
-        <Field label="Scala colore">
-          <div className="space-y-1.5">
-            {COLOR_SCALES.map((s) => (
-              <button
-                key={s.id}
-                onClick={() => updateDesign({ colorScale: s.id })}
-                className={`flex w-full items-center gap-2 rounded-lg border px-2.5 py-1.5 transition-colors ${
-                  design.colorScale === s.id
-                    ? "border-zornade bg-zornade-50"
-                    : "border-slate-200 hover:border-slate-300"
-                }`}
-              >
-                <span className="flex h-3.5 w-24 overflow-hidden rounded-full">
-                  {s.colors.map((c) => (
-                    <span key={c} className="flex-1" style={{ background: c }} />
-                  ))}
-                </span>
-                <span className="text-xs text-slate-600">{s.label}</span>
-              </button>
-            ))}
-          </div>
-        </Field>
-
-        <Field label="Metodo di classificazione">
-          <select
-            value={design.classification}
-            onChange={(e) => updateDesign({ classification: e.target.value })}
-            className={inputCls}
-          >
-            {CLASSIFICATION_METHODS.map((m) => (
-              <option key={m.id} value={m.id}>
-                {m.label}
-              </option>
-            ))}
-          </select>
-        </Field>
-
-        {design.classification === "manual" && (
+        {caps.has("colorScale") && (
           <Field
-            label="Soglie manuali"
-            hint="Valori separati da virgola; decimali col punto (es. 100, 500.5, 1000)."
+            label="Scala colore"
+            hint={
+              data?.kind === "point"
+                ? "Usata per le categorie dei punti."
+                : undefined
+            }
           >
-            <input
-              type="text"
-              defaultValue={design.manualBreaks.join(", ")}
-              onChange={(e) =>
-                updateDesign({
-                  manualBreaks: e.target.value
-                    .split(",")
-                    .map((s) => Number(s.trim()))
-                    .filter((n) => Number.isFinite(n)),
-                })
-              }
-              placeholder="es. 100, 500, 1000"
-              className={inputCls}
-            />
+            <div className="space-y-1.5">
+              {COLOR_SCALES.map((s) => (
+                <button
+                  key={s.id}
+                  onClick={() => updateDesign({ colorScale: s.id })}
+                  className={`flex w-full items-center gap-2 rounded-lg border px-2.5 py-1.5 transition-colors ${
+                    design.colorScale === s.id
+                      ? "border-zornade bg-zornade-50"
+                      : "border-slate-200 hover:border-slate-300"
+                  }`}
+                >
+                  <span className="flex h-3.5 w-24 overflow-hidden rounded-full">
+                    {s.colors.map((c) => (
+                      <span key={c} className="flex-1" style={{ background: c }} />
+                    ))}
+                  </span>
+                  <span className="text-xs text-slate-600">{s.label}</span>
+                </button>
+              ))}
+            </div>
           </Field>
         )}
 
-        <Field label={`Numero di classi · ${design.nClasses}`}>
-          <input
-            type="range"
-            min={2}
-            max={maxClasses}
-            step={1}
-            value={Math.min(design.nClasses, maxClasses)}
-            onChange={(e) => updateDesign({ nClasses: Number(e.target.value) })}
-            className="w-full accent-zornade"
-          />
-          {data && (
-            <p className="mt-1 text-[11px] text-slate-400">
-              Fino a {maxClasses} classi ({data.rows.length} righe nel file).
-            </p>
-          )}
-        </Field>
+        {caps.has("classification") && (
+          <>
+            <Field label="Metodo di classificazione">
+              <select
+                value={design.classification}
+                onChange={(e) => updateDesign({ classification: e.target.value })}
+                className={inputCls}
+              >
+                {CLASSIFICATION_METHODS.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.label}
+                  </option>
+                ))}
+              </select>
+            </Field>
 
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="Tipo di legenda">
-            <select
-              value={design.legendType}
-              onChange={(e) => updateDesign({ legendType: e.target.value })}
-              className={inputCls}
-            >
-              {LEGEND_TYPES.map((l) => (
-                <option key={l.id} value={l.id}>
-                  {l.label}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <Field label="Nessun dato">
+            {design.classification === "manual" && (
+              <Field
+                label="Soglie manuali"
+                hint="Valori separati da virgola; decimali col punto (es. 100, 500.5, 1000)."
+              >
+                <input
+                  type="text"
+                  defaultValue={design.manualBreaks.join(", ")}
+                  onChange={(e) =>
+                    updateDesign({
+                      manualBreaks: e.target.value
+                        .split(",")
+                        .map((s) => Number(s.trim()))
+                        .filter((n) => Number.isFinite(n)),
+                    })
+                  }
+                  placeholder="es. 100, 500, 1000"
+                  className={inputCls}
+                />
+              </Field>
+            )}
+
+            <Field label={`Numero di classi · ${design.nClasses}`}>
+              <input
+                type="range"
+                min={2}
+                max={maxClasses}
+                step={1}
+                value={Math.min(design.nClasses, maxClasses)}
+                onChange={(e) => updateDesign({ nClasses: Number(e.target.value) })}
+                className="w-full accent-zornade"
+              />
+              {data && (
+                <p className="mt-1 text-[11px] text-slate-400">
+                  Fino a {maxClasses} classi ({data.rows.length} righe nel file).
+                </p>
+              )}
+            </Field>
+
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Tipo di legenda">
+                <select
+                  value={design.legendType}
+                  onChange={(e) => updateDesign({ legendType: e.target.value })}
+                  className={inputCls}
+                >
+                  {LEGEND_TYPES.map((l) => (
+                    <option key={l.id} value={l.id}>
+                      {l.label}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="Nessun dato">
+                <input
+                  type="color"
+                  value={noData}
+                  onChange={(e) => setNoData(e.target.value)}
+                  className="h-9 w-full cursor-pointer rounded border border-slate-200"
+                />
+              </Field>
+            </div>
+          </>
+        )}
+      </PanelSection>
+
+      {/* ---- Stile dei punti ---- */}
+      {caps.has("pointStyle") && data?.kind === "point" && (
+        <PanelSection
+          title="Stile dei punti"
+          hint={
+            data.categoryColumn
+              ? "I punti sono colorati per categoria (scala colore sopra)."
+              : "Colore e dimensione dei punti."
+          }
+        >
+          {!data.categoryColumn && (
+            <Field label="Colore dei punti">
+              <div className="flex items-center gap-2">
+                <input
+                  type="color"
+                  value={design.pointColor}
+                  onChange={(e) => updateDesign({ pointColor: e.target.value })}
+                  className="h-9 w-12 cursor-pointer rounded border border-slate-200"
+                />
+                <input
+                  value={design.pointColor}
+                  onChange={(e) => updateDesign({ pointColor: e.target.value })}
+                  className="w-28 rounded-lg border border-slate-200 px-3 py-2 font-mono text-sm focus:border-zornade focus:outline-none"
+                />
+              </div>
+            </Field>
+          )}
+          <Field
+            label={`Dimensione · ${design.pointSize} px`}
+            hint={
+              data.valueColumn
+                ? "Dimensione base; i punti scalano con il valore scelto sopra."
+                : undefined
+            }
+          >
             <input
-              type="color"
-              value={noData}
-              onChange={(e) => setNoData(e.target.value)}
-              className="h-9 w-full cursor-pointer rounded border border-slate-200"
+              type="range"
+              min={3}
+              max={24}
+              step={1}
+              value={design.pointSize}
+              onChange={(e) => updateDesign({ pointSize: Number(e.target.value) })}
+              className="w-full accent-zornade"
             />
           </Field>
-        </div>
-      </PanelSection>
+        </PanelSection>
+      )}
+
 
       {/* ---- Interattività ---- */}
       <PanelSection title="Interattività" hint="Cosa può fare il lettore con la mappa pubblicata.">

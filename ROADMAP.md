@@ -484,6 +484,12 @@ L'utente incolla **host / utente / password** (credenziali read-only generate a 
    `circle` riusando lo stesso id del layer dati (tooltip incluso); `VisualizePanel` abilita “punti”;
    il pannello Design espone dimensione/categoria. *(La pubblicazione resta solo per le aree;
    lo Shapefile/KML/GeoTIFF di O2.3b si agganceranno a questo percorso geometria-utente.)*
+   - **Integrazione Design guidata da capability** (`src/studio/design-caps.ts`): ogni viz dichiara i
+     blocchi Design che espone (`geoBinding`, `valueLabel`, `colorScale`, `classification`,
+     `pointStyle`); il `DesignPanel` mostra **solo** i blocchi dichiarati e il renderer legge gli
+     stessi campi — così ogni viz è coerente col pannello *per costruzione* (niente controlli
+     irrilevanti, ogni controllo mostrato è cablato). I punti ora rispettano colore (`pointColor` o
+     scala per categoria) e dimensione (`pointSize`).
 - **O2.5** **Query OSM (Overpass)** con selettore guidato
 - **O2.6** Mappa simboli proporzionali + mappa categorie
 - **O2.7** Scale colore avanzate (palette/editor) + check daltonismo
