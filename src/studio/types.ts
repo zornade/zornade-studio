@@ -88,6 +88,8 @@ export interface PointDataset extends DatasetBase {
   valueColumn: string;
   /** Optional column to colour points by category. */
   categoryColumn?: string;
+  /** Optional label column (place name) shown in tooltips. */
+  nameColumn?: string;
 }
 
 export interface StudioState {

@@ -76,7 +76,7 @@ export function MapCanvas() {
       lonColumn: data.lonColumn,
       valueColumn: data.valueColumn || undefined,
       categoryColumn: data.categoryColumn,
-      nameColumn: data.categoryColumn,
+      nameColumn: data.nameColumn ?? data.categoryColumn,
     });
   }, [data]);
 
@@ -108,7 +108,7 @@ export function MapCanvas() {
           ? buildPointColorExpression(points.categories, CAT_PALETTE, scale.colors[scale.colors.length - 1])
           : scale.colors[scale.colors.length - 1],
         circleRadius: buildPointRadiusExpression(points.valueRange, 4, 18, 6),
-        nameField: data.categoryColumn ? "__name" : undefined,
+        nameField: data.nameColumn || data.categoryColumn ? "__name" : undefined,
         valueLabel,
         valueUnit: design.valueUnit || undefined,
       };

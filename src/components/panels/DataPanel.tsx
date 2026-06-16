@@ -81,7 +81,46 @@ async function buildDatasetFromTable(
     return { error: "Il file sembra vuoto o non leggibile." };
   }
 
-  // 1) Try the AREA (choropleth) path: match values against geometry keys.
+  // 1) POINT path has priority: explicit lat/lon columns are unambiguous
+  // geometry the user supplied on purpose. Detection requires the column to be
+  // *named* lat/lon (+ in range), so real choropleth files — which have no such
+  // columns — are never stolen by this branch.
+  const profile = profileColumns(columns, rows);
+  const latCol = profile.columns.find((c) => c.type === "geo-point-lat")?.name;
+  const lonCol = profile.columns.find((c) => c.type === "geo-point-lon")?.name;
+  if (latCol && lonCol) {
+    const numericColumns = detectNumericColumns(columns, rows).filter(
+      (c) => c !== latCol && c !== lonCol,
+    );
+    const categoryColumn = profile.columns.find(
+      (c) => c.type === "categorical",
+    )?.name;
+    // Label column for tooltips: the first identifier/text column (a place
+    // name like "città"), falling back to the category.
+    const nameColumn =
+      profile.columns.find(
+        (c) =>
+          (c.type === "identifier" || c.type === "text") &&
+          c.name !== latCol &&
+          c.name !== lonCol,
+      )?.name ?? categoryColumn;
+    return {
+      dataset: {
+        kind: "point",
+        fileName,
+        columns,
+        rows,
+        latColumn: latCol,
+        lonColumn: lonCol,
+        valueColumn: numericColumns[0] ?? "",
+        categoryColumn,
+        nameColumn,
+        numericColumns,
+      },
+    };
+  }
+
+  // 2) AREA (choropleth) path: match values against geometry keys.
   const keys = await loadGeoKeys();
   const resolved =
     Object.keys(keys).length > 0 ? resolveGeoJoin(columns, rows, keys) : null;
@@ -114,32 +153,6 @@ async function buildDatasetFromTable(
         geoLevel: areaLevel,
         keyColumn: areaKey,
         valueColumn: numericColumns[0],
-        numericColumns,
-      },
-    };
-  }
-
-  // 2) Fall back to the POINT path: detect lat/lon columns from the profile.
-  const profile = profileColumns(columns, rows);
-  const latCol = profile.columns.find((c) => c.type === "geo-point-lat")?.name;
-  const lonCol = profile.columns.find((c) => c.type === "geo-point-lon")?.name;
-  if (latCol && lonCol) {
-    const numericColumns = detectNumericColumns(columns, rows).filter(
-      (c) => c !== latCol && c !== lonCol,
-    );
-    const categoryColumn = profile.columns.find(
-      (c) => c.type === "categorical",
-    )?.name;
-    return {
-      dataset: {
-        kind: "point",
-        fileName,
-        columns,
-        rows,
-        latColumn: latCol,
-        lonColumn: lonCol,
-        valueColumn: numericColumns[0] ?? "",
-        categoryColumn,
         numericColumns,
       },
     };
