@@ -465,7 +465,17 @@ L'utente incolla **host / utente / password** (credenziali read-only generate a 
    20 dataset realistici** (`src/lib/__fixtures__/datasets.ts`) che esercita parsing→profilo→geo-resolve
    →compat→join end-to-end (delimitatori `,;\t|`, numeri/valuta IT, tutti i livelli geo per nome/codice/ISO,
    ACI misto, lat/lon, wide, BOM/accenti). `npm test` = gate.
-- **O2.3** Parser dei formati: Excel (SheetJS da CDN), Shapefile, KML/KMZ, GeoTIFF (§1.11).
+- **O2.3a** ✅ **Parser tabellari**: **Excel `.xlsx/.xls`** (SheetJS **0.20.3 Apache-2.0**,
+   **vendorizzato** da CDN ufficiale in `src/vendor/sheetjs/` — mai dalla 0.18.5 di npm — e
+   **caricato lazy**: chunk separato ~162 KB gz, fuori dal bundle iniziale) e **GeoJSON/JSON**
+   (le `properties` delle feature → tabella; nessuna dipendenza). Entrambi confluiscono in
+   `buildDatasetFromTable` (geo-resolve + chiave/valore + errori identici al CSV); upload con
+   dispatch per estensione in `DataPanel`. Parser puri in `lib/ingest/parse-excel.ts` /
+   `parse-geojson.ts`, **testati** (12 test). *(Smoke-test visivo browser da fare.)*
+- **O2.3b** **Parser geometrici** (Shapefile, KML/KMZ, GeoTIFF): rimandati insieme a **O2.4**, perché
+   il loro payload primario è la **geometria** e richiedono un layer di rendering della geometria
+   utente che oggi non esiste (la pipeline coropletica usa la geometria **inclusa**). Messaggio
+   onesto “in arrivo” già nell'upload.
 - **O2.4** Layer di **punti** da CSV/GeoJSON (simboli, categorie)
 - **O2.5** **Query OSM (Overpass)** con selettore guidato
 - **O2.6** Mappa simboli proporzionali + mappa categorie

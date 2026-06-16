@@ -1,0 +1,25 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    { "type": "Feature", "properties": { "regione": "Lombardia", "consumo_suolo_pct": 12.19 }, "geometry": { "type": "Point", "coordinates": [9.19, 45.46] } },
+    { "type": "Feature", "properties": { "regione": "Veneto", "consumo_suolo_pct": 11.86 }, "geometry": { "type": "Point", "coordinates": [11.87, 45.44] } },
+    { "type": "Feature", "properties": { "regione": "Campania", "consumo_suolo_pct": 10.57 }, "geometry": { "type": "Point", "coordinates": [14.25, 40.85] } },
+    { "type": "Feature", "properties": { "regione": "Emilia-Romagna", "consumo_suolo_pct": 8.91 }, "geometry": { "type": "Point", "coordinates": [11.34, 44.49] } },
+    { "type": "Feature", "properties": { "regione": "Puglia", "consumo_suolo_pct": 8.27 }, "geometry": { "type": "Point", "coordinates": [16.6, 41.0] } },
+    { "type": "Feature", "properties": { "regione": "Lazio", "consumo_suolo_pct": 8.19 }, "geometry": { "type": "Point", "coordinates": [12.5, 41.9] } },
+    { "type": "Feature", "properties": { "regione": "Friuli-Venezia Giulia", "consumo_suolo_pct": 8.03 }, "geometry": { "type": "Point", "coordinates": [13.24, 46.07] } },
+    { "type": "Feature", "properties": { "regione": "Liguria", "consumo_suolo_pct": 7.3 }, "geometry": { "type": "Point", "coordinates": [8.93, 44.41] } },
+    { "type": "Feature", "properties": { "regione": "Marche", "consumo_suolo_pct": 6.98 }, "geometry": { "type": "Point", "coordinates": [13.5, 43.3] } },
+    { "type": "Feature", "properties": { "regione": "Piemonte", "consumo_suolo_pct": 6.72 }, "geometry": { "type": "Point", "coordinates": [7.69, 45.07] } },
+    { "type": "Feature", "properties": { "regione": "Sicilia", "consumo_suolo_pct": 6.53 }, "geometry": { "type": "Point", "coordinates": [14.0, 37.6] } },
+    { "type": "Feature", "properties": { "regione": "Toscana", "consumo_suolo_pct": 6.19 }, "geometry": { "type": "Point", "coordinates": [11.25, 43.77] } },
+    { "type": "Feature", "properties": { "regione": "Umbria", "consumo_suolo_pct": 5.27 }, "geometry": { "type": "Point", "coordinates": [12.39, 43.11] } },
+    { "type": "Feature", "properties": { "regione": "Calabria", "consumo_suolo_pct": 5.08 }, "geometry": { "type": "Point", "coordinates": [16.6, 39.0] } },
+    { "type": "Feature", "properties": { "regione": "Abruzzo", "consumo_suolo_pct": 5.03 }, "geometry": { "type": "Point", "coordinates": [13.7, 42.35] } },
+    { "type": "Feature", "properties": { "regione": "Molise", "consumo_suolo_pct": 3.94 }, "geometry": { "type": "Point", "coordinates": [14.66, 41.56] } },
+    { "type": "Feature", "properties": { "regione": "Sardegna", "consumo_suolo_pct": 3.37 }, "geometry": { "type": "Point", "coordinates": [9.11, 39.22] } },
+    { "type": "Feature", "properties": { "regione": "Basilicata", "consumo_suolo_pct": 3.21 }, "geometry": { "type": "Point", "coordinates": [16.0, 40.6] } },
+    { "type": "Feature", "properties": { "regione": "Trentino-Alto Adige", "consumo_suolo_pct": 3.02 }, "geometry": { "type": "Point", "coordinates": [11.42, 46.5] } },
+    { "type": "Feature", "properties": { "regione": "Valle d'Aosta", "consumo_suolo_pct": 2.16 }, "geometry": { "type": "Point", "coordinates": [7.32, 45.74] } }
+  ]
+}

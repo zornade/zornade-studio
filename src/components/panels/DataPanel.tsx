@@ -36,6 +36,8 @@ import {
 } from "../../lib/choropleth";
 import { loadGeoKeys } from "../../lib/geo-keys";
 import { readFileSmart } from "../../lib/ingest/decode";
+import { parseExcel } from "../../lib/ingest/parse-excel";
+import { parseGeoJson } from "../../lib/ingest/parse-geojson";
 import {
   catalogApiAvailable,
   searchCkan,
@@ -60,7 +62,20 @@ async function buildDatasetFromCsv(
   text: string,
   fileName: string,
 ): Promise<{ dataset: DatasetState } | { error: string }> {
-  const { columns, rows } = parseCsv(text);
+  return buildDatasetFromTable(parseCsv(text), fileName);
+}
+
+/**
+ * Turn an already-parsed table ({ columns, rows }) into a ready DatasetState,
+ * or a human error message. Format-specific parsers (CSV, Excel, GeoJSON) all
+ * funnel through here so geo-resolution, key/value detection and error
+ * messages stay identical across formats.
+ */
+async function buildDatasetFromTable(
+  table: { columns: string[]; rows: Record<string, string>[] },
+  fileName: string,
+): Promise<{ dataset: DatasetState } | { error: string }> {
+  const { columns, rows } = table;
   if (columns.length === 0 || rows.length === 0) {
     return { error: "Il file sembra vuoto o non leggibile." };
   }
@@ -726,21 +741,58 @@ function UploadSource() {
   const handleFile = async (file: File) => {
     setError(null);
     const name = file.name.toLowerCase();
-    if (!name.endsWith(".csv")) {
+
+    // Dispatch by extension to the right parser; every format funnels into the
+    // same buildDatasetFromTable so geo-resolution + errors are identical.
+    let out: { dataset: DatasetState } | { error: string };
+    try {
+      if (name.endsWith(".csv") || name.endsWith(".tsv") || name.endsWith(".txt")) {
+        // Decode with UTF-8 → Windows-1252 fallback (Italian Excel exports).
+        const { text } = await readFileSmart(file);
+        out = await buildDatasetFromCsv(text, file.name);
+      } else if (name.endsWith(".xlsx") || name.endsWith(".xls")) {
+        const table = await parseExcel(await file.arrayBuffer());
+        out = await buildDatasetFromTable(table, file.name);
+      } else if (name.endsWith(".geojson") || name.endsWith(".json")) {
+        const { text } = await readFileSmart(file);
+        const parsed = parseGeoJson(text);
+        out =
+          "error" in parsed
+            ? parsed
+            : await buildDatasetFromTable(parsed, file.name);
+      } else if (
+        name.endsWith(".zip") ||
+        name.endsWith(".shp") ||
+        name.endsWith(".kml") ||
+        name.endsWith(".kmz") ||
+        name.endsWith(".tif") ||
+        name.endsWith(".tiff")
+      ) {
+        // Shapefile/KML/GeoTIFF carry geometry as their primary payload; they
+        // need a geometry-rendering layer that doesn't exist yet (in arrivo).
+        setError(
+          "Shapefile, KML/KMZ e GeoTIFF sono in arrivo. Per ora: CSV, Excel (.xlsx) e GeoJSON.",
+        );
+        return;
+      } else {
+        setError("Formato non supportato. Usa CSV, Excel (.xlsx) o GeoJSON.");
+        return;
+      }
+    } catch (e) {
       setError(
-        "Per ora è supportato il CSV. Excel/GeoJSON/Shapefile sono in arrivo.",
+        e instanceof Error
+          ? `Impossibile leggere il file: ${e.message}`
+          : "Impossibile leggere il file.",
       );
       return;
     }
-    // Decode with UTF-8 → Windows-1252 fallback (Italian Excel exports).
-    const { text } = await readFileSmart(file);
-    const out = await buildDatasetFromCsv(text, file.name);
+
     if ("error" in out) {
       setError(out.error);
       return;
     }
     setData(out.dataset);
-    // Default the title from the file name (a CSV has no title metadata), only
+    // Default the title from the file name (a file has no title metadata), only
     // if the operator hasn't already set one — never overwrite manual input.
     if (!project.title || project.title === "Mappa senza titolo") {
       const t = titleFromFileName(file.name);
@@ -794,7 +846,7 @@ function UploadSource() {
           Trascina un file o clicca per caricare
         </span>
         <span className="text-xs text-slate-500">
-          CSV (Excel, GeoJSON, Shapefile, KML, GeoTIFF in arrivo)
+          CSV, Excel (.xlsx) e GeoJSON · Shapefile, KML, GeoTIFF in arrivo
         </span>
         <input
           type="file"
