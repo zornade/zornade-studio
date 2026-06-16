@@ -7,7 +7,7 @@ import { evaluateCompatibility } from "../../lib/viz-compat";
 import { GEO_LEVELS, type GeoResolution } from "../../lib/choropleth";
 
 /** Viz types whose rendering is actually implemented today. */
-const IMPLEMENTED = new Set<string>(["choropleth"]);
+const IMPLEMENTED = new Set<string>(["choropleth", "points"]);
 
 /** Italian label for each semantic column type (for the summary). */
 const TYPE_LABEL: Record<SemanticType, string> = {
@@ -30,12 +30,11 @@ export function VisualizePanel() {
   const { compat, summary } = useMemo(() => {
     if (!data) return { compat: null, summary: null };
     const profile = profileColumns(data.columns, data.rows);
-    const geo: GeoResolution = {
-      level: data.geoLevel,
-      keyColumn: data.keyColumn,
-      score: 1,
-      alternatives: [],
-    };
+    // Area datasets carry a resolved geo level/key; point datasets don't.
+    const geo: GeoResolution | null =
+      data.kind === "area"
+        ? { level: data.geoLevel, keyColumn: data.keyColumn, score: 1, alternatives: [] }
+        : null;
     return {
       compat: evaluateCompatibility(profile, geo),
       summary: { profile, geo },
@@ -56,11 +55,20 @@ export function VisualizePanel() {
             Cosa abbiamo capito
           </p>
           <p className="text-xs text-slate-600">
-            Livello geografico:{" "}
-            <span className="font-medium text-slate-800">
-              {GEO_LEVELS[summary.geo.level].label}
-            </span>{" "}
-            · chiave “{summary.geo.keyColumn}”
+            {summary.geo ? (
+              <>
+                Livello geografico:{" "}
+                <span className="font-medium text-slate-800">
+                  {GEO_LEVELS[summary.geo.level].label}
+                </span>{" "}
+                · chiave “{summary.geo.keyColumn}”
+              </>
+            ) : (
+              <>
+                Tipo di dato:{" "}
+                <span className="font-medium text-slate-800">punti (coordinate)</span>
+              </>
+            )}
           </p>
           <div className="mt-1.5 flex flex-wrap gap-1">
             {summary.profile.columns.map((c) => (

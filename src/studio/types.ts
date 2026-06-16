@@ -52,17 +52,42 @@ export interface DesignSettings {
  * Geometry is loaded lazily by the map from the level definition; this state
  * only carries the rows and the chosen key/value columns.
  */
-export interface DatasetState {
+/**
+ * A parsed tabular dataset, in one of two shapes:
+ *  - **area**: rows joined to bundled geometry by a key → choropleth.
+ *  - **point**: rows with lat/lon coordinates → point layer.
+ * The `kind` discriminant lets the editor pick the right pipeline; geometry for
+ * the area case is loaded lazily from the level definition.
+ */
+export type DatasetState = AreaDataset | PointDataset;
+
+interface DatasetBase {
   fileName: string;
   columns: string[];
   rows: Record<string, string>[];
-  geoLevel: GeoLevel;
-  /** CSV column used as the geo join key. */
-  keyColumn: string;
-  /** CSV column whose numeric values drive the colour. */
-  valueColumn: string;
-  /** Numeric columns available to map. */
+  /** Numeric columns available to map / size by. */
   numericColumns: string[];
+}
+
+export interface AreaDataset extends DatasetBase {
+  kind: "area";
+  geoLevel: GeoLevel;
+  /** Column used as the geo join key. */
+  keyColumn: string;
+  /** Column whose numeric values drive the colour. */
+  valueColumn: string;
+}
+
+export interface PointDataset extends DatasetBase {
+  kind: "point";
+  /** Column holding the latitude. */
+  latColumn: string;
+  /** Column holding the longitude. */
+  lonColumn: string;
+  /** Optional numeric column to size the symbols ("" = uniform size). */
+  valueColumn: string;
+  /** Optional column to colour points by category. */
+  categoryColumn?: string;
 }
 
 export interface StudioState {

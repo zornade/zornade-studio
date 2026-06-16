@@ -78,6 +78,9 @@ export function buildSpec(state: StudioState): BuildSpecResult {
   }
   const { data, design, project } = state;
   if (!data) return { error: "Nessun dato caricato." };
+  if (data.kind !== "area") {
+    return { error: "La pubblicazione è supportata solo per le mappe ad aree." };
+  }
 
   // Reduce to minimal {key, value} data, dropping empty/non-numeric rows.
   const seen = new Set<string>();

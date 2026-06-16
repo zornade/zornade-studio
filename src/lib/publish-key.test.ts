@@ -18,6 +18,7 @@ function state(title: string, value: string): StudioState {
       showLegend: true, showSource: true, tooltip: true, zoomPan: true,
     },
     data: {
+      kind: "area",
       fileName: "f.csv", columns: ["Regione", "V"],
       rows: [{ Regione: "Lazio", V: value }],
       geoLevel: "regioni", keyColumn: "Regione", valueColumn: "V",

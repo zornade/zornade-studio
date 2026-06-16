@@ -11,8 +11,16 @@ import {
   sampleColors,
   DEFAULT_NO_DATA_COLOR,
 } from "../lib/choropleth";
+import {
+  buildPointFeatures,
+  buildPointColorExpression,
+  buildPointRadiusExpression,
+} from "../lib/points";
 
 const NO_DATA_COLOR = DEFAULT_NO_DATA_COLOR;
+/** Categorical palette for point colouring (falls back to teal). */
+const CAT_PALETTE =
+  COLOR_SCALES.find((s) => s.id === "cat")?.colors ?? ["#01646f"];
 
 export function MapCanvas() {
   const { project, brand, vizType, design, data, exportNodeRef } = useStudio();
@@ -21,9 +29,9 @@ export function MapCanvas() {
   const scale =
     COLOR_SCALES.find((s) => s.id === design.colorScale) ?? COLOR_SCALES[0];
 
-  // Load the geometry for the active dataset's geo level (cached per URL).
+  // Load the geometry for the active dataset's geo level (area datasets only).
   const [rawGeo, setRawGeo] = useState<GeoJSON.FeatureCollection | null>(null);
-  const geoUrl = data ? GEO_LEVELS[data.geoLevel].url : null;
+  const geoUrl = data?.kind === "area" ? GEO_LEVELS[data.geoLevel].url : null;
   useEffect(() => {
     if (!geoUrl) {
       setRawGeo(null);
@@ -45,7 +53,8 @@ export function MapCanvas() {
 
   // Join the data onto the geometry and build the choropleth paint expression.
   const joined = useMemo(() => {
-    if (!data || !rawGeo || vizType !== "choropleth") return null;
+    if (!data || data.kind !== "area" || !rawGeo || vizType !== "choropleth")
+      return null;
     return joinChoropleth({
       geojson: rawGeo,
       level: data.geoLevel,
@@ -58,23 +67,54 @@ export function MapCanvas() {
     });
   }, [data, rawGeo, vizType, design.nClasses, design.classification, design.manualBreaks]);
 
-  const valueLabel = (design.valueLabel || data?.valueColumn) ?? "";
+  // Build point features for a point dataset (memoised on the relevant inputs).
+  const points = useMemo(() => {
+    if (!data || data.kind !== "point") return null;
+    return buildPointFeatures({
+      rows: data.rows,
+      latColumn: data.latColumn,
+      lonColumn: data.lonColumn,
+      valueColumn: data.valueColumn || undefined,
+      categoryColumn: data.categoryColumn,
+      nameColumn: data.categoryColumn,
+    });
+  }, [data]);
+
+  const valueLabel =
+    (design.valueLabel || (data?.kind === "point" ? data.valueColumn : data?.valueColumn)) ??
+    "";
 
   const dataLayer: DataLayer | null = useMemo(() => {
-    if (!joined) return null;
-    const fillColor = buildFillColorExpression(
-      joined.classes,
-      scale.colors,
-      NO_DATA_COLOR,
-    );
-    return {
-      geojson: joined.geojson,
-      fillColor,
-      nameField: data ? GEO_LEVELS[data.geoLevel].nameField : undefined,
-      valueLabel,
-      valueUnit: design.valueUnit || undefined,
-    };
-  }, [joined, scale.colors, data, valueLabel, design.valueUnit]);
+    if (joined) {
+      const fillColor = buildFillColorExpression(
+        joined.classes,
+        scale.colors,
+        NO_DATA_COLOR,
+      );
+      return {
+        kind: "area",
+        geojson: joined.geojson,
+        fillColor,
+        nameField: data?.kind === "area" ? GEO_LEVELS[data.geoLevel].nameField : undefined,
+        valueLabel,
+        valueUnit: design.valueUnit || undefined,
+      };
+    }
+    if (points && data?.kind === "point") {
+      return {
+        kind: "point",
+        geojson: points.geojson,
+        circleColor: data.categoryColumn
+          ? buildPointColorExpression(points.categories, CAT_PALETTE, scale.colors[scale.colors.length - 1])
+          : scale.colors[scale.colors.length - 1],
+        circleRadius: buildPointRadiusExpression(points.valueRange, 4, 18, 6),
+        nameField: data.categoryColumn ? "__name" : undefined,
+        valueLabel,
+        valueUnit: design.valueUnit || undefined,
+      };
+    }
+    return null;
+  }, [joined, points, scale.colors, data, valueLabel, design.valueUnit]);
 
   const showLegend =
     design.showLegend && (vizType === "choropleth" || vizType === "symbol");
@@ -108,7 +148,11 @@ export function MapCanvas() {
         basemap={false}
         basemapUrl={basemapUrl}
         fitKey={
-          data ? `${data.fileName}:${data.geoLevel}:${data.valueColumn}` : null
+          data
+            ? data.kind === "area"
+              ? `${data.fileName}:${data.geoLevel}:${data.valueColumn}`
+              : `${data.fileName}:point:${data.latColumn},${data.lonColumn}`
+            : null
         }
       />
 

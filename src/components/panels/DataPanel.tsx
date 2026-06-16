@@ -38,6 +38,7 @@ import { loadGeoKeys } from "../../lib/geo-keys";
 import { readFileSmart } from "../../lib/ingest/decode";
 import { parseExcel } from "../../lib/ingest/parse-excel";
 import { parseGeoJson } from "../../lib/ingest/parse-geojson";
+import { profileColumns } from "../../lib/profile";
 import {
   catalogApiAvailable,
   searchCkan,
@@ -80,54 +81,74 @@ async function buildDatasetFromTable(
     return { error: "Il file sembra vuoto o non leggibile." };
   }
 
-  let geoLevel: GeoLevel;
-  let keyColumn: string;
-
+  // 1) Try the AREA (choropleth) path: match values against geometry keys.
   const keys = await loadGeoKeys();
   const resolved =
     Object.keys(keys).length > 0 ? resolveGeoJoin(columns, rows, keys) : null;
-
+  let areaLevel: GeoLevel | null = null;
+  let areaKey: string | null = null;
   if (resolved) {
-    geoLevel = resolved.level;
-    keyColumn = resolved.keyColumn;
+    areaLevel = resolved.level;
+    areaKey = resolved.keyColumn;
   } else {
-    // Fallback: name-based detection (keys index unavailable).
     const detected = detectGeoLevel(columns);
-    if (!detected) {
-      return {
-        error:
-          "Nessuna colonna geografica riconosciuta (es. codice_istat, sigla, comune).",
-      };
+    if (detected && GEO_LEVELS[detected].ready) {
+      areaLevel = detected;
+      areaKey = detectKeyColumn(detected, columns);
     }
-    if (!GEO_LEVELS[detected].ready) {
-      const ready = Object.values(GEO_LEVELS)
-        .filter((l) => l.ready)
-        .map((l) => l.label)
-        .join(", ");
-      return {
-        error: `Livello “${GEO_LEVELS[detected].label}” riconosciuto, ma la geometria non è ancora disponibile. Per ora: ${ready}.`,
-      };
-    }
-    geoLevel = detected;
-    keyColumn = detectKeyColumn(detected, columns)!;
   }
 
-  const numericColumns = detectNumericColumns(columns, rows).filter(
-    (c) => c !== keyColumn,
-  );
-  if (numericColumns.length === 0) {
-    return { error: "Nessuna colonna numerica da mappare trovata." };
+  if (areaLevel && areaKey) {
+    const numericColumns = detectNumericColumns(columns, rows).filter(
+      (c) => c !== areaKey,
+    );
+    if (numericColumns.length === 0) {
+      return { error: "Nessuna colonna numerica da mappare trovata." };
+    }
+    return {
+      dataset: {
+        kind: "area",
+        fileName,
+        columns,
+        rows,
+        geoLevel: areaLevel,
+        keyColumn: areaKey,
+        valueColumn: numericColumns[0],
+        numericColumns,
+      },
+    };
   }
+
+  // 2) Fall back to the POINT path: detect lat/lon columns from the profile.
+  const profile = profileColumns(columns, rows);
+  const latCol = profile.columns.find((c) => c.type === "geo-point-lat")?.name;
+  const lonCol = profile.columns.find((c) => c.type === "geo-point-lon")?.name;
+  if (latCol && lonCol) {
+    const numericColumns = detectNumericColumns(columns, rows).filter(
+      (c) => c !== latCol && c !== lonCol,
+    );
+    const categoryColumn = profile.columns.find(
+      (c) => c.type === "categorical",
+    )?.name;
+    return {
+      dataset: {
+        kind: "point",
+        fileName,
+        columns,
+        rows,
+        latColumn: latCol,
+        lonColumn: lonCol,
+        valueColumn: numericColumns[0] ?? "",
+        categoryColumn,
+        numericColumns,
+      },
+    };
+  }
+
   return {
-    dataset: {
-      fileName,
-      columns,
-      rows,
-      geoLevel,
-      keyColumn,
-      valueColumn: numericColumns[0],
-      numericColumns,
-    },
+    error:
+      "Nessuna colonna geografica riconosciuta: serve una chiave area " +
+      "(regione/provincia/comune/paese) oppure coordinate (lat/lon).",
   };
 }
 
@@ -811,25 +832,31 @@ function UploadSource() {
           <div className="min-w-0 text-xs text-emerald-800">
             <p className="font-medium">{data.fileName}</p>
             <p className="text-emerald-700">
-              {data.rows.length} righe · livello {GEO_LEVELS[data.geoLevel].label}{" "}
-              · chiave “{data.keyColumn}”
+              {data.kind === "area"
+                ? `${data.rows.length} righe · livello ${GEO_LEVELS[data.geoLevel].label} · chiave “${data.keyColumn}”`
+                : `${data.rows.length} righe · punti (lat “${data.latColumn}”, lon “${data.lonColumn}”)`}
             </p>
           </div>
         </div>
 
-        <Field label="Colonna da mappare">
-          <select
-            value={data.valueColumn}
-            onChange={(e) => setData({ ...data, valueColumn: e.target.value })}
-            className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-sm text-slate-700 focus:border-zornade focus:outline-none"
+        {(data.kind === "area" || data.numericColumns.length > 0) && (
+          <Field
+            label={data.kind === "area" ? "Colonna da mappare" : "Dimensione (opzionale)"}
           >
-            {data.numericColumns.map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
-          </select>
-        </Field>
+            <select
+              value={data.valueColumn}
+              onChange={(e) => setData({ ...data, valueColumn: e.target.value })}
+              className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-sm text-slate-700 focus:border-zornade focus:outline-none"
+            >
+              {data.kind === "point" && <option value="">Nessuna (uniforme)</option>}
+              {data.numericColumns.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
+          </Field>
+        )}
 
         <Button variant="secondary" onClick={() => setData(null)} className="w-full">
           Carica un altro file

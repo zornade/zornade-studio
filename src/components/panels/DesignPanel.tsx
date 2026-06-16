@@ -230,55 +230,59 @@ export function DesignPanel() {
       >
         {data && (
           <>
-            <Field
-              label="Livello geografico"
-              hint="Riconosciuto dai dati. Cambialo se l'abbinamento è sbagliato."
-            >
-              <select
-                value={data.geoLevel}
-                onChange={(e) => {
-                  const level = e.target.value as GeoLevel;
-                  const keyColumn =
-                    (geoKeys &&
-                      bestKeyColumnForLevel(
-                        level,
-                        data.columns,
-                        data.rows,
-                        geoKeys,
-                      )) ||
-                    data.keyColumn;
-                  setData({ ...data, geoLevel: level, keyColumn });
-                }}
-                className={inputCls}
-              >
-                {Object.values(GEO_LEVELS)
-                  .filter((l) => l.ready)
-                  .map((l) => (
-                    <option key={l.id} value={l.id}>
-                      {l.label}
-                    </option>
-                  ))}
-              </select>
-            </Field>
-            <Field
-              label="Colonna chiave (abbinamento geografico)"
-              hint="La colonna che identifica l'area (nome o codice)."
-            >
-              <select
-                value={data.keyColumn}
-                onChange={(e) =>
-                  setData({ ...data, keyColumn: e.target.value })
-                }
-                className={inputCls}
-              >
-                {data.columns.map((c) => (
-                  <option key={c} value={c}>
-                    {c}
-                  </option>
-                ))}
-              </select>
-            </Field>
-            <Field label="Colonna da mappare">
+            {data.kind === "area" && (
+              <>
+                <Field
+                  label="Livello geografico"
+                  hint="Riconosciuto dai dati. Cambialo se l'abbinamento è sbagliato."
+                >
+                  <select
+                    value={data.geoLevel}
+                    onChange={(e) => {
+                      const level = e.target.value as GeoLevel;
+                      const keyColumn =
+                        (geoKeys &&
+                          bestKeyColumnForLevel(
+                            level,
+                            data.columns,
+                            data.rows,
+                            geoKeys,
+                          )) ||
+                        data.keyColumn;
+                      setData({ ...data, geoLevel: level, keyColumn });
+                    }}
+                    className={inputCls}
+                  >
+                    {Object.values(GEO_LEVELS)
+                      .filter((l) => l.ready)
+                      .map((l) => (
+                        <option key={l.id} value={l.id}>
+                          {l.label}
+                        </option>
+                      ))}
+                  </select>
+                </Field>
+                <Field
+                  label="Colonna chiave (abbinamento geografico)"
+                  hint="La colonna che identifica l'area (nome o codice)."
+                >
+                  <select
+                    value={data.keyColumn}
+                    onChange={(e) =>
+                      setData({ ...data, keyColumn: e.target.value })
+                    }
+                    className={inputCls}
+                  >
+                    {data.columns.map((c) => (
+                      <option key={c} value={c}>
+                        {c}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+              </>
+            )}
+            <Field label={data.kind === "area" ? "Colonna da mappare" : "Dimensione dei punti"}>
               <select
                 value={data.valueColumn}
                 onChange={(e) =>
@@ -286,6 +290,9 @@ export function DesignPanel() {
                 }
                 className={inputCls}
               >
+                {data.kind === "point" && (
+                  <option value="">Nessuna (dimensione uniforme)</option>
+                )}
                 {data.numericColumns.map((c) => (
                   <option key={c} value={c}>
                     {c}

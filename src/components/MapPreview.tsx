@@ -7,10 +7,16 @@ import { ensurePmtilesProtocol } from "../lib/pmtiles";
 /** A choropleth data layer to overlay on the basemap. */
 export interface DataLayer {
   geojson: GeoJSON.FeatureCollection;
-  /** MapLibre paint expression for `fill-color`. */
-  fillColor: unknown;
-  /** Outline colour for the polygons. */
+  /** "area" → fill+line choropleth (default); "point" → circle layer. */
+  kind?: "area" | "point";
+  /** MapLibre paint expression for `fill-color` (area). */
+  fillColor?: unknown;
+  /** Outline colour for the polygons (area). */
   lineColor?: string;
+  /** MapLibre paint expression/colour for `circle-color` (point). */
+  circleColor?: unknown;
+  /** MapLibre paint expression/number for `circle-radius` (point). */
+  circleRadius?: unknown;
   /** Feature property holding the area name (for tooltips). */
   nameField?: string;
   /** Human label for the mapped value (for tooltips). */
@@ -98,6 +104,30 @@ export function MapPreview({
     const firstSymbol = map
       .getStyle()
       .layers?.find((l) => l.type === "symbol")?.id;
+
+    if (layer.kind === "point") {
+      // Point layer: a single circle layer keyed FILL so the existing hover
+      // tooltip (bound to FILL) works for points too.
+      map.addLayer(
+        {
+          id: FILL,
+          type: "circle",
+          source: SRC,
+          paint: {
+            "circle-color":
+              (layer.circleColor as maplibregl.ExpressionSpecification) ??
+              "#01646f",
+            "circle-radius":
+              (layer.circleRadius as maplibregl.ExpressionSpecification) ?? 5,
+            "circle-stroke-color": "#ffffff",
+            "circle-stroke-width": 1,
+            "circle-opacity": 0.9,
+          },
+        },
+        firstSymbol,
+      );
+      return;
+    }
 
     map.addLayer(
       {

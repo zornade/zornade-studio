@@ -476,7 +476,14 @@ L'utente incolla **host / utente / password** (credenziali read-only generate a 
    il loro payload primario è la **geometria** e richiedono un layer di rendering della geometria
    utente che oggi non esiste (la pipeline coropletica usa la geometria **inclusa**). Messaggio
    onesto “in arrivo” già nell'upload.
-- **O2.4** Layer di **punti** da CSV/GeoJSON (simboli, categorie)
+- **O2.4** ✅ Layer di **punti** da CSV/GeoJSON. `DatasetState` ora è un'unione
+   **`area | point`**: i dati con colonne **lat/lon** (rilevate dal profilo) diventano un layer di
+   punti MapLibre (`circle`), con **dimensione proporzionale** opzionale (colonna numerica) e
+   **colore per categoria** opzionale (`lib/points.ts`: `buildPointFeatures` +
+   `buildPointColorExpression` + `buildPointRadiusExpression`, testati). `MapPreview` rende un layer
+   `circle` riusando lo stesso id del layer dati (tooltip incluso); `VisualizePanel` abilita “punti”;
+   il pannello Design espone dimensione/categoria. *(La pubblicazione resta solo per le aree;
+   lo Shapefile/KML/GeoTIFF di O2.3b si agganceranno a questo percorso geometria-utente.)*
 - **O2.5** **Query OSM (Overpass)** con selettore guidato
 - **O2.6** Mappa simboli proporzionali + mappa categorie
 - **O2.7** Scale colore avanzate (palette/editor) + check daltonismo

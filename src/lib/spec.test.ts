@@ -32,6 +32,7 @@ function baseState(overrides: Partial<StudioState> = {}): StudioState {
       zoomPan: true,
     },
     data: {
+      kind: "area",
       fileName: "arrivi.csv",
       columns: ["Regione", "Arrivi"],
       rows: [
