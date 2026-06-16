@@ -20,6 +20,7 @@ import {
 } from "../../lib/choropleth";
 import { loadGeoKeys } from "../../lib/geo-keys";
 import { designCaps } from "../../studio/design-caps";
+import { simulatePalette, CVD_TYPES } from "../../lib/cvd";
 import { PanelSection, Field, SoonBadge } from "../primitives";
 
 const PRESET_OPTIONS: { id: PresetChoice; label: string }[] = [
@@ -64,6 +65,11 @@ export function DesignPanel() {
   const fontId =
     FONT_OPTIONS.find((f) => f.stack === design.titleFont)?.id ??
     "space-grotesk";
+  const activeScale =
+    COLOR_SCALES.find((s) => s.id === design.colorScale) ?? COLOR_SCALES[0];
+  const activeScaleColors = design.reverseScale
+    ? [...activeScale.colors].reverse()
+    : activeScale.colors;
 
   const inputCls =
     "w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-zornade focus:outline-none";
@@ -369,14 +375,39 @@ export function DesignPanel() {
                   }`}
                 >
                   <span className="flex h-3.5 w-24 overflow-hidden rounded-full">
-                    {s.colors.map((c) => (
-                      <span key={c} className="flex-1" style={{ background: c }} />
-                    ))}
+                    {(design.reverseScale ? [...s.colors].reverse() : s.colors).map(
+                      (c, i) => (
+                        <span key={i} className="flex-1" style={{ background: c }} />
+                      ),
+                    )}
                   </span>
-                  <span className="text-xs text-slate-600">{s.label}</span>
+                  <span className="flex-1 text-left text-xs text-slate-600">
+                    {s.label}
+                  </span>
+                  {s.cvdSafe && (
+                    <span
+                      title="Adatta al daltonismo"
+                      className="rounded bg-emerald-50 px-1 py-0.5 text-[9px] font-medium text-emerald-600"
+                    >
+                      ✓ daltonismo
+                    </span>
+                  )}
                 </button>
               ))}
             </div>
+            <label className="mt-2 flex cursor-pointer items-center gap-2 text-xs font-medium text-slate-600">
+              <input
+                type="checkbox"
+                checked={design.reverseScale}
+                onChange={(e) => updateDesign({ reverseScale: e.target.checked })}
+                className="h-4 w-4 rounded accent-zornade"
+              />
+              Inverti la scala
+            </label>
+            <CvdPreview
+              colors={activeScaleColors}
+              cvdSafe={!!activeScale.cvdSafe}
+            />
           </Field>
         )}
 
@@ -599,5 +630,57 @@ function Toggle({
       />
       {label}
     </label>
+  );
+}
+
+/**
+ * Colour-blindness preview: shows the active palette as it appears under the
+ * three CVD types (Machado 2009 simulation). The "safe" badge reflects the
+ * palette's **curated** `cvdSafe` flag (from published colour-blind-safe
+ * palettes), not a fragile runtime metric — the simulation lets the operator
+ * verify visually.
+ */
+function CvdPreview({
+  colors,
+  cvdSafe,
+}: {
+  colors: string[];
+  cvdSafe: boolean;
+}) {
+  return (
+    <div className="mt-2 rounded-lg border border-slate-200 bg-slate-50 p-2">
+      <div className="mb-1.5 flex items-center justify-between">
+        <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+          Daltonismo
+        </span>
+        {cvdSafe ? (
+          <span className="rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-medium text-emerald-600">
+            Palette adatta
+          </span>
+        ) : (
+          <span className="rounded bg-slate-200 px-1.5 py-0.5 text-[10px] font-medium text-slate-600">
+            Verifica sotto
+          </span>
+        )}
+      </div>
+      <div className="space-y-1">
+        {CVD_TYPES.map(({ type, label }) => (
+          <div key={type} className="flex items-center gap-2">
+            <span className="w-28 flex-shrink-0 text-[10px] text-slate-500">
+              {label}
+            </span>
+            <span className="flex h-3 flex-1 overflow-hidden rounded-full">
+              {simulatePalette(colors, type).map((c, i) => (
+                <span key={i} className="flex-1" style={{ background: c }} />
+              ))}
+            </span>
+          </div>
+        ))}
+      </div>
+      <p className="mt-1.5 text-[10px] text-slate-400">
+        Anteprima di come appare la scala a chi ha un deficit della visione dei
+        colori. Scegli una scala “✓ daltonismo” se i colori si confondono.
+      </p>
+    </div>
   );
 }

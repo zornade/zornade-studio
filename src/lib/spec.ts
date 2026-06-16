@@ -36,6 +36,7 @@ export interface SpecDatum {
 export interface SpecDesign {
   basemap: string;
   colorScale: string;
+  reverseScale: boolean;
   classification: string;
   manualBreaks: number[];
   legendType: string;
@@ -120,6 +121,7 @@ export function buildSpec(state: StudioState): BuildSpecResult {
     design: {
       basemap: design.basemap,
       colorScale: design.colorScale,
+      reverseScale: design.reverseScale,
       classification: design.classification,
       manualBreaks: [...design.manualBreaks],
       legendType: design.legendType,

@@ -14,7 +14,8 @@ function spec(over: Partial<ChoroplethSpec> = {}): ChoroplethSpec {
       { key: "Veneto", value: 73890 },
     ],
     design: {
-      basemap: "ofm-positron", colorScale: "teal-seq", classification: "quantile",
+      basemap: "ofm-positron", colorScale: "teal-seq", reverseScale: false,
+      classification: "quantile",
       manualBreaks: [], legendType: "steps", nClasses: 5, valueLabel: "",
       valueUnit: "", titleFont: "Inter", showTitle: true, showLegend: true,
       showSource: true, tooltip: true, zoomPan: true,

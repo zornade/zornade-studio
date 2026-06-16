@@ -30,6 +30,11 @@ export function MapCanvas() {
 
   const scale =
     COLOR_SCALES.find((s) => s.id === design.colorScale) ?? COLOR_SCALES[0];
+  // Colours actually used, with the optional reverse applied once here so the
+  // fill, the symbols, the categories and the legend all stay consistent.
+  const scaleColors = design.reverseScale
+    ? [...scale.colors].reverse()
+    : scale.colors;
 
   // Load the geometry for the active dataset's geo level (area datasets only).
   const [rawGeo, setRawGeo] = useState<GeoJSON.FeatureCollection | null>(null);
@@ -137,7 +142,7 @@ export function MapCanvas() {
     if (vizType === "choropleth" && joined) {
       const fillColor = buildFillColorExpression(
         joined.classes,
-        scale.colors,
+        scaleColors,
         NO_DATA_COLOR,
       );
       return {
@@ -168,7 +173,7 @@ export function MapCanvas() {
     }
     // Category map: areas coloured by category.
     if (vizType === "category" && categoryJoin) {
-      const palette = scale.colors.length > 0 ? scale.colors : CAT_PALETTE;
+      const palette = scaleColors.length > 0 ? scaleColors : CAT_PALETTE;
       return {
         kind: "area",
         geojson: categoryJoin.geojson,
@@ -184,7 +189,7 @@ export function MapCanvas() {
     // Point dataset.
     if (points && data?.kind === "point") {
       const categoryPalette =
-        scale.colors.length > 0 ? scale.colors : CAT_PALETTE;
+        scaleColors.length > 0 ? scaleColors : CAT_PALETTE;
       return {
         kind: "point",
         geojson: points.geojson,
@@ -207,7 +212,7 @@ export function MapCanvas() {
       };
     }
     return null;
-  }, [vizType, joined, symbolPoints, categoryJoin, points, scale.colors, data, valueLabel, design.valueUnit, design.pointColor, design.pointSize]);
+  }, [vizType, joined, symbolPoints, categoryJoin, points, scaleColors, data, valueLabel, design.valueUnit, design.pointColor, design.pointSize]);
 
   const showLegend =
     design.showLegend && vizType === "choropleth";
@@ -219,8 +224,8 @@ export function MapCanvas() {
   const hasBasemap = Boolean(basemapUrl);
 
   const legendColors = joined
-    ? sampleColors(scale.colors, joined.classes.breaks.length + 1)
-    : scale.colors;
+    ? sampleColors(scaleColors, joined.classes.breaks.length + 1)
+    : scaleColors;
 
   return (
     <div
@@ -288,7 +293,7 @@ export function MapCanvas() {
               <div
                 className="h-2.5 w-40 rounded-full"
                 style={{
-                  background: `linear-gradient(to right, ${scale.colors.join(", ")})`,
+                  background: `linear-gradient(to right, ${scaleColors.join(", ")})`,
                 }}
               />
             )}

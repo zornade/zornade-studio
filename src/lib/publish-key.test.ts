@@ -13,6 +13,7 @@ function state(title: string, value: string): StudioState {
     brand: {} as StudioState["brand"],
     design: {
       titleFont: "Inter", basemap: "ofm-positron", colorScale: "teal-seq",
+      reverseScale: false,
       classification: "quantile", manualBreaks: [], legendType: "steps",
       nClasses: 5, valueLabel: "", valueUnit: "", pointColor: "#01646f",
       pointSize: 7, showTitle: true,

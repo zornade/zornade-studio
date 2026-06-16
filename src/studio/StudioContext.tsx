@@ -40,6 +40,7 @@ const INITIAL_DESIGN: DesignSettings = {
   titleFont: '"Space Grotesk", sans-serif',
   basemap: "ofm-positron",
   colorScale: "teal-seq",
+  reverseScale: false,
   classification: "quantile",
   manualBreaks: [],
   legendType: "steps",

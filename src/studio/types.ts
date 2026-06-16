@@ -26,6 +26,8 @@ export interface DesignSettings {
   basemap: string;
   /** id of the data color scale (see COLOR_SCALES). */
   colorScale: string;
+  /** Reverse the colour scale (e.g. dark→light instead of light→dark). */
+  reverseScale: boolean;
   /** id of the classification method (see CLASSIFICATION_METHODS). */
   classification: string;
   /** Manual class thresholds, used when classification === "manual". */

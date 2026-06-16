@@ -95,7 +95,7 @@ export function buildEmbedHtml(
   const classes =
     opts.classes ??
     computeBreaks(Object.values(keyed), d.classification, d.nClasses, d.manualBreaks);
-  const scaleColors = colorsForScale(d.colorScale);
+  const scaleColors = colorsForScale(d.colorScale, d.reverseScale);
   const noData = DEFAULT_NO_DATA_COLOR;
   const fill = buildFillColorExpression(classes, scaleColors, noData);
   const legendColors = sampleColors(scaleColors, classes.breaks.length + 1);

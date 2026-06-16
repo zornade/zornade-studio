@@ -508,7 +508,15 @@ L'utente incolla **host / utente / password** (credenziali read-only generate a 
    `categoryBinding` (scelta colonna categoria) + `colorScale`. `VisualizePanel`/catalogo: entrambe
    **ready**. *(Legenda graduata mostrata per la coropletica; per symbol/category il dato è nel
    tooltip — legenda dedicata = rifinitura successiva.)*
-- **O2.7** Scale colore avanzate (palette/editor) + check daltonismo
+- **O2.7** ✅ **Scale colore avanzate** + **check daltonismo**. Aggiunte palette **verificate
+   colour-blind-safe**: **Viridis** (CC0/matplotlib), **ColorBrewer** YlGnBu + PuOr (Apache-2.0,
+   © C. Brewer), **Okabe–Ito** (categorica). Flag `cvdSafe` curato dalla letteratura su `COLOR_SCALES`
+   → badge “✓ daltonismo”. **Simulazione CVD** `lib/cvd.ts` (matrici **Machado et al. 2009**,
+   protanopia/deuteranopia/tritanopia; grigi preservati; testata) → anteprima nel Design di come la
+   scala appare a chi ha un deficit. **Scelta di onestà:** il verdetto “adatta” usa il **flag curato**,
+   non un classificatore a soglia (misurato: nessuna soglia redmean separa pulito Okabe-Ito da palette
+   rischiose — si sovrappongono); la simulazione lascia **verificare a occhio**. Le palette valgono
+   anche negli **embed** (via `colorsForScale`).
 - **O2.8** Controlli per il lettore (dropdown, ricerca/geocoder, filtri) + tooltip HTML custom
 - **O2.9** Salvataggio progetti (locale → poi DB)
 

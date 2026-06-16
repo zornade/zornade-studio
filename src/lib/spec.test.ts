@@ -19,6 +19,7 @@ function baseState(overrides: Partial<StudioState> = {}): StudioState {
       titleFont: "Inter",
       basemap: "ofm-positron",
       colorScale: "teal-seq",
+      reverseScale: false,
       classification: "quantile",
       manualBreaks: [],
       legendType: "steps",
