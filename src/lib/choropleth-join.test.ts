@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   joinChoropleth,
+  joinCategory,
   matchedFeatureValues,
   computeBreaks,
   normaliseKey,
@@ -84,5 +85,40 @@ describe("matchedFeatureValues", () => {
       ]),
     );
     expect(v).toEqual([1, 3]);
+  });
+});
+
+describe("joinCategory", () => {
+  it("injects __cat on matched features and lists distinct categories", () => {
+    const g = geo(["Lombardia", "Veneto", "Lazio"]);
+    const res = joinCategory({
+      geojson: g,
+      level: LEVEL,
+      rows: [
+        { reg: "Lombardia", area: "Nord" },
+        { reg: "Veneto", area: "Nord" },
+        { reg: "Lazio", area: "Centro" },
+      ],
+      keyColumn: "reg",
+      categoryColumn: "area",
+    });
+    expect(res.categories).toEqual(["Nord", "Centro"]);
+    expect(res.geojson.features[0].properties!.__cat).toBe("Nord");
+    expect(res.geojson.features[2].properties!.__cat).toBe("Centro");
+    expect(res.noDataFeatures).toBe(0);
+  });
+
+  it("counts features without a category as no-data", () => {
+    const g = geo(["Lombardia", "Veneto", "Lazio"]);
+    const res = joinCategory({
+      geojson: g,
+      level: LEVEL,
+      rows: [{ reg: "Lombardia", area: "Nord" }],
+      keyColumn: "reg",
+      categoryColumn: "area",
+    });
+    expect(res.categories).toEqual(["Nord"]);
+    expect(res.noDataFeatures).toBe(2);
+    expect(res.geojson.features[1].properties!.__cat).toBeUndefined();
   });
 });

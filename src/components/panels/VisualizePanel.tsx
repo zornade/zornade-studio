@@ -7,7 +7,7 @@ import { evaluateCompatibility } from "../../lib/viz-compat";
 import { GEO_LEVELS, type GeoResolution } from "../../lib/choropleth";
 
 /** Viz types whose rendering is actually implemented today. */
-const IMPLEMENTED = new Set<string>(["choropleth", "points"]);
+const IMPLEMENTED = new Set<string>(["choropleth", "points", "symbol", "category"]);
 
 /** Italian label for each semantic column type (for the summary). */
 const TYPE_LABEL: Record<SemanticType, string> = {

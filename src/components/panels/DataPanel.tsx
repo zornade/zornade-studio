@@ -150,6 +150,11 @@ async function buildDatasetFromTable(
     if (numericColumns.length === 0) {
       return { error: "Nessuna colonna numerica da mappare trovata." };
     }
+    // A sensible default category column for the category map: the first
+    // categorical column that isn't the geo key (may be undefined).
+    const categoryColumn = profile.columns.find(
+      (c) => c.type === "categorical" && c.name !== areaKey,
+    )?.name;
     return {
       dataset: {
         kind: "area",
@@ -159,6 +164,7 @@ async function buildDatasetFromTable(
         geoLevel: areaLevel,
         keyColumn: areaKey,
         valueColumn: numericColumns[0],
+        categoryColumn,
         numericColumns,
       },
     };

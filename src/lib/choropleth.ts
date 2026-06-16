@@ -589,6 +589,78 @@ export function matchedFeatureValues(
 }
 
 /**
+ * Join a **categorical** column onto the geometry (ROADMAP O2.6 — category
+ * map). Mirrors {@link joinChoropleth}'s code→name→alias matching, but injects
+ * a string `__cat` per matched feature and collects the distinct categories
+ * (first-seen order) so the renderer can assign a colour each.
+ */
+export interface CategoryJoinResult {
+  geojson: GeoJSON.FeatureCollection;
+  /** Distinct categories in first-seen order. */
+  categories: string[];
+  /** Count of features with no matching category (rendered as "no data"). */
+  noDataFeatures: number;
+}
+
+export function joinCategory(params: {
+  geojson: GeoJSON.FeatureCollection;
+  level: GeoLevel;
+  rows: Record<string, string>[];
+  keyColumn: string;
+  categoryColumn: string;
+}): CategoryJoinResult {
+  const { geojson, level, rows, keyColumn, categoryColumn } = params;
+  const def = GEO_LEVELS[level];
+
+  const catByKey = new Map<string, string>();
+  for (const row of rows) {
+    const key = normaliseKey(row[keyColumn]);
+    const cat = (row[categoryColumn] ?? "").trim();
+    if (key === "" || cat === "") continue;
+    catByKey.set(key, cat);
+  }
+
+  const categories: string[] = [];
+  const seenCat = new Set<string>();
+  let noDataFeatures = 0;
+
+  const features = geojson.features.map((f) => {
+    const props = (f.properties as Record<string, unknown>) ?? {};
+    const candidates = [
+      props[def.joinField],
+      props[def.nameField],
+      ...(def.aliasFields ?? []).map((field) => props[field]),
+    ];
+    let cat: string | undefined;
+    for (const candidate of candidates) {
+      const key = normaliseKey(candidate as string);
+      if (key !== "" && catByKey.has(key)) {
+        cat = catByKey.get(key);
+        break;
+      }
+    }
+    const properties = { ...props };
+    if (cat != null) {
+      properties.__cat = cat;
+      if (!seenCat.has(cat)) {
+        seenCat.add(cat);
+        categories.push(cat);
+      }
+    } else {
+      delete properties.__cat;
+      noDataFeatures++;
+    }
+    return { ...f, properties } as GeoJSON.Feature;
+  });
+
+  return {
+    geojson: { type: "FeatureCollection", features },
+    categories,
+    noDataFeatures,
+  };
+}
+
+/**
  * Build a MapLibre `step` paint expression mapping `__value` to colors.
  * Features without `__value` fall through to `noDataColor`.
  */

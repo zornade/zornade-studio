@@ -80,6 +80,8 @@ export interface AreaDataset extends DatasetBase {
   keyColumn: string;
   /** Column whose numeric values drive the colour. */
   valueColumn: string;
+  /** Optional column used to colour areas by category (category map). */
+  categoryColumn?: string;
 }
 
 export interface PointDataset extends DatasetBase {

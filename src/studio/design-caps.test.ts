@@ -26,12 +26,28 @@ describe("designCaps", () => {
     expect(designCaps("does-not-exist").size).toBe(0);
   });
 
+  it("symbol exposes geo binding, value label, colour scale and point styling", () => {
+    const caps = designCaps("symbol");
+    expect(caps.has("geoBinding")).toBe(true);
+    expect(caps.has("pointStyle")).toBe(true);
+    expect(caps.has("classification")).toBe(false);
+  });
+
+  it("category exposes geo binding, the category selector and colour scale", () => {
+    const caps = designCaps("category");
+    expect(caps.has("categoryBinding")).toBe(true);
+    expect(caps.has("colorScale")).toBe(true);
+    expect(caps.has("classification")).toBe(false);
+    expect(caps.has("valueLabel")).toBe(false);
+  });
+
   it("every declared capability is one of the known values", () => {
     const known = new Set([
       "geoBinding",
       "valueLabel",
       "colorScale",
       "classification",
+      "categoryBinding",
       "pointStyle",
     ]);
     for (const caps of Object.values(VIZ_DESIGN_CAPS)) {

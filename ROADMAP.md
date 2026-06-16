@@ -498,7 +498,16 @@ L'utente incolla **host / utente / password** (credenziali read-only generate a 
    proxy — con **fallback** su più mirror). `DataPanel` → `OsmSource` esegue la ricerca e crea un
    `PointDataset`, che **eredita** il percorso punti + il blocco Design `pointStyle` (categorie =
    filtro corrispondente). Dati © OpenStreetMap (ODbL).
-- **O2.6** Mappa simboli proporzionali + mappa categorie
+- **O2.6** ✅ **Simboli proporzionali** + **mappa categorie**. Entrambe sui dataset **area**, riusando
+   il join esistente: **symbol** = `joinChoropleth` (per il valore) → **centroidi** delle aree
+   (`lib/centroid.ts`, centroide area-pesato del ring più grande, testato) → bolle dimensionate
+   (layer `circle`, riusa il percorso punti); **category** = `joinCategory` (nuova in
+   `lib/choropleth.ts`, inietta `__cat` + categorie distinte, testata) → fill `match` per categoria
+   (riusa `buildPointColorExpression`). `AreaDataset` ora ha `categoryColumn?` (rilevata
+   automaticamente). Capability Design: `symbol`→`pointStyle` (dimensione), `category`→nuovo blocco
+   `categoryBinding` (scelta colonna categoria) + `colorScale`. `VisualizePanel`/catalogo: entrambe
+   **ready**. *(Legenda graduata mostrata per la coropletica; per symbol/category il dato è nel
+   tooltip — legenda dedicata = rifinitura successiva.)*
 - **O2.7** Scale colore avanzate (palette/editor) + check daltonismo
 - **O2.8** Controlli per il lettore (dropdown, ricerca/geocoder, filtri) + tooltip HTML custom
 - **O2.9** Salvataggio progetti (locale → poi DB)

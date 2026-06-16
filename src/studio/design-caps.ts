@@ -22,6 +22,8 @@ export type DesignCapability =
   | "colorScale"
   /** Choropleth classification: method, classes, manual breaks, legend, no-data. */
   | "classification"
+  /** Category column selector (category map). */
+  | "categoryBinding"
   /** Point styling: uniform colour + base size. */
   | "pointStyle";
 
@@ -29,8 +31,10 @@ export type DesignCapability =
 export const VIZ_DESIGN_CAPS: Record<string, DesignCapability[]> = {
   choropleth: ["geoBinding", "valueLabel", "colorScale", "classification"],
   points: ["valueLabel", "colorScale", "pointStyle"],
-  // Declared for when their rendering lands; controls already coherent.
+  // Proportional symbols: area-joined value drawn as sized bubbles at centroids.
   symbol: ["geoBinding", "valueLabel", "colorScale", "pointStyle"],
+  // Category map: areas coloured by a categorical column.
+  category: ["geoBinding", "categoryBinding", "colorScale"],
   locator: ["pointStyle"],
 };
 

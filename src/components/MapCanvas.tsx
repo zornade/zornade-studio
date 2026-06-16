@@ -7,6 +7,7 @@ import { TILES_URL } from "../lib/tiles";
 import {
   GEO_LEVELS,
   joinChoropleth,
+  joinCategory,
   buildFillColorExpression,
   sampleColors,
   DEFAULT_NO_DATA_COLOR,
@@ -16,9 +17,10 @@ import {
   buildPointColorExpression,
   buildPointRadiusExpression,
 } from "../lib/points";
+import { featureCentroid } from "../lib/centroid";
 
 const NO_DATA_COLOR = DEFAULT_NO_DATA_COLOR;
-/** Categorical palette for point colouring (falls back to teal). */
+/** Categorical palette for point/category colouring (falls back to teal). */
 const CAT_PALETTE =
   COLOR_SCALES.find((s) => s.id === "cat")?.colors ?? ["#01646f"];
 
@@ -51,10 +53,11 @@ export function MapCanvas() {
     };
   }, [geoUrl]);
 
-  // Join the data onto the geometry and build the choropleth paint expression.
+  // Numeric area join: feeds the choropleth (graduated fill) AND the symbol map
+  // (bubble size). Same join, two renderings.
   const joined = useMemo(() => {
-    if (!data || data.kind !== "area" || !rawGeo || vizType !== "choropleth")
-      return null;
+    if (!data || data.kind !== "area" || !rawGeo) return null;
+    if (vizType !== "choropleth" && vizType !== "symbol") return null;
     return joinChoropleth({
       geojson: rawGeo,
       level: data.geoLevel,
@@ -66,6 +69,51 @@ export function MapCanvas() {
       manualBreaks: design.manualBreaks,
     });
   }, [data, rawGeo, vizType, design.nClasses, design.classification, design.manualBreaks]);
+
+  // Category area join: feeds the category map (colour per category).
+  const categoryJoin = useMemo(() => {
+    if (!data || data.kind !== "area" || !rawGeo || vizType !== "category")
+      return null;
+    if (!data.categoryColumn) return null;
+    return joinCategory({
+      geojson: rawGeo,
+      level: data.geoLevel,
+      rows: data.rows,
+      keyColumn: data.keyColumn,
+      categoryColumn: data.categoryColumn,
+    });
+  }, [data, rawGeo, vizType]);
+
+  // Symbol map: place a sized bubble at each matched area's centroid.
+  const symbolPoints = useMemo(() => {
+    if (vizType !== "symbol" || !joined || data?.kind !== "area") return null;
+    const nameField = GEO_LEVELS[data.geoLevel].nameField;
+    const features: GeoJSON.Feature[] = [];
+    let min = Infinity;
+    let max = -Infinity;
+    for (const f of joined.geojson.features) {
+      const v = (f.properties as Record<string, unknown>)?.__value;
+      if (typeof v !== "number") continue;
+      const c = featureCentroid(f.geometry);
+      if (!c) continue;
+      if (v < min) min = v;
+      if (v > max) max = v;
+      features.push({
+        type: "Feature",
+        properties: {
+          __value: v,
+          __name: (f.properties as Record<string, unknown>)?.[nameField] ?? "",
+        },
+        geometry: { type: "Point", coordinates: c },
+      });
+    }
+    const valueRange =
+      Number.isFinite(min) && Number.isFinite(max) ? { min, max } : undefined;
+    return {
+      geojson: { type: "FeatureCollection", features } as GeoJSON.FeatureCollection,
+      valueRange,
+    };
+  }, [vizType, joined, data]);
 
   // Build point features for a point dataset (memoised on the relevant inputs).
   const points = useMemo(() => {
@@ -85,7 +133,8 @@ export function MapCanvas() {
     "";
 
   const dataLayer: DataLayer | null = useMemo(() => {
-    if (joined) {
+    // Choropleth: graduated fill.
+    if (vizType === "choropleth" && joined) {
       const fillColor = buildFillColorExpression(
         joined.classes,
         scale.colors,
@@ -100,6 +149,39 @@ export function MapCanvas() {
         valueUnit: design.valueUnit || undefined,
       };
     }
+    // Symbol map: sized bubbles at centroids, single colour.
+    if (vizType === "symbol" && symbolPoints) {
+      return {
+        kind: "point",
+        geojson: symbolPoints.geojson,
+        circleColor: design.pointColor,
+        circleRadius: buildPointRadiusExpression(
+          symbolPoints.valueRange,
+          Math.max(2, design.pointSize * 0.6),
+          design.pointSize * 2.8,
+          design.pointSize,
+        ),
+        nameField: "__name",
+        valueLabel,
+        valueUnit: design.valueUnit || undefined,
+      };
+    }
+    // Category map: areas coloured by category.
+    if (vizType === "category" && categoryJoin) {
+      const palette = scale.colors.length > 0 ? scale.colors : CAT_PALETTE;
+      return {
+        kind: "area",
+        geojson: categoryJoin.geojson,
+        fillColor: buildPointColorExpression(
+          categoryJoin.categories,
+          palette,
+          NO_DATA_COLOR,
+        ),
+        nameField: data?.kind === "area" ? GEO_LEVELS[data.geoLevel].nameField : undefined,
+        valueLabel: data?.kind === "area" ? data.categoryColumn ?? "" : "",
+      };
+    }
+    // Point dataset.
     if (points && data?.kind === "point") {
       const categoryPalette =
         scale.colors.length > 0 ? scale.colors : CAT_PALETTE;
@@ -125,10 +207,10 @@ export function MapCanvas() {
       };
     }
     return null;
-  }, [joined, points, scale.colors, data, valueLabel, design.valueUnit, design.pointColor, design.pointSize]);
+  }, [vizType, joined, symbolPoints, categoryJoin, points, scale.colors, data, valueLabel, design.valueUnit, design.pointColor, design.pointSize]);
 
   const showLegend =
-    design.showLegend && (vizType === "choropleth" || vizType === "symbol");
+    design.showLegend && vizType === "choropleth";
 
   // Resolve the chosen basemap. OpenFreeMap styles load by URL (no hosting/key);
   // "none"/"custom" → no basemap (transparent background).

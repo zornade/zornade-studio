@@ -285,6 +285,30 @@ export function DesignPanel() {
           </>
         )}
 
+        {data && data.kind === "area" && caps.has("categoryBinding") && (
+          <Field
+            label="Colonna delle categorie"
+            hint="La colonna che assegna una categoria a ogni area."
+          >
+            <select
+              value={data.categoryColumn ?? ""}
+              onChange={(e) =>
+                setData({ ...data, categoryColumn: e.target.value || undefined })
+              }
+              className={inputCls}
+            >
+              <option value="">— scegli una colonna —</option>
+              {data.columns
+                .filter((c) => c !== data.keyColumn)
+                .map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+            </select>
+          </Field>
+        )}
+
         {data && caps.has("valueLabel") && (
           <>
             <Field label={data.kind === "area" ? "Colonna da mappare" : "Dimensione dei punti"}>
