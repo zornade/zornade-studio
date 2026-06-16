@@ -40,6 +40,12 @@ import { parseExcel } from "../../lib/ingest/parse-excel";
 import { parseGeoJson } from "../../lib/ingest/parse-geojson";
 import { profileColumns } from "../../lib/profile";
 import {
+  buildOverpassQuery,
+  runOverpass,
+  overpassToTable,
+  type OsmScope,
+} from "../../lib/overpass";
+import {
   catalogApiAvailable,
   searchCkan,
   fetchResourceText,
@@ -913,7 +919,67 @@ function UploadSource() {
 }
 
 function OsmSource() {
+  const { setData, setStep, project, updateProject } = useStudio();
   const [selected, setSelected] = useState<string | null>(null);
+  const [scopeKind, setScopeKind] = useState<"nationwide" | "8" | "6" | "4">("8");
+  const [placeName, setPlaceName] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(null);
+
+  const preset = OSM_PRESETS.find((p) => p.id === selected) ?? null;
+  const needsPlace = scopeKind !== "nationwide";
+  const canSearch = !!preset && (!needsPlace || placeName.trim() !== "") && !loading;
+
+  const search = async () => {
+    if (!preset) return;
+    setLoading(true);
+    setError(null);
+    setInfo(null);
+    try {
+      const scope: OsmScope =
+        scopeKind === "nationwide"
+          ? { kind: "nationwide" }
+          : {
+              kind: "area",
+              name: placeName.trim(),
+              adminLevel: Number(scopeKind) as 4 | 6 | 8,
+            };
+      const query = buildOverpassQuery(preset.filters, scope);
+      const elements = await runOverpass(query);
+      const table = overpassToTable(elements, preset.filters);
+      if (table.rows.length === 0) {
+        setError(
+          "Nessun risultato. Controlla il nome del luogo (es. “Bologna”) o prova un altro ambito.",
+        );
+        return;
+      }
+      setData({
+        kind: "point",
+        fileName: `OSM · ${preset.label}`,
+        columns: table.columns,
+        rows: table.rows,
+        latColumn: "lat",
+        lonColumn: "lon",
+        valueColumn: "",
+        categoryColumn: "categoria",
+        nameColumn: "nome",
+        numericColumns: [],
+      });
+      if (!project.title || project.title === "Mappa senza titolo") {
+        const where =
+          scope.kind === "nationwide" ? "Italia" : placeName.trim();
+        updateProject({ title: `${preset.label} · ${where}` });
+      }
+      setInfo(`${table.rows.length} risultati da OpenStreetMap.`);
+      setStep("visualize");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Errore nella ricerca OSM.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="space-y-4">
       <div>
@@ -936,23 +1002,64 @@ function OsmSource() {
         </div>
       </div>
       <Field label="Ambito">
-        <select className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:border-zornade focus:outline-none">
-          <option>Tutta Italia</option>
-          <option>Per regione…</option>
-          <option>Per provincia…</option>
-          <option>Per comune…</option>
-          <option>Area disegnata sulla mappa</option>
+        <select
+          value={scopeKind}
+          onChange={(e) =>
+            setScopeKind(e.target.value as "nationwide" | "8" | "6" | "4")
+          }
+          className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:border-zornade focus:outline-none"
+        >
+          <option value="8">Per comune…</option>
+          <option value="6">Per provincia…</option>
+          <option value="4">Per regione…</option>
+          <option value="nationwide">Tutta Italia (può essere lento)</option>
         </select>
       </Field>
-      <div className="flex items-center gap-2">
-        <Button variant="primary" disabled className="flex-1">
-          Cerca su OpenStreetMap
-        </Button>
-        <SoonBadge />
-      </div>
+      {needsPlace && (
+        <Field label="Nome del luogo">
+          <input
+            value={placeName}
+            onChange={(e) => setPlaceName(e.target.value)}
+            placeholder={
+              scopeKind === "8"
+                ? "es. Bologna"
+                : scopeKind === "6"
+                  ? "es. Bologna (provincia)"
+                  : "es. Emilia-Romagna"
+            }
+            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:border-zornade focus:outline-none"
+          />
+        </Field>
+      )}
+      <Button
+        variant="primary"
+        disabled={!canSearch}
+        onClick={() => void search()}
+        className="w-full"
+      >
+        {loading ? (
+          <span className="flex items-center justify-center gap-2">
+            <Loader2 size={15} className="animate-spin" />
+            Ricerca su OpenStreetMap…
+          </span>
+        ) : (
+          "Cerca su OpenStreetMap"
+        )}
+      </Button>
+      {error && (
+        <p className="flex items-start gap-1.5 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700">
+          <AlertTriangle size={13} className="mt-0.5 flex-shrink-0" />
+          {error}
+        </p>
+      )}
+      {info && (
+        <p className="flex items-start gap-1.5 rounded-lg bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
+          <CheckCircle2 size={13} className="mt-0.5 flex-shrink-0" />
+          {info}
+        </p>
+      )}
       <p className="text-xs text-slate-500">
-        I risultati appariranno come punti sovrapposti alla mappa, con conteggio
-        e dettagli al passaggio.
+        I risultati appaiono come punti sulla mappa. Dati © OpenStreetMap (ODbL).
       </p>
     </div>
   );

@@ -490,7 +490,14 @@ L'utente incolla **host / utente / password** (credenziali read-only generate a 
      stessi campi — così ogni viz è coerente col pannello *per costruzione* (niente controlli
      irrilevanti, ogni controllo mostrato è cablato). I punti ora rispettano colore (`pointColor` o
      scala per categoria) e dimensione (`pointSize`).
-- **O2.5** **Query OSM (Overpass)** con selettore guidato
+- **O2.5** ✅ **Query OSM (Overpass)** con selettore guidato. `lib/overpass.ts` (puro + testato):
+   `buildOverpassQuery` (preset → Overpass QL, ambito **comune/provincia/regione** via `admin_level`
+   8/6/4 o tutta Italia, filtri OR su `nwr`, escaping injection-safe), `overpassToTable`
+   (elements → tabella punti con `lat`/`lon`/`nome`/`categoria`/`indirizzo`), `runOverpass` (fetch
+   **diretto dal browser** — gli endpoint pubblici mandano `Access-Control-Allow-Origin: *`, niente
+   proxy — con **fallback** su più mirror). `DataPanel` → `OsmSource` esegue la ricerca e crea un
+   `PointDataset`, che **eredita** il percorso punti + il blocco Design `pointStyle` (categorie =
+   filtro corrispondente). Dati © OpenStreetMap (ODbL).
 - **O2.6** Mappa simboli proporzionali + mappa categorie
 - **O2.7** Scale colore avanzate (palette/editor) + check daltonismo
 - **O2.8** Controlli per il lettore (dropdown, ricerca/geocoder, filtri) + tooltip HTML custom

@@ -818,21 +818,29 @@ export function accessLabel(a: DataAccess): string {
 }
 
 /** Curated OSM (Overpass) point searches — "Cosa cerchi?". */
+export interface OsmTagFilter {
+  key: string;
+  /** Tag value; omit to match any value of the key. */
+  value?: string;
+}
 export interface OsmPreset {
   id: string;
   label: string;
+  /** Human-readable tag summary (shown as a tooltip). */
   tag: string;
+  /** Overpass tag filters, OR-combined (a feature matching any of them). */
+  filters: OsmTagFilter[];
 }
 export const OSM_PRESETS: OsmPreset[] = [
-  { id: "ports", label: "Porti", tag: "harbour=yes / leisure=marina" },
-  { id: "surveillance", label: "Telecamere di sorveglianza", tag: "man_made=surveillance" },
-  { id: "schools", label: "Scuole", tag: "amenity=school" },
-  { id: "hospitals", label: "Ospedali", tag: "amenity=hospital" },
-  { id: "pharmacies", label: "Farmacie", tag: "amenity=pharmacy" },
-  { id: "charging", label: "Colonnine di ricarica", tag: "amenity=charging_station" },
-  { id: "parking", label: "Parcheggi", tag: "amenity=parking" },
-  { id: "fountains", label: "Fontane", tag: "amenity=fountain" },
-  { id: "libraries", label: "Biblioteche", tag: "amenity=library" },
+  { id: "ports", label: "Porti", tag: "harbour=yes / leisure=marina", filters: [{ key: "harbour", value: "yes" }, { key: "leisure", value: "marina" }] },
+  { id: "surveillance", label: "Telecamere di sorveglianza", tag: "man_made=surveillance", filters: [{ key: "man_made", value: "surveillance" }] },
+  { id: "schools", label: "Scuole", tag: "amenity=school", filters: [{ key: "amenity", value: "school" }] },
+  { id: "hospitals", label: "Ospedali", tag: "amenity=hospital", filters: [{ key: "amenity", value: "hospital" }] },
+  { id: "pharmacies", label: "Farmacie", tag: "amenity=pharmacy", filters: [{ key: "amenity", value: "pharmacy" }] },
+  { id: "charging", label: "Colonnine di ricarica", tag: "amenity=charging_station", filters: [{ key: "amenity", value: "charging_station" }] },
+  { id: "parking", label: "Parcheggi", tag: "amenity=parking", filters: [{ key: "amenity", value: "parking" }] },
+  { id: "fountains", label: "Fontane", tag: "amenity=fountain", filters: [{ key: "amenity", value: "fountain" }] },
+  { id: "libraries", label: "Biblioteche", tag: "amenity=library", filters: [{ key: "amenity", value: "library" }] },
 ];
 
 /** Guided datasets available from the Zornade DB (read-only). */
