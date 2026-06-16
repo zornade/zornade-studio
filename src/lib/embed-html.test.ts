@@ -138,6 +138,13 @@ describe("buildEmbedHtml", () => {
     expect(off).toContain('"showLegend":false');
   });
 
+  it("renders a styled tooltip matching the editor (name + value, no <strong>)", () => {
+    expect(html).toContain('className:"studio-tooltip"');
+    expect(html).toContain("studio-tooltip-name");
+    expect(html).toContain("studio-tooltip-value");
+    expect(html).toContain(".studio-tooltip .maplibregl-popup-tip{display:none}");
+  });
+
   it("uses injected canonical classes instead of recomputing (parity)", () => {
     // Supplying explicit breaks (as the publish path does from real geometry)
     // must win over classifying the raw spec data.

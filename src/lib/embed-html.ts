@@ -152,6 +152,12 @@ ${canonical ? `<link rel="canonical" href="${canonical}">` : ""}
   .attr{position:absolute;right:8px;bottom:6px;font-size:11px;z-index:2;
     background:rgba(255,255,255,.85);padding:2px 6px;border-radius:6px}
   .attr a{color:#01646f;text-decoration:none}
+  .studio-tooltip .maplibregl-popup-content{padding:8px 10px;border-radius:10px;
+    box-shadow:0 4px 14px rgba(15,23,42,.18);font-family:system-ui,-apple-system,sans-serif}
+  .studio-tooltip .maplibregl-popup-tip{display:none}
+  .studio-tooltip-name{font-weight:600;font-size:13px;color:#0f172a}
+  .studio-tooltip-value{margin-top:2px;font-size:12px;color:#334155}
+  .studio-tooltip-value span{color:#64748b;text-transform:capitalize}
 </style>
 </head>
 <body>
@@ -235,11 +241,14 @@ function legend(noData){
   document.body.appendChild(box);
 }
 function tooltip(){
-  var pop=new maplibregl.Popup({closeButton:false,closeOnClick:false});
+  var pop=new maplibregl.Popup({closeButton:false,closeOnClick:false,className:"studio-tooltip"});
   map.on("mousemove","d-fill",function(e){var f=e.features&&e.features[0];if(!f)return;
-    var p=f.properties||{};if(p.__value==null){pop.remove();return;}
+    var p=f.properties||{};if(p.__value==null){pop.remove();map.getCanvas().style.cursor="";return;}
     var nm=p[E.nameField]||"";
-    pop.setLngLat(e.lngLat).setHTML("<strong>"+esc(nm)+"</strong><br>"+esc(E.valueLabel)+": "+esc(fmt(p.__value))).addTo(map);
+    pop.setLngLat(e.lngLat).setHTML(
+      '<div class="studio-tooltip-name">'+esc(nm)+'</div>'+
+      '<div class="studio-tooltip-value"><span>'+esc(E.valueLabel)+'</span> '+esc(fmt(p.__value))+'</div>'
+    ).addTo(map);
     map.getCanvas().style.cursor="pointer";});
   map.on("mouseleave","d-fill",function(){pop.remove();map.getCanvas().style.cursor="";});
 }
