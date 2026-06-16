@@ -46,7 +46,7 @@ function selector(f: OsmTagFilter): string {
 export function buildOverpassQuery(
   filters: OsmTagFilter[],
   scope: OsmScope,
-  timeoutSec = 60,
+  timeoutSec = 25,
 ): string {
   const areaDef =
     scope.kind === "nationwide"
@@ -136,33 +136,64 @@ function formatAddress(tags: Record<string, string>): string {
 }
 
 /**
- * Run an Overpass query, trying each endpoint until one returns JSON. Throws a
- * human-readable Error if all endpoints fail or are overloaded.
+ * Run an Overpass query, trying each endpoint until one returns JSON. Each
+ * attempt is bounded by its own timeout (via AbortController) so a hung or
+ * overloaded server can never make the UI spin forever — on timeout we abort
+ * and move to the next mirror. Throws a human-readable Error if every endpoint
+ * fails, times out, or is overloaded (429/504/502/503).
+ *
+ * @param perEndpointTimeoutMs hard cap per endpoint attempt (default 30s).
  */
 export async function runOverpass(
   query: string,
   endpoints: string[] = OVERPASS_ENDPOINTS,
+  perEndpointTimeoutMs = 30_000,
 ): Promise<OverpassElement[]> {
-  let lastError = "";
+  const reasons: string[] = [];
+
   for (const ep of endpoints) {
+    const host = hostOf(ep);
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), perEndpointTimeoutMs);
     try {
       const res = await fetch(ep, {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
         body: "data=" + encodeURIComponent(query),
+        signal: controller.signal,
       });
       if (!res.ok) {
-        // 429/504 → endpoint busy: try the next mirror.
-        lastError = `HTTP ${res.status}`;
+        // 429 rate-limit, 502/503/504 overloaded → try the next mirror.
+        reasons.push(
+          `${host}: ${res.status === 429 ? "troppe richieste" : `server occupato (${res.status})`}`,
+        );
         continue;
       }
       const json = (await res.json()) as { elements?: OverpassElement[] };
       return json.elements ?? [];
     } catch (e) {
-      lastError = e instanceof Error ? e.message : "errore di rete";
+      if (e instanceof DOMException && e.name === "AbortError") {
+        reasons.push(`${host}: tempo scaduto (${perEndpointTimeoutMs / 1000}s)`);
+      } else {
+        reasons.push(`${host}: ${e instanceof Error ? e.message : "errore di rete"}`);
+      }
+    } finally {
+      clearTimeout(timer);
     }
   }
+
   throw new Error(
-    `Nessun server OpenStreetMap ha risposto (${lastError}). Riprova tra poco.`,
+    "I server OpenStreetMap non hanno risposto. " +
+      "Riprova tra poco o restringi l'ambito (es. per comune). " +
+      `Dettagli: ${reasons.join(" · ")}.`,
   );
+}
+
+/** Short host label for error messages (e.g. "overpass-api.de"). */
+function hostOf(url: string): string {
+  try {
+    return new URL(url).host;
+  } catch {
+    return url;
+  }
 }

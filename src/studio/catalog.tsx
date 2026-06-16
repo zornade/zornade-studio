@@ -170,7 +170,7 @@ export const DATA_SOURCES: CatalogItem[] = [
   { id: "paste", label: "Incolla dati", desc: "Da un foglio di calcolo", icon: ClipboardPaste, status: "soon" },
   { id: "url", label: "URL live", desc: "Google Sheets / CSV remoto", icon: Link2, status: "soon" },
   { id: "api", label: "API / Open data", desc: "ISTAT, Socrata, CKAN, JSON", icon: Plug, status: "soon" },
-  { id: "osm", label: "OpenStreetMap", desc: "Porti, telecamere, scuole…", icon: Globe2, status: "soon" },
+  { id: "osm", label: "OpenStreetMap", desc: "Porti, telecamere, scuole…", icon: Globe2, status: "ready" },
   { id: "zornade-db", label: "Database Zornade", desc: "OMI, rischio, solare, demografia", icon: Database, status: "soon" },
 ];
 

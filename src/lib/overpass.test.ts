@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   buildOverpassQuery,
   overpassToTable,
+  runOverpass,
   OVERPASS_MAX,
   type OverpassElement,
 } from "./overpass";
@@ -109,5 +110,52 @@ describe("overpassToTable", () => {
     ];
     const out = overpassToTable(els, filters);
     expect(out.rows[0].categoria).toBe("altro");
+  });
+});
+
+describe("runOverpass (robustness)", () => {
+  const okBody = { elements: [{ type: "node", lat: 45, lon: 9, tags: {} }] };
+
+  it("falls back to the next endpoint when the first is overloaded (504)", async () => {
+    const calls: string[] = [];
+    const fetchMock = async (url: string) => {
+      calls.push(url);
+      if (calls.length === 1) {
+        return { ok: false, status: 504 } as Response;
+      }
+      return {
+        ok: true,
+        json: async () => okBody,
+      } as unknown as Response;
+    };
+    const orig = globalThis.fetch;
+    globalThis.fetch = fetchMock as typeof fetch;
+    try {
+      const els = await runOverpass("q", ["https://a/i", "https://b/i"]);
+      expect(els).toHaveLength(1);
+      expect(calls).toHaveLength(2); // tried both
+    } finally {
+      globalThis.fetch = orig;
+    }
+  });
+
+  it("aborts a hung endpoint via timeout and surfaces a clear error", async () => {
+    // A fetch that never resolves until aborted → the AbortController must
+    // reject it so the call can't hang forever.
+    const fetchMock = (_url: string, init?: RequestInit) =>
+      new Promise<Response>((_resolve, reject) => {
+        init?.signal?.addEventListener("abort", () =>
+          reject(new DOMException("aborted", "AbortError")),
+        );
+      });
+    const orig = globalThis.fetch;
+    globalThis.fetch = fetchMock as typeof fetch;
+    try {
+      await expect(
+        runOverpass("q", ["https://slow/i"], 20),
+      ).rejects.toThrow(/non hanno risposto|tempo scaduto/i);
+    } finally {
+      globalThis.fetch = orig;
+    }
   });
 });
