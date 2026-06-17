@@ -66,10 +66,12 @@ export interface DesignSettings {
  * A parsed tabular dataset, in one of two shapes:
  *  - **area**: rows joined to bundled geometry by a key → choropleth.
  *  - **point**: rows with lat/lon coordinates → point layer.
+ *  - **geo**: the user's own geometry (Shapefile/KML/KMZ/GeoJSON) → drawn
+ *    directly, optionally coloured by a value/category in its properties.
  * The `kind` discriminant lets the editor pick the right pipeline; geometry for
  * the area case is loaded lazily from the level definition.
  */
-export type DatasetState = AreaDataset | PointDataset;
+export type DatasetState = AreaDataset | PointDataset | GeoDataset;
 
 interface DatasetBase {
   fileName: string;
@@ -101,6 +103,26 @@ export interface PointDataset extends DatasetBase {
   /** Optional column to colour points by category. */
   categoryColumn?: string;
   /** Optional label column (place name) shown in tooltips. */
+  nameColumn?: string;
+}
+
+/** The geometry primitives present in a user-supplied GeoJSON collection. */
+export type GeometryKind = "polygon" | "line" | "point";
+
+export interface GeoDataset extends DatasetBase {
+  kind: "geo";
+  /**
+   * The user's geometry, already reprojected to WGS84 (lon/lat). Properties of
+   * each feature are mirrored into `rows` (and `columns`) for the data table.
+   */
+  geojson: GeoJSON.FeatureCollection;
+  /** Which geometry primitives the collection contains (drives the layers). */
+  geometryKinds: GeometryKind[];
+  /** Optional numeric column (from properties) used to colour polygons. */
+  valueColumn: string;
+  /** Optional column used to colour features by category. */
+  categoryColumn?: string;
+  /** Optional label column shown in tooltips. */
   nameColumn?: string;
 }
 

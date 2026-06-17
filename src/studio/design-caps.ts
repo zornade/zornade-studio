@@ -40,6 +40,17 @@ export const VIZ_DESIGN_CAPS: Record<string, DesignCapability[]> = {
   // Category map: areas coloured by a categorical column.
   category: ["geoBinding", "categoryBinding", "colorScale", "tooltipTemplate"],
   locator: ["pointStyle"],
+  // User-supplied geometry (Shapefile/KML/KMZ/GeoJSON): polygons coloured by
+  // value (graduated) or category, lines/points styled uniformly. Not keyed to
+  // a bundled geo level, so no geoBinding; not published, so no readerFilters.
+  geo: [
+    "valueLabel",
+    "categoryBinding",
+    "colorScale",
+    "classification",
+    "pointStyle",
+    "tooltipTemplate",
+  ],
 };
 
 /** Capability set for a visualisation type (empty for unknown types). */

@@ -826,22 +826,86 @@ export interface OsmTagFilter {
 export interface OsmPreset {
   id: string;
   label: string;
+  /** Thematic group for the picker. */
+  group: string;
   /** Human-readable tag summary (shown as a tooltip). */
   tag: string;
   /** Overpass tag filters, OR-combined (a feature matching any of them). */
   filters: OsmTagFilter[];
 }
+
+/**
+ * Curated point searches grouped by theme. Tags are standard OpenStreetMap
+ * keys/values (per the OSM wiki). Each preset OR-combines its filters, so e.g.
+ * "luoghi di culto" matches every religion and "porti" matches marinas and
+ * harbours alike.
+ */
 export const OSM_PRESETS: OsmPreset[] = [
-  { id: "ports", label: "Porti", tag: "harbour=yes / leisure=marina", filters: [{ key: "harbour", value: "yes" }, { key: "leisure", value: "marina" }] },
-  { id: "surveillance", label: "Telecamere di sorveglianza", tag: "man_made=surveillance", filters: [{ key: "man_made", value: "surveillance" }] },
-  { id: "schools", label: "Scuole", tag: "amenity=school", filters: [{ key: "amenity", value: "school" }] },
-  { id: "hospitals", label: "Ospedali", tag: "amenity=hospital", filters: [{ key: "amenity", value: "hospital" }] },
-  { id: "pharmacies", label: "Farmacie", tag: "amenity=pharmacy", filters: [{ key: "amenity", value: "pharmacy" }] },
-  { id: "charging", label: "Colonnine di ricarica", tag: "amenity=charging_station", filters: [{ key: "amenity", value: "charging_station" }] },
-  { id: "parking", label: "Parcheggi", tag: "amenity=parking", filters: [{ key: "amenity", value: "parking" }] },
-  { id: "fountains", label: "Fontane", tag: "amenity=fountain", filters: [{ key: "amenity", value: "fountain" }] },
-  { id: "libraries", label: "Biblioteche", tag: "amenity=library", filters: [{ key: "amenity", value: "library" }] },
+  // — Trasporti —
+  { id: "ports", group: "Trasporti", label: "Porti e marina", tag: "leisure=marina / harbour", filters: [{ key: "leisure", value: "marina" }, { key: "harbour", value: "yes" }, { key: "seamark:type", value: "harbour" }] },
+  { id: "rail", group: "Trasporti", label: "Stazioni ferroviarie", tag: "railway=station", filters: [{ key: "railway", value: "station" }] },
+  { id: "bus", group: "Trasporti", label: "Fermate del bus", tag: "highway=bus_stop", filters: [{ key: "highway", value: "bus_stop" }] },
+  { id: "airports", group: "Trasporti", label: "Aeroporti", tag: "aeroway=aerodrome", filters: [{ key: "aeroway", value: "aerodrome" }] },
+  { id: "fuel", group: "Trasporti", label: "Distributori di carburante", tag: "amenity=fuel", filters: [{ key: "amenity", value: "fuel" }] },
+  { id: "charging", group: "Trasporti", label: "Colonnine di ricarica", tag: "amenity=charging_station", filters: [{ key: "amenity", value: "charging_station" }] },
+  { id: "parking", group: "Trasporti", label: "Parcheggi", tag: "amenity=parking", filters: [{ key: "amenity", value: "parking" }] },
+  { id: "bikeshare", group: "Trasporti", label: "Bike sharing", tag: "amenity=bicycle_rental", filters: [{ key: "amenity", value: "bicycle_rental" }] },
+
+  // — Sanità —
+  { id: "hospitals", group: "Sanità", label: "Ospedali", tag: "amenity=hospital", filters: [{ key: "amenity", value: "hospital" }] },
+  { id: "pharmacies", group: "Sanità", label: "Farmacie", tag: "amenity=pharmacy", filters: [{ key: "amenity", value: "pharmacy" }] },
+  { id: "clinics", group: "Sanità", label: "Ambulatori e medici", tag: "amenity=clinic / doctors", filters: [{ key: "amenity", value: "clinic" }, { key: "amenity", value: "doctors" }] },
+  { id: "dentists", group: "Sanità", label: "Dentisti", tag: "amenity=dentist", filters: [{ key: "amenity", value: "dentist" }] },
+  { id: "vets", group: "Sanità", label: "Veterinari", tag: "amenity=veterinary", filters: [{ key: "amenity", value: "veterinary" }] },
+  { id: "defib", group: "Sanità", label: "Defibrillatori (DAE)", tag: "emergency=defibrillator", filters: [{ key: "emergency", value: "defibrillator" }] },
+
+  // — Istruzione —
+  { id: "schools", group: "Istruzione", label: "Scuole", tag: "amenity=school", filters: [{ key: "amenity", value: "school" }] },
+  { id: "kindergarten", group: "Istruzione", label: "Asili e materne", tag: "amenity=kindergarten", filters: [{ key: "amenity", value: "kindergarten" }] },
+  { id: "universities", group: "Istruzione", label: "Università", tag: "amenity=university", filters: [{ key: "amenity", value: "university" }] },
+  { id: "libraries", group: "Istruzione", label: "Biblioteche", tag: "amenity=library", filters: [{ key: "amenity", value: "library" }] },
+
+  // — Servizi pubblici e sicurezza —
+  { id: "police", group: "Servizi pubblici", label: "Polizia e carabinieri", tag: "amenity=police", filters: [{ key: "amenity", value: "police" }] },
+  { id: "firestation", group: "Servizi pubblici", label: "Vigili del fuoco", tag: "amenity=fire_station", filters: [{ key: "amenity", value: "fire_station" }] },
+  { id: "townhall", group: "Servizi pubblici", label: "Municipi", tag: "amenity=townhall", filters: [{ key: "amenity", value: "townhall" }] },
+  { id: "post", group: "Servizi pubblici", label: "Uffici postali", tag: "amenity=post_office", filters: [{ key: "amenity", value: "post_office" }] },
+  { id: "courthouse", group: "Servizi pubblici", label: "Tribunali", tag: "amenity=courthouse", filters: [{ key: "amenity", value: "courthouse" }] },
+  { id: "surveillance", group: "Servizi pubblici", label: "Telecamere di sorveglianza", tag: "man_made=surveillance", filters: [{ key: "man_made", value: "surveillance" }] },
+
+  // — Cultura e turismo —
+  { id: "museums", group: "Cultura e turismo", label: "Musei", tag: "tourism=museum", filters: [{ key: "tourism", value: "museum" }] },
+  { id: "worship", group: "Cultura e turismo", label: "Luoghi di culto", tag: "amenity=place_of_worship", filters: [{ key: "amenity", value: "place_of_worship" }] },
+  { id: "monuments", group: "Cultura e turismo", label: "Monumenti e memoriali", tag: "historic=monument / memorial", filters: [{ key: "historic", value: "monument" }, { key: "historic", value: "memorial" }] },
+  { id: "castles", group: "Cultura e turismo", label: "Castelli", tag: "historic=castle", filters: [{ key: "historic", value: "castle" }] },
+  { id: "theatres", group: "Cultura e turismo", label: "Teatri", tag: "amenity=theatre", filters: [{ key: "amenity", value: "theatre" }] },
+  { id: "cinemas", group: "Cultura e turismo", label: "Cinema", tag: "amenity=cinema", filters: [{ key: "amenity", value: "cinema" }] },
+  { id: "hotels", group: "Cultura e turismo", label: "Hotel e alloggi", tag: "tourism=hotel / guest_house", filters: [{ key: "tourism", value: "hotel" }, { key: "tourism", value: "guest_house" }] },
+  { id: "attractions", group: "Cultura e turismo", label: "Attrazioni turistiche", tag: "tourism=attraction", filters: [{ key: "tourism", value: "attraction" }] },
+
+  // — Commercio e ristorazione —
+  { id: "supermarkets", group: "Commercio", label: "Supermercati", tag: "shop=supermarket", filters: [{ key: "shop", value: "supermarket" }] },
+  { id: "markets", group: "Commercio", label: "Mercati", tag: "amenity=marketplace", filters: [{ key: "amenity", value: "marketplace" }] },
+  { id: "banks", group: "Commercio", label: "Banche", tag: "amenity=bank", filters: [{ key: "amenity", value: "bank" }] },
+  { id: "atms", group: "Commercio", label: "Bancomat (ATM)", tag: "amenity=atm", filters: [{ key: "amenity", value: "atm" }] },
+  { id: "restaurants", group: "Commercio", label: "Ristoranti", tag: "amenity=restaurant", filters: [{ key: "amenity", value: "restaurant" }] },
+  { id: "bars", group: "Commercio", label: "Bar e caffè", tag: "amenity=bar / cafe", filters: [{ key: "amenity", value: "bar" }, { key: "amenity", value: "cafe" }] },
+
+  // — Ambiente e svago —
+  { id: "parks", group: "Ambiente e svago", label: "Parchi e giardini", tag: "leisure=park / garden", filters: [{ key: "leisure", value: "park" }, { key: "leisure", value: "garden" }] },
+  { id: "playgrounds", group: "Ambiente e svago", label: "Aree gioco", tag: "leisure=playground", filters: [{ key: "leisure", value: "playground" }] },
+  { id: "sports", group: "Ambiente e svago", label: "Impianti sportivi", tag: "leisure=sports_centre / pitch", filters: [{ key: "leisure", value: "sports_centre" }, { key: "leisure", value: "pitch" }] },
+  { id: "campsites", group: "Ambiente e svago", label: "Campeggi", tag: "tourism=camp_site", filters: [{ key: "tourism", value: "camp_site" }] },
+  { id: "fountains", group: "Ambiente e svago", label: "Fontane", tag: "amenity=fountain", filters: [{ key: "amenity", value: "fountain" }] },
+  { id: "water", group: "Ambiente e svago", label: "Acqua potabile", tag: "amenity=drinking_water", filters: [{ key: "amenity", value: "drinking_water" }] },
+  { id: "toilets", group: "Ambiente e svago", label: "Bagni pubblici", tag: "amenity=toilets", filters: [{ key: "amenity", value: "toilets" }] },
+  { id: "recycling", group: "Ambiente e svago", label: "Raccolta rifiuti / riciclo", tag: "amenity=recycling", filters: [{ key: "amenity", value: "recycling" }] },
 ];
+
+/** Distinct OSM preset groups, in declaration order. */
+export const OSM_GROUPS: string[] = Array.from(
+  OSM_PRESETS.reduce((set, p) => set.add(p.group), new Set<string>()),
+);
 
 /** Guided datasets available from the Zornade DB (read-only). */
 export interface ZornadeDataset {

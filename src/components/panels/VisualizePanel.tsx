@@ -9,6 +9,12 @@ import { GEO_LEVELS, type GeoResolution } from "../../lib/choropleth";
 /** Viz types whose rendering is actually implemented today. */
 const IMPLEMENTED = new Set<string>(["choropleth", "points", "symbol", "category"]);
 
+/** Italian label for the geometry primitives in a custom geometry dataset. */
+function geoKindsLabel(kinds: ("polygon" | "line" | "point")[]): string {
+  const map = { polygon: "aree", line: "linee", point: "punti" };
+  return kinds.length > 0 ? kinds.map((k) => map[k]).join(", ") : "geometrie";
+}
+
 /** Italian label for each semantic column type (for the summary). */
 const TYPE_LABEL: Record<SemanticType, string> = {
   "geo-point-lat": "latitudine",
@@ -63,6 +69,14 @@ export function VisualizePanel() {
                 </span>{" "}
                 · chiave “{summary.geo.keyColumn}”
               </>
+            ) : data.kind === "geo" ? (
+              <>
+                Tipo di dato:{" "}
+                <span className="font-medium text-slate-800">
+                  geometria personalizzata
+                </span>{" "}
+                ({geoKindsLabel(data.geometryKinds)})
+              </>
             ) : (
               <>
                 Tipo di dato:{" "}
@@ -70,6 +84,12 @@ export function VisualizePanel() {
               </>
             )}
           </p>
+          {data.kind === "geo" && (
+            <p className="mt-1 text-[11px] text-slate-500">
+              La tua geometria viene disegnata direttamente sulla mappa. Scegli
+              colore e dato da mappare nel passo “Design”.
+            </p>
+          )}
           <div className="mt-1.5 flex flex-wrap gap-1">
             {summary.profile.columns.map((c) => (
               <span

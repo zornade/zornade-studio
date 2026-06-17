@@ -18,6 +18,7 @@ import { useStudio } from "../../studio/StudioContext";
 import {
   DATA_SOURCES,
   OSM_PRESETS,
+  OSM_GROUPS,
   ZORNADE_DATASETS,
   DATA_CATEGORIES,
   DATA_CATALOG,
@@ -38,6 +39,7 @@ import { loadGeoKeys } from "../../lib/geo-keys";
 import { readFileSmart } from "../../lib/ingest/decode";
 import { parseExcel } from "../../lib/ingest/parse-excel";
 import { parseGeoJson } from "../../lib/ingest/parse-geojson";
+import { hasDrawableGeometry } from "../../lib/geo-dataset";
 import { profileColumns } from "../../lib/profile";
 import {
   buildOverpassQuery,
@@ -780,6 +782,12 @@ function DataCatalogCard({ entry }: { entry: DataSourceEntry }) {
   );
 }
 
+/** Italian label for the geometry primitives in a custom geometry dataset. */
+function geoKindsLabel(kinds: ("polygon" | "line" | "point")[]): string {
+  const map = { polygon: "aree", line: "linee", point: "punti" };
+  return kinds.length > 0 ? kinds.map((k) => map[k]).join(", ") : "geometrie";
+}
+
 function UploadSource() {
   const { data, setData, setStep, project, updateProject } = useStudio();
   const [error, setError] = useState<string | null>(null);
@@ -801,27 +809,52 @@ function UploadSource() {
         out = await buildDatasetFromTable(table, file.name);
       } else if (name.endsWith(".geojson") || name.endsWith(".json")) {
         const { text } = await readFileSmart(file);
-        const parsed = parseGeoJson(text);
-        out =
-          "error" in parsed
-            ? parsed
-            : await buildDatasetFromTable(parsed, file.name);
-      } else if (
-        name.endsWith(".zip") ||
-        name.endsWith(".shp") ||
-        name.endsWith(".kml") ||
-        name.endsWith(".kmz") ||
-        name.endsWith(".tif") ||
-        name.endsWith(".tiff")
-      ) {
-        // Shapefile/KML/GeoTIFF carry geometry as their primary payload; they
-        // need a geometry-rendering layer that doesn't exist yet (in arrivo).
+        // A GeoJSON with its own polygon/line geometry is drawn directly (geo);
+        // a tabular GeoJSON (properties only) joins the bundled geometry as
+        // before. Points stay on the existing tabular/point path.
+        let geoFc: GeoJSON.FeatureCollection | null = null;
+        try {
+          const json = JSON.parse(text);
+          if (hasDrawableGeometry(json)) geoFc = json as GeoJSON.FeatureCollection;
+        } catch {
+          /* not JSON → fall through to the tabular parser's error */
+        }
+        if (geoFc) {
+          const { buildGeoDataset } = await import("../../lib/geo-dataset");
+          out = buildGeoDataset(geoFc, file.name);
+        } else {
+          const parsed = parseGeoJson(text);
+          out =
+            "error" in parsed
+              ? parsed
+              : await buildDatasetFromTable(parsed, file.name);
+        }
+      } else if (name.endsWith(".zip") || name.endsWith(".shp")) {
+        // Shapefile: geometry is the payload → a "geo" dataset drawn directly.
+        const { parseShapefile } = await import("../../lib/ingest/parse-geometry");
+        const { buildGeoDataset } = await import("../../lib/geo-dataset");
+        const fc = await parseShapefile(
+          await file.arrayBuffer(),
+          name.endsWith(".zip"),
+        );
+        out = buildGeoDataset(fc, file.name);
+      } else if (name.endsWith(".kml") || name.endsWith(".kmz")) {
+        const { parseKml, parseKmz } = await import("../../lib/ingest/parse-geometry");
+        const { buildGeoDataset } = await import("../../lib/geo-dataset");
+        const fc = name.endsWith(".kmz")
+          ? await parseKmz(await file.arrayBuffer())
+          : await parseKml((await readFileSmart(file)).text);
+        out = buildGeoDataset(fc, file.name);
+      } else if (name.endsWith(".tif") || name.endsWith(".tiff")) {
+        // GeoTIFF is raster, not vector — a different render path (in arrivo).
         setError(
-          "Shapefile, KML/KMZ e GeoTIFF sono in arrivo. Per ora: CSV, Excel (.xlsx) e GeoJSON.",
+          "Il GeoTIFF (raster) è in arrivo. Per ora: CSV, Excel, GeoJSON, Shapefile (.zip/.shp), KML e KMZ.",
         );
         return;
       } else {
-        setError("Formato non supportato. Usa CSV, Excel (.xlsx) o GeoJSON.");
+        setError(
+          "Formato non supportato. Usa CSV, Excel, GeoJSON, Shapefile (.zip), KML o KMZ.",
+        );
         return;
       }
     } catch (e) {
@@ -859,7 +892,9 @@ function UploadSource() {
             <p className="text-emerald-700">
               {data.kind === "area"
                 ? `${data.rows.length} righe · livello ${GEO_LEVELS[data.geoLevel].label} · chiave “${data.keyColumn}”`
-                : `${data.rows.length} righe · punti (lat “${data.latColumn}”, lon “${data.lonColumn}”)`}
+                : data.kind === "point"
+                  ? `${data.rows.length} righe · punti (lat “${data.latColumn}”, lon “${data.lonColumn}”)`
+                  : `${data.geojson.features.length} geometrie · ${geoKindsLabel(data.geometryKinds)}`}
             </p>
           </div>
         </div>
@@ -898,7 +933,7 @@ function UploadSource() {
           Trascina un file o clicca per caricare
         </span>
         <span className="text-xs text-slate-500">
-          CSV, Excel (.xlsx) e GeoJSON · Shapefile, KML, GeoTIFF in arrivo
+          CSV, Excel (.xlsx), GeoJSON, Shapefile (.zip), KML e KMZ · GeoTIFF in arrivo
         </span>
         <input
           type="file"
@@ -927,7 +962,8 @@ function UploadSource() {
 function OsmSource() {
   const { setData, setStep, project, updateProject } = useStudio();
   const [selected, setSelected] = useState<string | null>(null);
-  const [scopeKind, setScopeKind] = useState<"nationwide" | "8" | "6" | "4">("8");
+  const [catQuery, setCatQuery] = useState("");
+  const [scopeKind, setScopeKind] = useState<"nationwide" | "comune" | "provincia" | "regione">("comune");
   const [placeName, setPlaceName] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -937,26 +973,51 @@ function OsmSource() {
   const needsPlace = scopeKind !== "nationwide";
   const canSearch = !!preset && (!needsPlace || placeName.trim() !== "") && !loading;
 
+  // Filter the category list by the search box (label, group or tag).
+  const visiblePresets = useMemo(() => {
+    const q = catQuery.trim().toLowerCase();
+    if (q === "") return OSM_PRESETS;
+    return OSM_PRESETS.filter(
+      (p) =>
+        p.label.toLowerCase().includes(q) ||
+        p.group.toLowerCase().includes(q) ||
+        p.tag.toLowerCase().includes(q),
+    );
+  }, [catQuery]);
+
   const search = async () => {
     if (!preset) return;
     setLoading(true);
     setError(null);
     setInfo(null);
     try {
-      const scope: OsmScope =
-        scopeKind === "nationwide"
-          ? { kind: "nationwide" }
-          : {
-              kind: "area",
-              name: placeName.trim(),
-              adminLevel: Number(scopeKind) as 4 | 6 | 8,
-            };
+      // Resolve the scope to an Overpass area id. Nationwide uses Italy's area
+      // directly; otherwise geocode the place name (fuzzy) via Nominatim — so
+      // "Friuli" resolves to "Friuli-Venezia Giulia" instead of failing.
+      let scope: OsmScope;
+      let where = "Italia";
+      if (scopeKind === "nationwide") {
+        scope = { kind: "nationwide" };
+      } else {
+        const { geocodeArea } = await import("../../lib/nominatim");
+        const area = await geocodeArea(placeName.trim(), scopeKind);
+        if (!area) {
+          setError(
+            `Luogo “${placeName.trim()}” non trovato. Controlla il nome o cambia ambito.`,
+          );
+          return;
+        }
+        scope = { kind: "area", areaId: area.areaId };
+        where = area.displayName.split(",")[0] || placeName.trim();
+      }
+
       const query = buildOverpassQuery(preset.filters, scope);
       const elements = await runOverpass(query);
       const table = overpassToTable(elements, preset.filters);
       if (table.rows.length === 0) {
         setError(
-          "Nessun risultato. Controlla il nome del luogo (es. “Bologna”) o prova un altro ambito.",
+          `Nessun “${preset.label.toLowerCase()}” trovato in ${where}. ` +
+            "Prova un ambito più ampio o un'altra categoria.",
         );
         return;
       }
@@ -973,11 +1034,13 @@ function OsmSource() {
         numericColumns: [],
       });
       if (!project.title || project.title === "Mappa senza titolo") {
-        const where =
-          scope.kind === "nationwide" ? "Italia" : placeName.trim();
         updateProject({ title: `${preset.label} · ${where}` });
       }
-      setInfo(`${table.rows.length} risultati da OpenStreetMap.`);
+      setInfo(
+        `${table.rows.length} risultati in ${where}` +
+          (table.dropped > 0 ? ` (${table.dropped} senza coordinate)` : "") +
+          ".",
+      );
       setStep("visualize");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Errore nella ricerca OSM.");
@@ -990,34 +1053,58 @@ function OsmSource() {
     <div className="space-y-4">
       <div>
         <p className="mb-2 text-xs font-medium text-slate-600">Cosa cerchi?</p>
-        <div className="flex flex-wrap gap-2">
-          {OSM_PRESETS.map((p) => (
-            <button
-              key={p.id}
-              onClick={() => setSelected(p.id)}
-              title={p.tag}
-              className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
-                selected === p.id
-                  ? "border-zornade bg-zornade-50 text-zornade-700"
-                  : "border-slate-200 text-slate-600 hover:border-slate-300"
-              }`}
-            >
-              {p.label}
-            </button>
-          ))}
+        <input
+          value={catQuery}
+          onChange={(e) => setCatQuery(e.target.value)}
+          placeholder="Cerca una categoria (es. scuole, porti, musei)…"
+          className="mb-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:border-zornade focus:outline-none"
+        />
+        <div className="max-h-56 space-y-3 overflow-y-auto pr-1">
+          {OSM_GROUPS.map((group) => {
+            const items = visiblePresets.filter((p) => p.group === group);
+            if (items.length === 0) return null;
+            return (
+              <div key={group}>
+                <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+                  {group}
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {items.map((p) => (
+                    <button
+                      key={p.id}
+                      onClick={() => setSelected(p.id)}
+                      title={p.tag}
+                      className={`rounded-full border px-2.5 py-1 text-xs font-medium transition-colors ${
+                        selected === p.id
+                          ? "border-zornade bg-zornade-50 text-zornade-700"
+                          : "border-slate-200 text-slate-600 hover:border-slate-300"
+                      }`}
+                    >
+                      {p.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+          {visiblePresets.length === 0 && (
+            <p className="text-xs text-slate-400">Nessuna categoria trovata.</p>
+          )}
         </div>
       </div>
       <Field label="Ambito">
         <select
           value={scopeKind}
           onChange={(e) =>
-            setScopeKind(e.target.value as "nationwide" | "8" | "6" | "4")
+            setScopeKind(
+              e.target.value as "nationwide" | "comune" | "provincia" | "regione",
+            )
           }
           className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:border-zornade focus:outline-none"
         >
-          <option value="8">Per comune…</option>
-          <option value="6">Per provincia…</option>
-          <option value="4">Per regione…</option>
+          <option value="comune">Per comune…</option>
+          <option value="provincia">Per provincia…</option>
+          <option value="regione">Per regione…</option>
           <option value="nationwide">Tutta Italia (può essere lento)</option>
         </select>
       </Field>
@@ -1026,12 +1113,15 @@ function OsmSource() {
           <input
             value={placeName}
             onChange={(e) => setPlaceName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && canSearch) void search();
+            }}
             placeholder={
-              scopeKind === "8"
+              scopeKind === "comune"
                 ? "es. Bologna"
-                : scopeKind === "6"
-                  ? "es. Bologna (provincia)"
-                  : "es. Emilia-Romagna"
+                : scopeKind === "provincia"
+                  ? "es. Udine"
+                  : "es. Friuli"
             }
             className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:border-zornade focus:outline-none"
           />

@@ -8,15 +8,20 @@ import { renderTooltipTemplate } from "../lib/tooltip";
 /** A choropleth data layer to overlay on the basemap. */
 export interface DataLayer {
   geojson: GeoJSON.FeatureCollection;
-  /** "area" → fill+line choropleth (default); "point" → circle layer. */
-  kind?: "area" | "point";
-  /** MapLibre paint expression for `fill-color` (area). */
+  /**
+   * "area" → fill+line choropleth (default); "point" → circle layer;
+   * "geo" → the user's own geometry (polygons/lines/points drawn together).
+   */
+  kind?: "area" | "point" | "geo";
+  /** MapLibre paint expression for `fill-color` (area / geo polygons). */
   fillColor?: unknown;
   /** Outline colour for the polygons (area). */
   lineColor?: string;
-  /** MapLibre paint expression/colour for `circle-color` (point). */
+  /** MapLibre paint expression/colour for `line-color` (geo lines). */
+  lineColorExpr?: unknown;
+  /** MapLibre paint expression/colour for `circle-color` (point / geo points). */
   circleColor?: unknown;
-  /** MapLibre paint expression/number for `circle-radius` (point). */
+  /** MapLibre paint expression/number for `circle-radius` (point / geo points). */
   circleRadius?: unknown;
   /** Feature property holding the area name (for tooltips). */
   nameField?: string;
@@ -67,6 +72,8 @@ const INITIAL_ZOOM = 5;
 const SRC = "studio-data";
 const FILL = "studio-data-fill";
 const LINE = "studio-data-line";
+/** Extra layer for points inside a user "geo" dataset (KML/Shapefile points). */
+const GEO_POINT = "studio-geo-point";
 
 /** Italian number formatting for tooltip values. */
 const fmt = new Intl.NumberFormat("it-IT", { maximumFractionDigits: 2 });
@@ -102,6 +109,7 @@ export function MapPreview({
       map.once("idle", () => syncData(map));
       return;
     }
+    if (map.getLayer(GEO_POINT)) map.removeLayer(GEO_POINT);
     if (map.getLayer(LINE)) map.removeLayer(LINE);
     if (map.getLayer(FILL)) map.removeLayer(FILL);
     if (map.getSource(SRC)) map.removeSource(SRC);
@@ -137,6 +145,63 @@ export function MapPreview({
         },
         firstSymbol,
       );
+      return;
+    }
+
+    if (layer.kind === "geo") {
+      // The user's own geometry. MapLibre applies a `fill` layer only to
+      // polygons, a `line` layer to polygons (outline) + lines, and a `circle`
+      // layer only to points — so one source with three layers renders mixed
+      // collections correctly. Polygons are coloured by value/category (FILL,
+      // which the tooltip is bound to); lines and points get their own colour.
+      map.addLayer(
+        {
+          id: FILL,
+          type: "fill",
+          source: SRC,
+          paint: {
+            "fill-color":
+              (layer.fillColor as maplibregl.ExpressionSpecification) ??
+              "#01646f",
+            "fill-opacity": 0.7,
+          },
+        },
+        firstSymbol,
+      );
+      map.addLayer(
+        {
+          id: LINE,
+          type: "line",
+          source: SRC,
+          paint: {
+            "line-color":
+              (layer.lineColorExpr as maplibregl.ExpressionSpecification) ??
+              layer.lineColor ??
+              "#01646f",
+            "line-width": 1.2,
+          },
+        },
+        firstSymbol,
+      );
+      map.addLayer(
+        {
+          id: GEO_POINT,
+          type: "circle",
+          source: SRC,
+          paint: {
+            "circle-color":
+              (layer.circleColor as maplibregl.ExpressionSpecification) ??
+              "#01646f",
+            "circle-radius":
+              (layer.circleRadius as maplibregl.ExpressionSpecification) ?? 5,
+            "circle-stroke-color": "#ffffff",
+            "circle-stroke-width": 1,
+            "circle-opacity": 0.9,
+          },
+        },
+        firstSymbol,
+      );
+      applyDataFilter(map);
       return;
     }
 
@@ -258,6 +323,43 @@ export function MapPreview({
       map.getCanvas().style.cursor = "";
       popup.remove();
     });
+
+    // Geo datasets also draw lines and points; bind the same hover handlers so
+    // the tooltip works on every primitive (a single popup, last layer wins).
+    const showOnLayer = (
+      e: maplibregl.MapLayerMouseEvent,
+    ) => {
+      if (!tooltipEnabledRef.current) return;
+      const f = e.features?.[0];
+      if (!f) return;
+      map.getCanvas().style.cursor = "pointer";
+      const layer = dataLayerRef.current;
+      const props = (f.properties ?? {}) as Record<string, unknown>;
+      const name = layer?.nameField ? props[layer.nameField] : undefined;
+      const raw = props.__value;
+      const unit = layer?.valueUnit ? `\u00a0${layer.valueUnit}` : "";
+      const value =
+        typeof raw === "number"
+          ? `${fmt.format(raw)}${unit}`
+          : raw != null
+            ? `${String(raw)}${unit}`
+            : "n/d";
+      const label = layer?.valueLabel ?? "Valore";
+      const tpl = layer?.tooltipTemplate?.trim();
+      const html = tpl
+        ? renderTooltipTemplate(tpl, tooltipValues(props, String(name ?? ""), value))
+        : `<div class="studio-tooltip-name">${escapeHtml(String(name ?? ""))}</div>` +
+          `<div class="studio-tooltip-value"><span>${escapeHtml(label)}</span> ${escapeHtml(value)}</div>`;
+      popup.setLngLat(e.lngLat).setHTML(html).addTo(map);
+    };
+    const hideOnLayer = () => {
+      map.getCanvas().style.cursor = "";
+      popup.remove();
+    };
+    for (const id of [LINE, GEO_POINT]) {
+      map.on("mousemove", id, showOnLayer);
+      map.on("mouseleave", id, hideOnLayer);
+    }
 
     map.on("load", () => syncData(map));
     mapRef.current = map;

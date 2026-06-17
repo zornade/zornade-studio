@@ -44,7 +44,9 @@ export function DesignPanel() {
   } = useStudio();
 
   // Which Design blocks the active visualisation exposes (see design-caps.ts).
-  const caps = designCaps(vizType);
+  // A "geo" dataset renders by its own geometry regardless of the viz type, so
+  // its capabilities come from the dataset kind, not the selected viz.
+  const caps = data?.kind === "geo" ? designCaps("geo") : designCaps(vizType);
   const [noData, setNoData] = useState("#e5e7eb");
   // Geo-key index for level overrides (value-based best key column per level).
   const [geoKeys, setGeoKeys] = useState<Record<string, Set<string>> | null>(
@@ -315,9 +317,39 @@ export function DesignPanel() {
           </Field>
         )}
 
+        {data && data.kind === "geo" && caps.has("categoryBinding") && (
+          <Field
+            label="Colonna delle categorie"
+            hint="Colora aree, linee o punti per categoria (alternativa al valore numerico)."
+          >
+            <select
+              value={data.categoryColumn ?? ""}
+              onChange={(e) =>
+                setData({ ...data, categoryColumn: e.target.value || undefined })
+              }
+              className={inputCls}
+            >
+              <option value="">— nessuna —</option>
+              {data.columns.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
+          </Field>
+        )}
+
         {data && caps.has("valueLabel") && (
           <>
-            <Field label={data.kind === "area" ? "Colonna da mappare" : "Dimensione dei punti"}>
+            <Field
+              label={
+                data.kind === "area"
+                  ? "Colonna da mappare"
+                  : data.kind === "geo"
+                    ? "Colonna da colorare (aree)"
+                    : "Dimensione dei punti"
+              }
+            >
               <select
                 value={data.valueColumn}
                 onChange={(e) =>
@@ -325,8 +357,12 @@ export function DesignPanel() {
                 }
                 className={inputCls}
               >
-                {data.kind === "point" && (
-                  <option value="">Nessuna (dimensione uniforme)</option>
+                {(data.kind === "point" || data.kind === "geo") && (
+                  <option value="">
+                    {data.kind === "geo"
+                      ? "Nessuna (tinta unita)"
+                      : "Nessuna (dimensione uniforme)"}
+                  </option>
                 )}
                 {data.numericColumns.map((c) => (
                   <option key={c} value={c}>
@@ -515,17 +551,20 @@ export function DesignPanel() {
       </PanelSection>
 
       {/* ---- Stile dei punti ---- */}
-      {caps.has("pointStyle") && data?.kind === "point" && (
+      {caps.has("pointStyle") &&
+        (data?.kind === "point" || data?.kind === "geo") && (
         <PanelSection
-          title="Stile dei punti"
+          title={data.kind === "geo" ? "Colore e dimensione" : "Stile dei punti"}
           hint={
             data.categoryColumn
-              ? "I punti sono colorati per categoria (scala colore sopra)."
-              : "Colore e dimensione dei punti."
+              ? "Le geometrie sono colorate per categoria (scala colore sopra)."
+              : data.kind === "geo"
+                ? "Colore di base (aree senza valore, linee e punti) e dimensione dei punti."
+                : "Colore e dimensione dei punti."
           }
         >
           {!data.categoryColumn && (
-            <Field label="Colore dei punti">
+            <Field label={data.kind === "geo" ? "Colore di base" : "Colore dei punti"}>
               <div className="flex items-center gap-2">
                 <input
                   type="color"
@@ -542,9 +581,9 @@ export function DesignPanel() {
             </Field>
           )}
           <Field
-            label={`Dimensione · ${design.pointSize} px`}
+            label={`Dimensione punti · ${design.pointSize} px`}
             hint={
-              data.valueColumn
+              data.kind === "point" && data.valueColumn
                 ? "Dimensione base; i punti scalano con il valore scelto sopra."
                 : undefined
             }

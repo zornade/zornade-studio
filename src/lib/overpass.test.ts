@@ -3,23 +3,24 @@ import {
   buildOverpassQuery,
   overpassToTable,
   runOverpass,
+  isRuntimeError,
   OVERPASS_MAX,
   type OverpassElement,
 } from "./overpass";
 
 describe("buildOverpassQuery", () => {
-  it("builds an area-scoped query for a named comune", () => {
+  it("builds an area-id-scoped query", () => {
     const q = buildOverpassQuery(
       [{ key: "amenity", value: "school" }],
-      { kind: "area", name: "Bologna", adminLevel: 8 },
+      { kind: "area", areaId: 3600179296 },
     );
-    expect(q).toContain('area["name"="Bologna"]["admin_level"="8"]->.a;');
+    expect(q).toContain("area(3600179296)->.a;");
     expect(q).toContain('nwr["amenity"="school"](area.a);');
     expect(q).toContain(`out center ${OVERPASS_MAX};`);
     expect(q.startsWith("[out:json]")).toBe(true);
   });
 
-  it("OR-combines multiple filters in a union block", () => {
+  it("uses Italy's area id for the nationwide scope", () => {
     const q = buildOverpassQuery(
       [
         { key: "harbour", value: "yes" },
@@ -27,7 +28,7 @@ describe("buildOverpassQuery", () => {
       ],
       { kind: "nationwide" },
     );
-    expect(q).toContain('area["ISO3166-1"="IT"]["admin_level"="2"]->.a;');
+    expect(q).toContain("area(3600365331)->.a;");
     expect(q).toContain('nwr["harbour"="yes"](area.a);');
     expect(q).toContain('nwr["leisure"="marina"](area.a);');
   });
@@ -35,15 +36,6 @@ describe("buildOverpassQuery", () => {
   it("supports a key-only filter (any value)", () => {
     const q = buildOverpassQuery([{ key: "man_made" }], { kind: "nationwide" });
     expect(q).toContain('nwr["man_made"](area.a);');
-  });
-
-  it("escapes quotes in a place name (injection-safe)", () => {
-    const q = buildOverpassQuery(
-      [{ key: "amenity", value: "school" }],
-      { kind: "area", name: 'Foo"]; out;', adminLevel: 8 },
-    );
-    expect(q).toContain('\\"');
-    expect(q).not.toContain('"Foo"];');
   });
 });
 
@@ -139,6 +131,53 @@ describe("runOverpass (robustness)", () => {
     }
   });
 
+  it("treats an empty 200 with a runtime-error remark as a failed mirror", async () => {
+    // A mirror missing the area database answers HTTP 200 with elements:[] and
+    // a `remark` runtime error. We must NOT report that as "no results" — we
+    // fall through to the next, working mirror instead.
+    const calls: string[] = [];
+    const fetchMock = async (url: string) => {
+      calls.push(url);
+      if (calls.length === 1) {
+        return {
+          ok: true,
+          json: async () => ({
+            elements: [],
+            remark:
+              "runtime error: open64: 2 No such file or directory area_tags_local.bin",
+          }),
+        } as unknown as Response;
+      }
+      return { ok: true, json: async () => okBody } as unknown as Response;
+    };
+    const orig = globalThis.fetch;
+    globalThis.fetch = fetchMock as typeof fetch;
+    try {
+      const els = await runOverpass("q", ["https://a/i", "https://b/i"]);
+      expect(els).toHaveLength(1);
+      expect(calls).toHaveLength(2); // fell through past the broken mirror
+    } finally {
+      globalThis.fetch = orig;
+    }
+  });
+
+  it("returns a genuinely empty result (no remark) without retrying", async () => {
+    const calls: string[] = [];
+    const fetchMock = async (url: string) => {
+      calls.push(url);
+      return { ok: true, json: async () => ({ elements: [] }) } as unknown as Response;
+    };
+    const orig = globalThis.fetch;
+    globalThis.fetch = fetchMock as typeof fetch;
+    try {
+      const els = await runOverpass("q", ["https://a/i", "https://b/i"]);
+      expect(els).toHaveLength(0);
+      expect(calls).toHaveLength(1); // empty IS a valid answer; don't waste mirrors
+    } finally {
+      globalThis.fetch = orig;
+    }
+  });
+
   it("aborts a hung endpoint via timeout and surfaces a clear error", async () => {
     // A fetch that never resolves until aborted → the AbortController must
     // reject it so the call can't hang forever.
@@ -157,5 +196,19 @@ describe("runOverpass (robustness)", () => {
     } finally {
       globalThis.fetch = orig;
     }
+  });
+});
+
+describe("isRuntimeError", () => {
+  it("detects server-side runtime errors", () => {
+    expect(isRuntimeError("runtime error: Query timed out")).toBe(true);
+    expect(isRuntimeError("runtime error: open64 area_tags_local.bin")).toBe(true);
+    expect(isRuntimeError("runtime error: out of memory")).toBe(true);
+  });
+
+  it("ignores benign or absent remarks", () => {
+    expect(isRuntimeError(undefined)).toBe(false);
+    expect(isRuntimeError("")).toBe(false);
+    expect(isRuntimeError("considered area too large, simplified")).toBe(false);
   });
 });

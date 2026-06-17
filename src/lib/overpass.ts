@@ -19,10 +19,16 @@ export const OVERPASS_ENDPOINTS = [
   "https://overpass.private.coffee/api/interpreter",
 ];
 
-/** Italian administrative levels in OSM (region 4, province 6, comune 8). */
+/**
+ * Geographic scope for an Overpass search. We scope by **area id** (resolved
+ * via Nominatim geocoding, see lib/nominatim.ts) rather than by exact OSM name,
+ * which is fragile ("Friuli" never matches "Friuli-Venezia Giulia"). Nationwide
+ * uses Italy's area id directly (relation 365331 → 3600365331).
+ */
+export const ITALY_AREA_ID = 3600365331;
 export type OsmScope =
   | { kind: "nationwide" }
-  | { kind: "area"; name: string; adminLevel: 4 | 6 | 8 };
+  | { kind: "area"; areaId: number };
 
 /** Hard cap on returned features (Overpass `out` count) to keep it manageable. */
 export const OVERPASS_MAX = 2000;
@@ -48,10 +54,8 @@ export function buildOverpassQuery(
   scope: OsmScope,
   timeoutSec = 25,
 ): string {
-  const areaDef =
-    scope.kind === "nationwide"
-      ? `area["ISO3166-1"="IT"]["admin_level"="2"]->.a;`
-      : `area["name"="${ql(scope.name)}"]["admin_level"="${scope.adminLevel}"]->.a;`;
+  const areaId = scope.kind === "nationwide" ? ITALY_AREA_ID : scope.areaId;
+  const areaDef = `area(${areaId})->.a;`;
   const body = filters
     .map((f) => `  nwr${selector(f)}(area.a);`)
     .join("\n");
@@ -169,8 +173,23 @@ export async function runOverpass(
         );
         continue;
       }
-      const json = (await res.json()) as { elements?: OverpassElement[] };
-      return json.elements ?? [];
+      const json = (await res.json()) as {
+        elements?: OverpassElement[];
+        remark?: string;
+      };
+      // Overpass can answer HTTP 200 with an empty body **and** a `remark`
+      // describing a runtime error: the server-side query timed out, or the
+      // mirror lacks the area database (`area_tags_local.bin` missing) so
+      // `area(...)` silently matches nothing. Returning [] here would surface a
+      // bogus "Nessun risultato"; instead treat it as a failed attempt and try
+      // the next mirror. We only do this when there are no elements, so a
+      // partial result with a warning remark is still kept.
+      const elements = json.elements ?? [];
+      if (elements.length === 0 && isRuntimeError(json.remark)) {
+        reasons.push(`${host}: ${describeRemark(json.remark!)}`);
+        continue;
+      }
+      return elements;
     } catch (e) {
       if (e instanceof DOMException && e.name === "AbortError") {
         reasons.push(`${host}: tempo scaduto (${perEndpointTimeoutMs / 1000}s)`);
@@ -196,4 +215,23 @@ function hostOf(url: string): string {
   } catch {
     return url;
   }
+}
+
+/**
+ * Does an Overpass `remark` describe a server-side **runtime error** (timeout
+ * or missing area database), as opposed to a benign note? Such a remark comes
+ * back with HTTP 200 and an empty element set, so we must detect it explicitly.
+ */
+export function isRuntimeError(remark: string | undefined): boolean {
+  if (!remark) return false;
+  return /runtime error|timed out|out of memory/i.test(remark);
+}
+
+/** Turn a raw Overpass runtime remark into a short, human reason. */
+function describeRemark(remark: string): string {
+  if (/timed out/i.test(remark)) return "query troppo pesante (timeout server)";
+  if (/area_tags_local|open64|No such file/i.test(remark))
+    return "mirror senza dati delle aree";
+  if (/out of memory/i.test(remark)) return "server sovraccarico (memoria)";
+  return "errore lato server";
 }

@@ -1,6 +1,7 @@
 import {
   createContext,
   useContext,
+  useEffect,
   useMemo,
   useRef,
   useState,
@@ -18,6 +19,7 @@ import type {
 } from "./types";
 import type { PresetChoice } from "./catalog";
 import { NEWSROOM_KITS } from "./catalog";
+import type { SavableProject } from "../lib/project";
 
 interface StudioContextValue extends StudioState {
   setStep: (step: StepId) => void;
@@ -28,6 +30,8 @@ interface StudioContextValue extends StudioState {
   updateBrand: (patch: Partial<NewsroomBrand>) => void;
   updateDesign: (patch: Partial<DesignSettings>) => void;
   setData: (data: DatasetState | null) => void;
+  /** Replace the whole editor state (open a saved project). */
+  loadProject: (state: SavableProject) => void;
   /** Ref to the map container node, for PNG export (set by MapCanvas). */
   exportNodeRef: MutableRefObject<HTMLElement | null>;
 }
@@ -58,19 +62,55 @@ const INITIAL_DESIGN: DesignSettings = {
   readerFilters: false,
 };
 
+/** localStorage key for the best-effort session autosave. */
+const AUTOSAVE_KEY = "zornade-studio:autosave";
+
+/** Read the autosaved session, or null if absent/corrupt. */
+function readAutosave(): StudioState | null {
+  try {
+    const raw = localStorage.getItem(AUTOSAVE_KEY);
+    if (!raw) return null;
+    const v = JSON.parse(raw) as Partial<StudioState>;
+    // Minimal shape guard; on mismatch we ignore and start fresh.
+    if (!v || typeof v !== "object" || !v.project || !v.design) return null;
+    return v as StudioState;
+  } catch {
+    return null;
+  }
+}
+
+/** Write the session autosave, swallowing quota/serialisation errors. */
+function writeAutosave(state: StudioState): void {
+  try {
+    localStorage.setItem(AUTOSAVE_KEY, JSON.stringify(state));
+  } catch {
+    // Quota exceeded (large dataset) or storage unavailable → skip silently.
+  }
+}
+
 export function StudioProvider({ children }: { children: ReactNode }) {
-  const [step, setStep] = useState<StepId>("data");
-  const [project, setProject] = useState<ProjectMeta>({
-    title: "Mappa senza titolo",
-    subtitle: "",
-    source: "Fatto con Zornade Studio",
-  });
-  const [dataSource, setDataSource] = useState<DataSourceKind>(null);
-  const [vizType, setVizType] = useState<string>("choropleth");
-  const [preset, setPreset] = useState<PresetChoice>("zornade");
-  const [brand, setBrand] = useState<NewsroomBrand>(INITIAL_BRAND);
-  const [design, setDesign] = useState<DesignSettings>(INITIAL_DESIGN);
-  const [data, setData] = useState<DatasetState | null>(null);
+  // Restore the last session from localStorage (best-effort autosave) so an
+  // accidental refresh doesn't lose work. Read once before the first render.
+  const restored = readAutosave();
+
+  const [step, setStep] = useState<StepId>(restored?.step ?? "data");
+  const [project, setProject] = useState<ProjectMeta>(
+    restored?.project ?? {
+      title: "Mappa senza titolo",
+      subtitle: "",
+      source: "Fatto con Zornade Studio",
+    },
+  );
+  const [dataSource, setDataSource] = useState<DataSourceKind>(
+    restored?.dataSource ?? null,
+  );
+  const [vizType, setVizType] = useState<string>(restored?.vizType ?? "choropleth");
+  const [preset, setPreset] = useState<PresetChoice>(restored?.preset ?? "zornade");
+  const [brand, setBrand] = useState<NewsroomBrand>(restored?.brand ?? INITIAL_BRAND);
+  const [design, setDesign] = useState<DesignSettings>(
+    restored?.design ?? INITIAL_DESIGN,
+  );
+  const [data, setData] = useState<DatasetState | null>(restored?.data ?? null);
   const exportNodeRef = useRef<HTMLElement | null>(null);
 
   const value = useMemo<StudioContextValue>(
@@ -107,10 +147,27 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       },
       updateDesign: (patch) => setDesign((d) => ({ ...d, ...patch })),
       setData,
+      loadProject: (s) => {
+        setStep(s.step ?? "design");
+        setProject(s.project);
+        setDataSource(s.dataSource ?? null);
+        setVizType(s.vizType);
+        setPreset(s.preset);
+        setBrand(s.brand);
+        setDesign(s.design);
+        setData(s.data);
+      },
       exportNodeRef,
     }),
     [step, project, dataSource, vizType, preset, brand, design, data],
   );
+
+  // Best-effort autosave of the current session to localStorage. Wrapped so a
+  // quota error (e.g. a very large dataset) degrades gracefully instead of
+  // throwing — the explicit "Salva progetto" file is the reliable path.
+  useEffect(() => {
+    writeAutosave({ step, project, dataSource, vizType, preset, brand, design, data });
+  }, [step, project, dataSource, vizType, preset, brand, design, data]);
 
   return (
     <StudioContext.Provider value={value}>{children}</StudioContext.Provider>

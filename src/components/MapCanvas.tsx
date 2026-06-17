@@ -9,6 +9,7 @@ import {
   joinChoropleth,
   joinCategory,
   buildFillColorExpression,
+  computeBreaks,
   sampleColors,
   DEFAULT_NO_DATA_COLOR,
 } from "../lib/choropleth";
@@ -17,6 +18,7 @@ import {
   buildPointColorExpression,
   buildPointRadiusExpression,
 } from "../lib/points";
+import { prepareGeoRender } from "../lib/geo-dataset";
 import { featureCentroid } from "../lib/centroid";
 import { templateColumns } from "../lib/tooltip";
 import { buildClassVisibilityFilter, classLabel } from "../lib/class-filter";
@@ -155,6 +157,13 @@ export function MapCanvas() {
     });
   }, [data, tooltipCols]);
 
+  // Prepare a user "geo" dataset (its own geometry) for rendering: inject
+  // __value/__cat/__name so the paint expressions can read them.
+  const geoRender = useMemo(() => {
+    if (!data || data.kind !== "geo") return null;
+    return prepareGeoRender(data, tooltipCols);
+  }, [data, tooltipCols]);
+
   const valueLabel =
     (design.valueLabel || (data?.kind === "point" ? data.valueColumn : data?.valueColumn)) ??
     "";
@@ -237,8 +246,50 @@ export function MapCanvas() {
         tooltipTemplate: design.tooltipTemplate,
       };
     }
+    // User "geo" dataset: draw the uploaded geometry. Polygons are coloured by
+    // value (graduated) or category; lines/points get a single colour/category.
+    if (data?.kind === "geo" && geoRender) {
+      const palette = scaleColors.length > 0 ? scaleColors : CAT_PALETTE;
+      const hasValue = !!data.valueColumn && geoRender.values.length > 0;
+      const hasCategory =
+        !!data.categoryColumn && geoRender.categories.length > 0;
+
+      let fillColor: unknown = design.pointColor;
+      let lineColorExpr: unknown = undefined;
+      let circleColor: unknown = design.pointColor;
+      if (hasValue) {
+        const classes = computeBreaks(
+          geoRender.values,
+          design.classification,
+          design.nClasses,
+          design.manualBreaks,
+        );
+        fillColor = buildFillColorExpression(classes, scaleColors, NO_DATA_COLOR);
+      } else if (hasCategory) {
+        const expr = buildPointColorExpression(
+          geoRender.categories,
+          palette,
+          design.pointColor,
+        );
+        fillColor = expr;
+        lineColorExpr = expr;
+        circleColor = expr;
+      }
+      return {
+        kind: "geo",
+        geojson: geoRender.geojson,
+        fillColor,
+        lineColorExpr,
+        circleColor,
+        circleRadius: design.pointSize,
+        nameField: data.nameColumn || data.categoryColumn ? "__name" : undefined,
+        valueLabel,
+        valueUnit: design.valueUnit || undefined,
+        tooltipTemplate: design.tooltipTemplate,
+      };
+    }
     return null;
-  }, [vizType, joined, symbolPoints, categoryJoin, points, scaleColors, data, valueLabel, design.valueUnit, design.pointColor, design.pointSize, design.tooltipTemplate]);
+  }, [vizType, joined, symbolPoints, categoryJoin, points, geoRender, scaleColors, data, valueLabel, design.valueUnit, design.pointColor, design.pointSize, design.tooltipTemplate, design.classification, design.nClasses, design.manualBreaks]);
 
   const showLegend =
     design.showLegend && vizType === "choropleth";
@@ -299,7 +350,9 @@ export function MapCanvas() {
           data
             ? data.kind === "area"
               ? `${data.fileName}:${data.geoLevel}:${data.valueColumn}`
-              : `${data.fileName}:point:${data.latColumn},${data.lonColumn}`
+              : data.kind === "point"
+                ? `${data.fileName}:point:${data.latColumn},${data.lonColumn}`
+                : `${data.fileName}:geo:${data.valueColumn}`
             : null
         }
       />

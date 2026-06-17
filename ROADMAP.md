@@ -472,10 +472,24 @@ L'utente incolla **host / utente / password** (credenziali read-only generate a 
    `buildDatasetFromTable` (geo-resolve + chiave/valore + errori identici al CSV); upload con
    dispatch per estensione in `DataPanel`. Parser puri in `lib/ingest/parse-excel.ts` /
    `parse-geojson.ts`, **testati** (12 test). *(Smoke-test visivo browser da fare.)*
-- **O2.3b** **Parser geometrici** (Shapefile, KML/KMZ, GeoTIFF): rimandati insieme a **O2.4**, perché
-   il loro payload primario è la **geometria** e richiedono un layer di rendering della geometria
-   utente che oggi non esiste (la pipeline coropletica usa la geometria **inclusa**). Messaggio
-   onesto “in arrivo” già nell'upload.
+- **O2.3b** ✅ **Geometrie dell'utente** (Shapefile, KML, KMZ, GeoJSON-con-geometrie) — *vettoriale
+   completo* (2026-06-17). Un nuovo tipo di dataset **`geo`** (`DatasetState` ora `area | point |
+   geo`) porta la geometria caricata dall'utente (quartieri, collegi, bacini…) e la **disegna
+   direttamente**: i **poligoni** si colorano per **valore** (coropletica sulle *proprie* geometrie,
+   con classificazione) o per **categoria**, **linee** e **punti** ricevono colore/categoria. Parser
+   **puri e lazy** (fuori dal bundle iniziale): `lib/ingest/parse-geometry.ts` usa **shpjs** (MIT, con
+   **riproiezione** proj4 — gli shapefile italiani sono in Gauss-Boaga/UTM, non lon/lat),
+   **@tmcw/togeojson** (BSD-2, KML→GeoJSON via `DOMParser`) e **fflate** (MIT, unzip del KMZ);
+   `lib/geo-dataset.ts` (puro + **testato**, 16 test) costruisce il `GeoDataset` dalle properties e
+   prepara il rendering (`__value`/`__cat`/`__name`). Il `MapPreview` rende le collezioni **miste** con
+   una sola sorgente e tre layer (`fill`/`line`/`circle`, ciascuno applicato dal motore solo al tipo
+   di geometria giusto). Un GeoJSON con geometrie poligonali/lineari proprie diventa `geo`; uno
+   tabellare resta sul percorso join-coropletica. Integrazione Design via capability (`geo` →
+   `valueLabel`, `categoryBinding`, `colorScale`, `classification`, `pointStyle`, `tooltipTemplate`).
+   **Verificato dal vivo**: shapefile reale in **UTM32N** → `parseZip` → 2 poligoni **riproiettati a
+   WGS84**; KMZ → `fflate` → estrazione `doc.kml`. *(Resta il **GeoTIFF**, che è **raster**: percorso
+   di rendering diverso, scope separato; messaggio “in arrivo” onesto. Pubblicazione/embed restano
+   coropletica-area.)*
 - **O2.4** ✅ Layer di **punti** da CSV/GeoJSON. `DatasetState` ora è un'unione
    **`area | point`**: i dati con colonne **lat/lon** (rilevate dal profilo) diventano un layer di
    punti MapLibre (`circle`), con **dimensione proporzionale** opzionale (colonna numerica) e
@@ -490,14 +504,24 @@ L'utente incolla **host / utente / password** (credenziali read-only generate a 
      stessi campi — così ogni viz è coerente col pannello *per costruzione* (niente controlli
      irrilevanti, ogni controllo mostrato è cablato). I punti ora rispettano colore (`pointColor` o
      scala per categoria) e dimensione (`pointSize`).
-- **O2.5** ✅ **Query OSM (Overpass)** con selettore guidato. `lib/overpass.ts` (puro + testato):
-   `buildOverpassQuery` (preset → Overpass QL, ambito **comune/provincia/regione** via `admin_level`
-   8/6/4 o tutta Italia, filtri OR su `nwr`, escaping injection-safe), `overpassToTable`
-   (elements → tabella punti con `lat`/`lon`/`nome`/`categoria`/`indirizzo`), `runOverpass` (fetch
-   **diretto dal browser** — gli endpoint pubblici mandano `Access-Control-Allow-Origin: *`, niente
-   proxy — con **fallback** su più mirror). `DataPanel` → `OsmSource` esegue la ricerca e crea un
-   `PointDataset`, che **eredita** il percorso punti + il blocco Design `pointStyle` (categorie =
-   filtro corrispondente). Dati © OpenStreetMap (ODbL).
+- **O2.5** ✅ **Query OSM (Overpass)** con selettore guidato, **indurita** (2026-06-16). `lib/overpass.ts`
+   (puro + testato): `buildOverpassQuery` (preset → Overpass QL, ambito via **area id** Overpass —
+   `area(<id>)->.a` — niente più match per `name`/`admin_level` fragile; nationwide = `ITALY_AREA_ID`
+   = `3600365331`), filtri OR su `nwr`, `overpassToTable` (elements → tabella punti con
+   `lat`/`lon`/`nome`/`categoria`/`indirizzo`), `runOverpass` (fetch **diretto dal browser** — gli
+   endpoint pubblici mandano `Access-Control-Allow-Origin: *`, niente proxy — con **fallback** su più
+   mirror). `lib/nominatim.ts` (NUOVO, puro + testato): `geocodeArea(query, scope)` risolve il nome
+   del luogo **in modo fuzzy** via Nominatim (CORS `*` verificato; `countrycodes=it`,
+   `featureType` hint regione→state/comune→city) → boundary amministrativo → area id Overpass
+   (relation→3600000000+id, way→2400000000+id); `pickArea` preferisce `boundary/administrative` e
+   **salta i nodi**. Questo risolve due bug verificati dal vivo: «Friuli» (nome OSM reale
+   «Friuli-Venezia Giulia») ora geocodifica → rel 179296 → **62 porti** (prima: «Nessun risultato»);
+   nationwide usa l'area Italia diretta. `catalog.tsx`: **48 categorie** OSM in **7 gruppi**
+   (`OSM_GROUPS`: Trasporti, Sanità, Istruzione, Servizi pubblici, Cultura e turismo, Commercio,
+   Ambiente e svago) con campo `group`. `DataPanel` → `OsmSource`: casella **ricerca categoria** (per
+   label/gruppo/tag), chip raggruppati, select ambito, geocoding pigro (lazy import), Enter-to-search,
+   crea un `PointDataset` che **eredita** il percorso punti + il blocco Design `pointStyle`. Verifiche
+   live: Bologna → 53 musei, Friuli → 62 porti. Dati © OpenStreetMap (ODbL).
 - **O2.6** ✅ **Simboli proporzionali** + **mappa categorie**. Entrambe sui dataset **area**, riusando
    il join esistente: **symbol** = `joinChoropleth` (per il valore) → **centroidi** delle aree
    (`lib/centroid.ts`, centroide area-pesato del ring più grande, testato) → bolle dimensionate
@@ -526,7 +550,14 @@ L'utente incolla **host / utente / password** (credenziali read-only generate a 
    per filtrarla, in editor **e nell'embed pubblicato** (le aree senza dato restano sempre visibili come
    contesto). Capability `tooltipTemplate` + `readerFilters`. *(Geocoder/ricerca indirizzo escluso per
    ora — richiesta utente.)*
-- **O2.9** Salvataggio progetti (locale → poi DB)
+- **O2.9** ✅ **Salvataggio progetti** (locale; DB più avanti). Già presente l'infrastruttura di
+   serializzazione deterministica (`serialiseSpec`/`sortDeep`) e lo `StudioState` è interamente
+   serializzabile. Aggiunto `lib/project.ts` (`serialiseProject`/`parseProject`, file versionato
+   `kind:"zornade-studio-project"` + validazione, testati): **Salva progetto** scarica un `.json` con
+   l'intero stato editabile (dati, colonne, viz, design, brand) e **Apri progetto** lo ricarica
+   (`loadProject` nel contesto). In più **autosave** best-effort su `localStorage` con **ripristino
+   all'avvio** (un refresh accidentale non perde il lavoro; degrada in silenzio se la quota è
+   superata). UI nel pannello Pubblica → sezione “Progetto”. *(Persistenza su DB Zornade = step futuro.)*
 
 ### Onda 3 — DB Zornade & grafici
 - **O3.1** **Proxy query DB Zornade** (read-only) + dataset guidati (OMI, rischio, solare, demografia)

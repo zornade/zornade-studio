@@ -11,6 +11,8 @@ import {
   Table2,
   Smartphone,
   TrendingUp,
+  Save,
+  FolderOpen,
 } from "lucide-react";
 import { useStudio } from "../../studio/StudioContext";
 import { PanelSection, Button, SoonBadge } from "../primitives";
@@ -24,6 +26,7 @@ export function PublishPanel() {
   const [publishing, setPublishing] = useState(false);
   const [publishError, setPublishError] = useState<string | null>(null);
   const [publishedUrl, setPublishedUrl] = useState<string | null>(null);
+  const [projectError, setProjectError] = useState<string | null>(null);
 
   const slug =
     project.title
@@ -134,8 +137,83 @@ export function PublishPanel() {
     setTimeout(() => setCopied(false), 1600);
   };
 
+  // Save the full editable project to a downloadable .json file.
+  const saveProject = async () => {
+    setProjectError(null);
+    const { serialiseProject } = await import("../../lib/project");
+    const json = serialiseProject({
+      step: studio.step,
+      project: studio.project,
+      dataSource: studio.dataSource,
+      vizType: studio.vizType,
+      preset: studio.preset,
+      brand: studio.brand,
+      design: studio.design,
+      data: studio.data,
+    });
+    const blob = new Blob([json], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${slug}.zornade.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  // Open a saved project file and replace the editor state.
+  const openProject = async (file: File) => {
+    setProjectError(null);
+    try {
+      const text = await file.text();
+      const { parseProject } = await import("../../lib/project");
+      const out = parseProject(text);
+      if ("error" in out) {
+        setProjectError(out.error);
+        return;
+      }
+      studio.loadProject(out.state);
+    } catch {
+      setProjectError("Impossibile leggere il file del progetto.");
+    }
+  };
+
   return (
     <div className="space-y-6">
+      <PanelSection
+        title="Progetto"
+        hint="Salva il lavoro su file e riaprilo quando vuoi."
+      >
+        <div className="grid grid-cols-2 gap-2">
+          <Button variant="secondary" onClick={() => void saveProject()}>
+            <Save size={15} />
+            Salva progetto
+          </Button>
+          <label className="flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-600 transition-colors hover:border-zornade hover:text-zornade-700">
+            <FolderOpen size={15} />
+            Apri progetto
+            <input
+              type="file"
+              accept=".json,application/json"
+              className="hidden"
+              onChange={(e) => {
+                const f = e.target.files?.[0];
+                if (f) void openProject(f);
+                e.target.value = "";
+              }}
+            />
+          </label>
+        </div>
+        {projectError && (
+          <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700">
+            {projectError}
+          </p>
+        )}
+        <p className="mt-2 text-[11px] text-slate-400">
+          Il lavoro viene salvato in automatico in questo browser; “Salva
+          progetto” crea un file che puoi archiviare o spostare.
+        </p>
+      </PanelSection>
+
       <PanelSection
         title="Pubblica & incorpora"
         hint="Genera uno snapshot immutabile e ottieni il codice da incollare."
