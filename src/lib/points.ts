@@ -22,6 +22,9 @@ export interface BuildPointsParams {
   categoryColumn?: string;
   /** Optional column used as the point label/name in tooltips. */
   nameColumn?: string;
+  /** Extra columns to copy onto each feature (for custom tooltips), under a
+   * `col:` prefix to avoid clashing with the `__*` internal props. */
+  extraColumns?: string[];
 }
 
 export interface BuildPointsResult {
@@ -38,6 +41,7 @@ export interface BuildPointsResult {
 export function buildPointFeatures(params: BuildPointsParams): BuildPointsResult {
   const { rows, latColumn, lonColumn, valueColumn, categoryColumn, nameColumn } =
     params;
+  const extraColumns = params.extraColumns ?? [];
 
   const features: GeoJSON.Feature[] = [];
   const categories: string[] = [];
@@ -81,6 +85,7 @@ export function buildPointFeatures(params: BuildPointsParams): BuildPointsResult
     if (nameColumn) {
       properties.__name = (row[nameColumn] ?? "").trim();
     }
+    for (const c of extraColumns) properties[`col:${c}`] = row[c] ?? "";
 
     features.push({
       type: "Feature",

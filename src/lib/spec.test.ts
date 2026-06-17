@@ -32,6 +32,7 @@ function baseState(overrides: Partial<StudioState> = {}): StudioState {
       showLegend: true,
       showSource: true,
       tooltip: true,
+      tooltipTemplate: "",
       zoomPan: true,
     },
     data: {

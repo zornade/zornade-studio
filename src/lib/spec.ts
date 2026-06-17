@@ -17,6 +17,7 @@
 import type { StudioState } from "../studio/types";
 import type { GeoLevel } from "./choropleth";
 import { parseNumber } from "./csv";
+import { templateColumns } from "./tooltip";
 
 /** Bump when the shape changes incompatibly; older embeds keep their version. */
 export const SPEC_SCHEMA_VERSION = 1 as const;
@@ -31,6 +32,8 @@ export interface SpecProject {
 export interface SpecDatum {
   key: string;
   value: number;
+  /** Extra columns referenced by a custom tooltip template (key→text). */
+  extra?: Record<string, string>;
 }
 
 export interface SpecDesign {
@@ -48,6 +51,7 @@ export interface SpecDesign {
   showLegend: boolean;
   showSource: boolean;
   tooltip: boolean;
+  tooltipTemplate: string;
   zoomPan: boolean;
 }
 
@@ -84,6 +88,10 @@ export function buildSpec(state: StudioState): BuildSpecResult {
   }
 
   // Reduce to minimal {key, value} data, dropping empty/non-numeric rows.
+  // A custom tooltip template may reference extra columns: carry exactly those.
+  const extraCols = templateColumns(design.tooltipTemplate).filter((c) =>
+    data.columns.includes(c),
+  );
   const seen = new Set<string>();
   const datums: SpecDatum[] = [];
   for (const row of data.rows) {
@@ -91,14 +99,21 @@ export function buildSpec(state: StudioState): BuildSpecResult {
     const key = rawKey == null ? "" : String(rawKey).trim();
     const value = parseNumber(row[data.valueColumn]);
     if (key === "" || value == null) continue;
+    const extra =
+      extraCols.length > 0
+        ? Object.fromEntries(extraCols.map((c) => [c, String(row[c] ?? "")]))
+        : undefined;
     // Last value wins for duplicate keys, matching the join's Map semantics.
     if (seen.has(key)) {
       const idx = datums.findIndex((d) => d.key === key);
-      if (idx !== -1) datums[idx].value = value;
+      if (idx !== -1) {
+        datums[idx].value = value;
+        if (extra) datums[idx].extra = extra;
+      }
       continue;
     }
     seen.add(key);
-    datums.push({ key, value });
+    datums.push(extra ? { key, value, extra } : { key, value });
   }
   if (datums.length === 0) {
     return { error: "Nessun valore numerico da pubblicare." };
@@ -133,6 +148,7 @@ export function buildSpec(state: StudioState): BuildSpecResult {
       showLegend: design.showLegend,
       showSource: design.showSource,
       tooltip: design.tooltip,
+      tooltipTemplate: design.tooltipTemplate,
       zoomPan: design.zoomPan,
     },
   };

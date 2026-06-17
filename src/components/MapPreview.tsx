@@ -3,6 +3,7 @@ import maplibregl from "maplibre-gl";
 import type { Flavor } from "@protomaps/basemaps";
 import { buildStyle } from "../basemap";
 import { ensurePmtilesProtocol } from "../lib/pmtiles";
+import { renderTooltipTemplate } from "../lib/tooltip";
 
 /** A choropleth data layer to overlay on the basemap. */
 export interface DataLayer {
@@ -23,6 +24,8 @@ export interface DataLayer {
   valueLabel?: string;
   /** Optional unit appended to the value (for tooltips). */
   valueUnit?: string;
+  /** Custom tooltip HTML template ({nome},{valore},{colonna}); "" = default. */
+  tooltipTemplate?: string;
 }
 
 interface MapPreviewProps {
@@ -222,12 +225,14 @@ export function MapPreview({
             ? `${String(raw)}${unit}`
             : "n/d";
       const label = layer?.valueLabel ?? "Valore";
+      const tpl = layer?.tooltipTemplate?.trim();
+      const html = tpl
+        ? renderTooltipTemplate(tpl, tooltipValues(props, String(name ?? ""), value))
+        : `<div class="studio-tooltip-name">${escapeHtml(String(name ?? ""))}</div>` +
+          `<div class="studio-tooltip-value"><span>${escapeHtml(label)}</span> ${escapeHtml(value)}</div>`;
       popup
         .setLngLat(e.lngLat)
-        .setHTML(
-          `<div class="studio-tooltip-name">${escapeHtml(String(name ?? ""))}</div>` +
-            `<div class="studio-tooltip-value"><span>${escapeHtml(label)}</span> ${escapeHtml(value)}</div>`,
-        )
+        .setHTML(html)
         .addTo(map);
     });
     map.on("mouseleave", FILL, () => {
@@ -330,6 +335,23 @@ function escapeHtml(s: string): string {
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
+}
+
+/**
+ * Build the token dictionary for a custom tooltip template from a feature's
+ * properties: `nome`, `valore` (already formatted), plus every `col:`-prefixed
+ * column carried onto the feature for the template.
+ */
+function tooltipValues(
+  props: Record<string, unknown>,
+  name: string,
+  value: string,
+): Record<string, string> {
+  const values: Record<string, string> = { nome: name, valore: value };
+  for (const k of Object.keys(props)) {
+    if (k.startsWith("col:")) values[k.slice(4)] = String(props[k] ?? "");
+  }
+  return values;
 }
 
 /**

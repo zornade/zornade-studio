@@ -477,6 +477,9 @@ export interface JoinParams {
   method: string;
   /** Thresholds used when method === "manual". */
   manualBreaks?: number[];
+  /** Extra columns to copy from the matched row onto each feature (for custom
+   * tooltips), prefixed with `col:` to avoid clashing with geometry props. */
+  extraColumns?: string[];
 }
 
 /**
@@ -491,12 +494,17 @@ export function joinChoropleth(params: JoinParams): JoinResult {
 
   // Build a lookup of normalised CSV key -> numeric value.
   const valueByKey = new Map<string, number>();
+  // And, when a custom tooltip needs them, key -> the matched row.
+  const extraColumns = params.extraColumns ?? [];
+  const rowByKey =
+    extraColumns.length > 0 ? new Map<string, Record<string, string>>() : null;
   const unmatchedCsv: string[] = [];
   for (const row of rows) {
     const key = normaliseKey(row[keyColumn]);
     const value = parseNumber(row[valueColumn]);
     if (key === "" || value == null) continue;
     valueByKey.set(key, value);
+    if (rowByKey) rowByKey.set(key, row);
   }
 
   const matched = new Set<string>();
@@ -532,6 +540,13 @@ export function joinChoropleth(params: JoinParams): JoinResult {
       properties.__value = value;
       matched.add(matchedKey);
       renderedValues.push(value);
+      // Copy template-referenced columns under a `col:` prefix.
+      if (rowByKey) {
+        const row = rowByKey.get(matchedKey);
+        if (row) {
+          for (const c of extraColumns) properties[`col:${c}`] = row[c] ?? "";
+        }
+      }
     } else {
       delete properties.__value;
       noDataFeatures++;

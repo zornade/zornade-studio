@@ -25,16 +25,18 @@ export type DesignCapability =
   /** Category column selector (category map). */
   | "categoryBinding"
   /** Point styling: uniform colour + base size. */
-  | "pointStyle";
+  | "pointStyle"
+  /** Custom HTML tooltip template. */
+  | "tooltipTemplate";
 
 /** Capabilities per visualisation type (catalog id → blocks). */
 export const VIZ_DESIGN_CAPS: Record<string, DesignCapability[]> = {
-  choropleth: ["geoBinding", "valueLabel", "colorScale", "classification"],
-  points: ["valueLabel", "colorScale", "pointStyle"],
+  choropleth: ["geoBinding", "valueLabel", "colorScale", "classification", "tooltipTemplate"],
+  points: ["valueLabel", "colorScale", "pointStyle", "tooltipTemplate"],
   // Proportional symbols: area-joined value drawn as sized bubbles at centroids.
-  symbol: ["geoBinding", "valueLabel", "colorScale", "pointStyle"],
+  symbol: ["geoBinding", "valueLabel", "colorScale", "pointStyle", "tooltipTemplate"],
   // Category map: areas coloured by a categorical column.
-  category: ["geoBinding", "categoryBinding", "colorScale"],
+  category: ["geoBinding", "categoryBinding", "colorScale", "tooltipTemplate"],
   locator: ["pointStyle"],
 };
 

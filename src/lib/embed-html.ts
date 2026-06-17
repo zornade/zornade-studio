@@ -90,6 +90,14 @@ export function buildEmbedHtml(
     if (k === "") continue;
     keyed[k] = datum.value;
   }
+  // Extra columns referenced by a custom tooltip template, keyed by normalised
+  // key (only present when the spec carries them).
+  const extraByKey: Record<string, Record<string, string>> = {};
+  for (const datum of spec.data) {
+    if (!datum.extra) continue;
+    const k = normaliseKey(datum.key);
+    if (k !== "") extraByKey[k] = datum.extra;
+  }
   // Prefer the breaks computed against the real geometry (matched values only);
   // fall back to classifying the raw spec data when none were supplied.
   const classes =
@@ -123,6 +131,8 @@ export function buildEmbedHtml(
     valueLabel,
     valueUnit: d.valueUnit || "",
     noDataLabel: "Dato non disponibile",
+    tooltipTemplate: d.tooltipTemplate || "",
+    extraByKey,
   };
 
   return `<!doctype html>
@@ -205,10 +215,13 @@ map.on("load",function(){ready=true;if(GEO)build();});
 fetch(E.geoUrl).then(function(r){return r.json();}).then(function(g){GEO=g;if(ready)build();});
 function build(){
   var noData=0;
-  GEO.features.forEach(function(f){var p=f.properties||(f.properties={});var val;
+  GEO.features.forEach(function(f){var p=f.properties||(f.properties={});var val,mk="";
     for(var i=0;i<E.fields.length;i++){var k=nk(p[E.fields[i]]);
-      if(k&&Object.prototype.hasOwnProperty.call(E.keyed,k)){val=E.keyed[k];break;}}
-    if(val!=null){p.__value=val;}else{delete p.__value;noData++;}});
+      if(k&&Object.prototype.hasOwnProperty.call(E.keyed,k)){val=E.keyed[k];mk=k;break;}}
+    if(val!=null){p.__value=val;
+      if(E.extraByKey&&E.extraByKey[mk]){var ex=E.extraByKey[mk];
+        for(var c in ex){if(Object.prototype.hasOwnProperty.call(ex,c))p["col:"+c]=ex[c];}}
+    }else{delete p.__value;noData++;}});
   map.addSource("d",{type:"geojson",data:GEO});
   var firstSym=(map.getStyle().layers||[]).filter(function(l){return l.type==="symbol";})[0];
   var before=firstSym&&firstSym.id;
@@ -242,13 +255,17 @@ function legend(noData){
 }
 function tooltip(){
   var pop=new maplibregl.Popup({closeButton:false,closeOnClick:false,className:"studio-tooltip"});
+  function tplRender(tpl,vals){return tpl.replace(/\{([^{}]+)\}/g,function(_,t){
+    var v=vals[String(t).replace(/^\s+|\s+$/g,"")];return v==null?"":esc(String(v));});}
   map.on("mousemove","d-fill",function(e){var f=e.features&&e.features[0];if(!f)return;
     var p=f.properties||{};if(p.__value==null){pop.remove();map.getCanvas().style.cursor="";return;}
-    var nm=p[E.nameField]||"";
-    pop.setLngLat(e.lngLat).setHTML(
-      '<div class="studio-tooltip-name">'+esc(nm)+'</div>'+
-      '<div class="studio-tooltip-value"><span>'+esc(E.valueLabel)+'</span> '+esc(fmt(p.__value))+'</div>'
-    ).addTo(map);
+    var nm=p[E.nameField]||"";var html;
+    if(E.tooltipTemplate){var vals={nome:nm,valore:fmt(p.__value)};
+      for(var k in p){if(k.indexOf("col:")===0)vals[k.slice(4)]=p[k];}
+      html=tplRender(E.tooltipTemplate,vals);}
+    else{html='<div class="studio-tooltip-name">'+esc(nm)+'</div>'+
+      '<div class="studio-tooltip-value"><span>'+esc(E.valueLabel)+'</span> '+esc(fmt(p.__value))+'</div>';}
+    pop.setLngLat(e.lngLat).setHTML(html).addTo(map);
     map.getCanvas().style.cursor="pointer";});
   map.on("mouseleave","d-fill",function(){pop.remove();map.getCanvas().style.cursor="";});
 }

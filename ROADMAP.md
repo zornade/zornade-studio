@@ -517,7 +517,14 @@ L'utente incolla **host / utente / password** (credenziali read-only generate a 
    non un classificatore a soglia (misurato: nessuna soglia redmean separa pulito Okabe-Ito da palette
    rischiose — si sovrappongono); la simulazione lascia **verificare a occhio**. Le palette valgono
    anche negli **embed** (via `colorsForScale`).
-- **O2.8** Controlli per il lettore (dropdown, ricerca/geocoder, filtri) + tooltip HTML custom
+- **O2.8** **Tooltip HTML personalizzato** ✅ + controlli lettore ⏳. `lib/tooltip.ts`
+   (`templateColumns`/`renderTooltipTemplate`, testati): l'operatore scrive un template con token
+   `{nome}`, `{valore}` e `{colonna}`; **l'HTML del template** (autore fidato) è preservato, **i valori
+   interpolati** (dai dati) sono **HTML-escaped** → niente injection da una cella malevola. Le colonne
+   referenziate sono portate sulle feature (prefisso `col:`) in editor e **incluse nello spec**
+   (`SpecDatum.extra`) → il tooltip custom funziona identico nell'**embed**. Campo nel Design (sezione
+   Interattività) via capability `tooltipTemplate`. *(Restano: filtri/dropdown lato lettore; geocoder
+   escluso per ora.)*
 - **O2.9** Salvataggio progetti (locale → poi DB)
 
 ### Onda 3 — DB Zornade & grafici

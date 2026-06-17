@@ -583,6 +583,26 @@ export function DesignPanel() {
             );
           })}
         </div>
+
+        {caps.has("tooltipTemplate") && design.tooltip && (
+          <Field
+            label="Tooltip personalizzato (HTML)"
+            hint="Lascia vuoto per il tooltip predefinito. Token: {nome}, {valore} e {nome_colonna}."
+          >
+            <textarea
+              value={design.tooltipTemplate}
+              onChange={(e) => updateDesign({ tooltipTemplate: e.target.value })}
+              placeholder={"<b>{nome}</b><br>{valore}"}
+              rows={3}
+              className={`${inputCls} font-mono text-xs`}
+            />
+            {data && (
+              <p className="mt-1 text-[11px] text-slate-400">
+                Colonne disponibili: {data.columns.join(", ")}
+              </p>
+            )}
+          </Field>
+        )}
       </PanelSection>
 
       {/* ---- Annotazioni (mockup) ---- */}

@@ -17,7 +17,8 @@ function state(title: string, value: string): StudioState {
       classification: "quantile", manualBreaks: [], legendType: "steps",
       nClasses: 5, valueLabel: "", valueUnit: "", pointColor: "#01646f",
       pointSize: 7, showTitle: true,
-      showLegend: true, showSource: true, tooltip: true, zoomPan: true,
+      showLegend: true, showSource: true, tooltip: true, tooltipTemplate: "",
+      zoomPan: true,
     },
     data: {
       kind: "area",

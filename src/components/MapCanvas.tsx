@@ -18,6 +18,7 @@ import {
   buildPointRadiusExpression,
 } from "../lib/points";
 import { featureCentroid } from "../lib/centroid";
+import { templateColumns } from "../lib/tooltip";
 
 const NO_DATA_COLOR = DEFAULT_NO_DATA_COLOR;
 /** Categorical palette for point/category colouring (falls back to teal). */
@@ -35,6 +36,18 @@ export function MapCanvas() {
   const scaleColors = design.reverseScale
     ? [...scale.colors].reverse()
     : scale.colors;
+
+  // Columns referenced by a custom tooltip template, restricted to real columns
+  // → carried onto the features so the tooltip can fill {colonna} tokens.
+  const tooltipCols = useMemo(
+    () =>
+      data
+        ? templateColumns(design.tooltipTemplate).filter((c) =>
+            data.columns.includes(c),
+          )
+        : [],
+    [data, design.tooltipTemplate],
+  );
 
   // Load the geometry for the active dataset's geo level (area datasets only).
   const [rawGeo, setRawGeo] = useState<GeoJSON.FeatureCollection | null>(null);
@@ -72,8 +85,9 @@ export function MapCanvas() {
       nClasses: design.nClasses,
       method: design.classification,
       manualBreaks: design.manualBreaks,
+      extraColumns: tooltipCols,
     });
-  }, [data, rawGeo, vizType, design.nClasses, design.classification, design.manualBreaks]);
+  }, [data, rawGeo, vizType, design.nClasses, design.classification, design.manualBreaks, tooltipCols]);
 
   // Category area join: feeds the category map (colour per category).
   const categoryJoin = useMemo(() => {
@@ -103,12 +117,18 @@ export function MapCanvas() {
       if (!c) continue;
       if (v < min) min = v;
       if (v > max) max = v;
+      const fp = (f.properties as Record<string, unknown>) ?? {};
+      const props: Record<string, unknown> = {
+        __value: v,
+        __name: fp[nameField] ?? "",
+      };
+      // Carry template-referenced columns (col:*) onto the bubble.
+      for (const k of Object.keys(fp)) {
+        if (k.startsWith("col:")) props[k] = fp[k];
+      }
       features.push({
         type: "Feature",
-        properties: {
-          __value: v,
-          __name: (f.properties as Record<string, unknown>)?.[nameField] ?? "",
-        },
+        properties: props,
         geometry: { type: "Point", coordinates: c },
       });
     }
@@ -130,8 +150,9 @@ export function MapCanvas() {
       valueColumn: data.valueColumn || undefined,
       categoryColumn: data.categoryColumn,
       nameColumn: data.nameColumn ?? data.categoryColumn,
+      extraColumns: tooltipCols,
     });
-  }, [data]);
+  }, [data, tooltipCols]);
 
   const valueLabel =
     (design.valueLabel || (data?.kind === "point" ? data.valueColumn : data?.valueColumn)) ??
@@ -152,6 +173,7 @@ export function MapCanvas() {
         nameField: data?.kind === "area" ? GEO_LEVELS[data.geoLevel].nameField : undefined,
         valueLabel,
         valueUnit: design.valueUnit || undefined,
+        tooltipTemplate: design.tooltipTemplate,
       };
     }
     // Symbol map: sized bubbles at centroids, single colour.
@@ -169,6 +191,7 @@ export function MapCanvas() {
         nameField: "__name",
         valueLabel,
         valueUnit: design.valueUnit || undefined,
+        tooltipTemplate: design.tooltipTemplate,
       };
     }
     // Category map: areas coloured by category.
@@ -184,6 +207,7 @@ export function MapCanvas() {
         ),
         nameField: data?.kind === "area" ? GEO_LEVELS[data.geoLevel].nameField : undefined,
         valueLabel: data?.kind === "area" ? data.categoryColumn ?? "" : "",
+        tooltipTemplate: design.tooltipTemplate,
       };
     }
     // Point dataset.
@@ -209,10 +233,11 @@ export function MapCanvas() {
         nameField: data.nameColumn || data.categoryColumn ? "__name" : undefined,
         valueLabel,
         valueUnit: design.valueUnit || undefined,
+        tooltipTemplate: design.tooltipTemplate,
       };
     }
     return null;
-  }, [vizType, joined, symbolPoints, categoryJoin, points, scaleColors, data, valueLabel, design.valueUnit, design.pointColor, design.pointSize]);
+  }, [vizType, joined, symbolPoints, categoryJoin, points, scaleColors, data, valueLabel, design.valueUnit, design.pointColor, design.pointSize, design.tooltipTemplate]);
 
   const showLegend =
     design.showLegend && vizType === "choropleth";

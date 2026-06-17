@@ -53,6 +53,7 @@ const INITIAL_DESIGN: DesignSettings = {
   showLegend: true,
   showSource: true,
   tooltip: true,
+  tooltipTemplate: "",
   zoomPan: true,
 };
 

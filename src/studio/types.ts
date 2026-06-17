@@ -49,6 +49,8 @@ export interface DesignSettings {
   showSource: boolean;
   /** Show a tooltip with name + value on hover. */
   tooltip: boolean;
+  /** Custom tooltip HTML template ({nome}, {valore}, {colonna}); "" = default. */
+  tooltipTemplate: string;
   /** Allow the reader to zoom and pan the published map. */
   zoomPan: boolean;
 }
