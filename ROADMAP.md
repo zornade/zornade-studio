@@ -560,7 +560,28 @@ L'utente incolla **host / utente / password** (credenziali read-only generate a 
    superata). UI nel pannello Pubblica → sezione “Progetto”. *(Persistenza su DB Zornade = step futuro.)*
 
 ### Onda 3 — DB Zornade & grafici
-- **O3.1** **Proxy query DB Zornade** (read-only) + dataset guidati (OMI, rischio, solare, demografia)
+- **O3.1** ✅ **Proxy query DB Zornade** (read-only) + dataset guidati. **Audit del DB live**
+   (2026-06-17, Supabase): lo schema reale **diverge** dal repo — `comuni_solar` (7.902 righe,
+   **già aggregata per comune**) non era negli schemi, mentre `cap_subcomunali`/`provinces`/`regions`/
+   `buildings` sono **vuote** in produzione. I dataset realmente a **livello comune** (verificati,
+   copertura ~99-100 %) sono **4**: **OMI** (`omi_historical`, €/m² medi, 22 semestri 2015→2025, con
+   selettori semestre/tipologia/mercato), **Solare** (`comuni_solar`: produzione pro capite, kWp,
+   idoneità tetti), **Popolazione** (`comuni.estimated_population`) ed **Edifici**
+   (`comuni.building_count`). Rischio/solare di dettaglio vivono **solo per particella** (esclusi).
+   **Architettura**: `netlify/functions/db.mts` (`POST /api/db`, **auth-gated** come `publish`) esegue
+   **query predefinite e parametrizzate** (driver **`postgres`** 3.4.9, Unlicense; **mai** SQL libero)
+   con una credenziale **read-only** in env (`ZORNADE_DB_URL`, **mai nel browser**), `statement_timeout`
+   8 s e cap righe. Modulo puro condiviso `lib/zornade-db.ts` (**testato**, 11 test): catalogo
+   dataset + `parseDbRequest` (whitelist anti-injection di semestre/tipologia/metrica) +
+   `describeDbRequest` + `dbRowsToTable` + client `queryZornadeDb`. Ogni query restituisce, per comune,
+   **codice ISTAT a 6 cifre + nome + valore** → il `resolveGeoJoin` value-based aggancia la geometria
+   **comuni** per codice o nome (verificato: OMI `RIGHT(comune_istat,6)`, `comuni.pro_com` con
+   zero-pad, `comuni_solar.pro_com_t` già a 6 cifre → join nomi 0 mancanti). `DataPanel` → `ZornadeDbSource`
+   riscritto: selettore dataset + opzioni OMI, esegue la query e crea una **coropletica per comune**.
+   **Verificato dal vivo** (driver reale sul DB): OMI 7.616 comuni (Roma 3.032 €/m²), Solare 7.846,
+   Popolazione 7.884, Edifici 7.899 (Roma 381.838). **Da fare (operativo):** creare il ruolo Postgres
+   **read-only** e impostare `ZORNADE_DB_URL` su Netlify (porta pooler **6543**); il proxy 404 in dev
+   `vite` puro (la UI lo segnala). *(Modalità SQL avanzata e altri livelli geo = step futuri.)*
 - **O3.2** Grafici base (barre, linee, aree, scatter) via **Observable Plot** + **tabella ricca** (TanStack Table)
 - **O3.3** **Time slider / animazione temporale** (OMI storico 2015→2025)
 - **O3.4** Annotazioni custom (testo, frecce, evidenziazioni, marker) + disegno sulla mappa

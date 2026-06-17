@@ -19,7 +19,6 @@ import {
   DATA_SOURCES,
   OSM_PRESETS,
   OSM_GROUPS,
-  ZORNADE_DATASETS,
   DATA_CATEGORIES,
   DATA_CATALOG,
   searchDataCatalog,
@@ -55,6 +54,17 @@ import {
   type CkanDataset,
   type CkanResource,
 } from "../../lib/catalog-api";
+import {
+  DB_DATASETS,
+  OMI_TYPES,
+  SOLAR_METRICS,
+  omiSemesters,
+  queryZornadeDb,
+  dbRowsToTable,
+  describeDbRequest,
+  type DbQueryRequest,
+  type OmiMarket,
+} from "../../lib/zornade-db";
 import type { DatasetState, ProjectMeta } from "../../studio/types";
 
 type DataMode = "home" | "catalog" | "own";
@@ -1162,48 +1172,78 @@ function OsmSource() {
 }
 
 function ZornadeDbSource() {
-  const [dataset, setDataset] = useState<string | null>(null);
+  const { setData, setStep, updateProject } = useStudio();
+  const [dataset, setDataset] = useState<string>("omi");
+  // OMI options.
+  const [semestre, setSemestre] = useState<string>("2025_2");
+  const [tipologia, setTipologia] = useState<string>("20");
+  const [market, setMarket] = useState<OmiMarket>("compravendita");
+  // Solar metric.
+  const [metric, setMetric] = useState<string>(SOLAR_METRICS[0].id);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(null);
+
+  const buildRequest = (): DbQueryRequest => {
+    switch (dataset) {
+      case "omi":
+        return { dataset: "omi", semestre, tipologia, market };
+      case "solar":
+        return { dataset: "solar", metric };
+      case "population":
+        return { dataset: "population" };
+      default:
+        return { dataset: "buildings" };
+    }
+  };
+
+  const load = async () => {
+    setLoading(true);
+    setError(null);
+    setInfo(null);
+    try {
+      const req = buildRequest();
+      const rows = await queryZornadeDb(req);
+      if (rows.length === 0) {
+        setError("Nessun dato per questa selezione. Prova un'altra opzione.");
+        return;
+      }
+      const meta = describeDbRequest(req);
+      const table = dbRowsToTable(rows);
+      const out = await buildDatasetFromTable(table, `Zornade · ${meta.title}`);
+      if ("error" in out) {
+        setError(out.error);
+        return;
+      }
+      setData(out.dataset);
+      updateProject({
+        title: meta.title,
+        source: "Fonte: dati Zornade · Fatto con Zornade Studio",
+      });
+      setInfo(`${rows.length} comuni caricati.`);
+      setStep("visualize");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Errore di interrogazione.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="space-y-4">
       <div className="rounded-lg bg-zornade-50 p-3">
         <p className="flex items-start gap-1.5 text-xs text-zornade-900">
           <ShieldCheck size={14} className="mt-0.5 flex-shrink-0" />
-          Connessione in <strong>sola lettura</strong> con credenziali dedicate.
-          Le credenziali passano da un proxy sicuro e non vengono mai salvate nel
-          browser.
+          Dati Zornade in <strong>sola lettura</strong> tramite un proxy sicuro.
+          Le credenziali restano sul server, mai nel browser. Tutti i dataset
+          sono per <strong>comune</strong> e si agganciano alla mappa dei comuni.
         </p>
-      </div>
-
-      <div className="grid grid-cols-1 gap-2">
-        <Field label="Host">
-          <input
-            placeholder="db.zornade.com"
-            className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-zornade focus:outline-none"
-          />
-        </Field>
-        <div className="grid grid-cols-2 gap-2">
-          <Field label="Utente">
-            <input
-              placeholder="readonly_redazione"
-              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-zornade focus:outline-none"
-            />
-          </Field>
-          <Field label="Password">
-            <input
-              type="password"
-              placeholder="••••••••"
-              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-zornade focus:outline-none"
-            />
-          </Field>
-        </div>
       </div>
 
       <div>
-        <p className="mb-2 text-xs font-medium text-slate-600">
-          Dataset disponibili
-        </p>
+        <p className="mb-2 text-xs font-medium text-slate-600">Dataset</p>
         <div className="grid gap-2">
-          {ZORNADE_DATASETS.map((d) => (
+          {DB_DATASETS.map((d) => (
             <button
               key={d.id}
               onClick={() => setDataset(d.id)}
@@ -1213,13 +1253,8 @@ function ZornadeDbSource() {
                   : "border-slate-200 hover:border-slate-300"
               }`}
             >
-              <span className="flex items-center justify-between">
-                <span className="text-sm font-medium text-slate-800">
-                  {d.label}
-                </span>
-                <span className="rounded bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium uppercase text-slate-500">
-                  per {d.level}
-                </span>
+              <span className="text-sm font-medium text-slate-800">
+                {d.label}
               </span>
               <span className="block text-xs text-slate-500">{d.desc}</span>
             </button>
@@ -1227,12 +1262,100 @@ function ZornadeDbSource() {
         </div>
       </div>
 
-      <div className="flex items-center gap-2">
-        <Button variant="primary" disabled className="flex-1">
-          Connetti e carica
-        </Button>
-        <SoonBadge />
-      </div>
+      {dataset === "omi" && (
+        <div className="space-y-2 rounded-xl border border-slate-200 p-3">
+          <Field label="Mercato">
+            <div className="flex gap-1.5">
+              {(["compravendita", "locazione"] as OmiMarket[]).map((m) => (
+                <button
+                  key={m}
+                  onClick={() => setMarket(m)}
+                  className={`flex-1 rounded-lg border px-2.5 py-1.5 text-xs font-medium capitalize transition-colors ${
+                    market === m
+                      ? "border-zornade bg-zornade-50 text-zornade-700"
+                      : "border-slate-200 text-slate-600 hover:border-slate-300"
+                  }`}
+                >
+                  {m === "compravendita" ? "Compravendita" : "Affitto"}
+                </button>
+              ))}
+            </div>
+          </Field>
+          <Field label="Tipologia immobiliare">
+            <select
+              value={tipologia}
+              onChange={(e) => setTipologia(e.target.value)}
+              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-zornade focus:outline-none"
+            >
+              {OMI_TYPES.map((t) => (
+                <option key={t.code} value={t.code}>
+                  {t.label}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label="Semestre">
+            <select
+              value={semestre}
+              onChange={(e) => setSemestre(e.target.value)}
+              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-zornade focus:outline-none"
+            >
+              {omiSemesters().map((s) => (
+                <option key={s} value={s}>
+                  {s.replace("_", " · sem. ")}
+                </option>
+              ))}
+            </select>
+          </Field>
+        </div>
+      )}
+
+      {dataset === "solar" && (
+        <div className="rounded-xl border border-slate-200 p-3">
+          <Field label="Indicatore">
+            <select
+              value={metric}
+              onChange={(e) => setMetric(e.target.value)}
+              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-zornade focus:outline-none"
+            >
+              {SOLAR_METRICS.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.label} ({m.unit})
+                </option>
+              ))}
+            </select>
+          </Field>
+        </div>
+      )}
+
+      <Button
+        variant="primary"
+        disabled={loading}
+        onClick={() => void load()}
+        className="w-full"
+      >
+        {loading ? (
+          <span className="flex items-center justify-center gap-2">
+            <Loader2 size={15} className="animate-spin" />
+            Interrogazione…
+          </span>
+        ) : (
+          "Carica dal database Zornade"
+        )}
+      </Button>
+
+      {error && (
+        <p className="flex items-start gap-1.5 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700">
+          <AlertTriangle size={13} className="mt-0.5 flex-shrink-0" />
+          {error}
+        </p>
+      )}
+      {info && (
+        <p className="flex items-start gap-1.5 rounded-lg bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
+          <CheckCircle2 size={13} className="mt-0.5 flex-shrink-0" />
+          {info}
+        </p>
+      )}
     </div>
   );
 }

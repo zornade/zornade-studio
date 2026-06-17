@@ -171,7 +171,7 @@ export const DATA_SOURCES: CatalogItem[] = [
   { id: "url", label: "URL live", desc: "Google Sheets / CSV remoto", icon: Link2, status: "soon" },
   { id: "api", label: "API / Open data", desc: "ISTAT, Socrata, CKAN, JSON", icon: Plug, status: "soon" },
   { id: "osm", label: "OpenStreetMap", desc: "Porti, telecamere, scuole…", icon: Globe2, status: "ready" },
-  { id: "zornade-db", label: "Database Zornade", desc: "OMI, rischio, solare, demografia", icon: Database, status: "soon" },
+  { id: "zornade-db", label: "Database Zornade", desc: "Prezzi OMI, solare, popolazione, edifici — per comune", icon: Database, status: "ready" },
 ];
 
 /* -------------------------------------------------------------------------- */
