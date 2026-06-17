@@ -8,7 +8,6 @@ import {
   AlertTriangle,
   Search,
   ExternalLink,
-  Sparkles,
   Download,
   Loader2,
   ChevronLeft,
@@ -17,6 +16,7 @@ import {
 import { useStudio } from "../../studio/StudioContext";
 import {
   DATA_SOURCES,
+  SOURCE_GROUPS,
   OSM_PRESETS,
   OSM_GROUPS,
   DATA_CATEGORIES,
@@ -67,7 +67,7 @@ import {
 } from "../../lib/zornade-db";
 import type { DatasetState, ProjectMeta } from "../../studio/types";
 
-type DataMode = "home" | "catalog" | "own";
+type DataMode = "home" | "catalog";
 
 /**
  * Parse CSV text into a ready DatasetState, or return a human error message.
@@ -224,7 +224,7 @@ function applyDatasetMeta(
 
 export function DataPanel() {
   const { dataSource, setDataSource } = useStudio();
-  const [mode, setMode] = useState<DataMode>(dataSource ? "own" : "home");
+  const [mode, setMode] = useState<DataMode>("home");
 
   // A concrete source (upload/osm/…) is selected → show its detail view.
   if (dataSource) {
@@ -254,91 +254,71 @@ export function DataPanel() {
     return <DataCatalog onBack={() => setMode("home")} />;
   }
 
-  if (mode === "own") {
-    return (
-      <div className="space-y-4">
-        <button
-          onClick={() => setMode("home")}
-          className="flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-slate-700"
-        >
-          <ArrowLeft size={14} />
-          Indietro
-        </button>
-        <PanelSection
-          title="Carica i tuoi dati"
-          hint="Da file, foglio di calcolo, URL o servizi."
-        >
-          <div className="grid gap-2">
-            {DATA_SOURCES.map((s) => {
-              const Icon = s.icon;
-              return (
-                <button
-                  key={s.id}
-                  onClick={() => setDataSource(s.id as never)}
-                  className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-3 text-left transition-all hover:border-zornade hover:shadow-sm"
-                >
-                  <span className="grid h-9 w-9 flex-shrink-0 place-items-center rounded-lg bg-zornade-50 text-zornade-700">
-                    <Icon size={18} />
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="flex items-center gap-2 text-sm font-medium text-slate-800">
-                      {s.label}
-                      {s.status === "soon" && <SoonBadge />}
-                    </span>
-                    <span className="block text-xs text-slate-500">{s.desc}</span>
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        </PanelSection>
-      </div>
-    );
-  }
-
-  // Home: the very first choice.
+  // Home: pick a source, grouped by its nature (Zornade moat first).
   return (
     <PanelSection
       title="Da dove parti?"
       hint="Scegli i dati di partenza per la tua mappa."
     >
-      <div className="grid gap-3">
-        <button
-          onClick={() => setMode("catalog")}
-          className="flex items-start gap-3 rounded-2xl border border-slate-200 bg-white p-4 text-left transition-all hover:border-zornade hover:shadow-md"
-        >
-          <span className="grid h-11 w-11 flex-shrink-0 place-items-center rounded-xl bg-zornade-50 text-zornade-700">
-            <Sparkles size={20} />
-          </span>
-          <span className="min-w-0 flex-1">
-            <span className="block text-sm font-semibold text-slate-800">
-              Usa dati pronti
-            </span>
-            <span className="mt-0.5 block text-xs text-slate-500">
-              Catalogo di fonti ufficiali e autorevoli per l'Italia (ISTAT,
-              ISPRA, Agenzia Entrate, INGV…). Cerca per tema e collègati alla
-              fonte.
-            </span>
-          </span>
-        </button>
-
-        <button
-          onClick={() => setMode("own")}
-          className="flex items-start gap-3 rounded-2xl border border-slate-200 bg-white p-4 text-left transition-all hover:border-zornade hover:shadow-md"
-        >
-          <span className="grid h-11 w-11 flex-shrink-0 place-items-center rounded-xl bg-slate-100 text-slate-600">
-            <Upload size={20} />
-          </span>
-          <span className="min-w-0 flex-1">
-            <span className="block text-sm font-semibold text-slate-800">
-              Carica i tuoi dati
-            </span>
-            <span className="mt-0.5 block text-xs text-slate-500">
-              Hai già un file (CSV, Excel, GeoJSON…) o un foglio di calcolo?
-              Caricalo e aggancia automaticamente la geografia.
-            </span>
-          </span>
-        </button>
+      <div className="space-y-5">
+        {SOURCE_GROUPS.map((group) => (
+          <div key={group.id}>
+            <div className="mb-2 flex items-baseline justify-between gap-2">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+                {group.label}
+              </p>
+              {group.id === "zornade" && (
+                <span className="rounded-full bg-zornade-50 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-zornade-700">
+                  esclusivo
+                </span>
+              )}
+            </div>
+            <p className="mb-2 text-[11px] text-slate-400">{group.hint}</p>
+            <div className="grid gap-2">
+              {group.items.map((s) => {
+                const Icon = s.icon;
+                const isZornade = group.id === "zornade";
+                const disabled = s.status === "soon";
+                return (
+                  <button
+                    key={s.id}
+                    disabled={disabled}
+                    onClick={() => {
+                      if (s.id === "catalog") setMode("catalog");
+                      else setDataSource(s.id as never);
+                    }}
+                    className={`flex items-start gap-3 rounded-xl border p-3 text-left transition-all ${
+                      disabled
+                        ? "cursor-not-allowed border-slate-200 bg-slate-50 opacity-60"
+                        : isZornade
+                          ? "border-zornade-200 bg-zornade-50/40 hover:border-zornade hover:shadow-sm"
+                          : "border-slate-200 bg-white hover:border-zornade hover:shadow-sm"
+                    }`}
+                  >
+                    <span
+                      className={`grid h-9 w-9 flex-shrink-0 place-items-center rounded-lg ${
+                        isZornade
+                          ? "bg-zornade text-white"
+                          : "bg-zornade-50 text-zornade-700"
+                      }`}
+                    >
+                      <Icon size={18} />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="flex items-center gap-2 text-sm font-medium text-slate-800">
+                        {s.label}
+                        {s.status === "soon" && <SoonBadge />}
+                      </span>
+                      <span className="block text-xs text-slate-500">
+                        {s.desc}
+                      </span>
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ))}
       </div>
     </PanelSection>
   );

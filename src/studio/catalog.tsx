@@ -69,6 +69,7 @@ import {
   SlidersHorizontal,
   Globe,
   MapPinned,
+  Sparkles,
 } from "lucide-react";
 import { PRESETS, type PresetName } from "../basemap";
 
@@ -172,6 +173,71 @@ export const DATA_SOURCES: CatalogItem[] = [
   { id: "api", label: "API / Open data", desc: "ISTAT, Socrata, CKAN, JSON", icon: Plug, status: "soon" },
   { id: "osm", label: "OpenStreetMap", desc: "Porti, telecamere, scuole…", icon: Globe2, status: "ready" },
   { id: "zornade-db", label: "Database Zornade", desc: "Prezzi OMI, solare, popolazione, edifici — per comune", icon: Database, status: "ready" },
+];
+
+/**
+ * Data sources grouped by their **nature**, not by a misleading "ready vs your
+ * data" split. Three honest buckets, the Zornade moat first:
+ *  - `zornade`  — exclusive Zornade data (the competitive advantage).
+ *  - `ready`    — external sources ready to query (catalogue + OpenStreetMap).
+ *  - `own`      — bring-your-own data (file/paste/URL/API).
+ * `id` matches a `DataSourceKind` (or "catalog" for the curated CKAN catalogue,
+ * which is handled by a dedicated screen rather than a `dataSource`).
+ */
+export interface SourceGroup {
+  id: "zornade" | "ready" | "own";
+  label: string;
+  hint: string;
+  items: CatalogItem[];
+}
+
+export const SOURCE_GROUPS: SourceGroup[] = [
+  {
+    id: "zornade",
+    label: "Dati Zornade",
+    hint: "Esclusivi: geodati italiani pronti per la mappa, per comune.",
+    items: [
+      {
+        id: "zornade-db",
+        label: "Database Zornade",
+        desc: "Prezzi OMI, solare, popolazione, edifici — per comune",
+        icon: Database,
+        status: "ready",
+      },
+    ],
+  },
+  {
+    id: "ready",
+    label: "Dati pronti per l'Italia",
+    hint: "Fonti esterne autorevoli da cercare e interrogare al volo.",
+    items: [
+      {
+        id: "catalog",
+        label: "Catalogo open data",
+        desc: "ISTAT, ISPRA, Agenzia Entrate, INGV… cerca per tema",
+        icon: Sparkles,
+        status: "ready",
+      },
+      {
+        id: "osm",
+        label: "OpenStreetMap",
+        desc: "Porti, scuole, ospedali, musei… in tutta Italia",
+        icon: Globe2,
+        status: "ready",
+      },
+    ],
+  },
+  {
+    id: "own",
+    label: "I tuoi dati",
+    hint: "Hai già un file o un foglio di calcolo? Portalo qui.",
+    items: [
+      { id: "upload", label: "Carica file", desc: "CSV, Excel, GeoJSON, Shapefile, KML, GeoTIFF", icon: Upload, status: "ready" },
+      { id: "paste", label: "Incolla dati", desc: "Da un foglio di calcolo", icon: ClipboardPaste, status: "soon" },
+      { id: "url", label: "URL live", desc: "Google Sheets / CSV remoto", icon: Link2, status: "soon" },
+      { id: "api", label: "API / connettori", desc: "Socrata, CKAN, JSON remoto", icon: Plug, status: "soon" },
+    ],
+  },
 ];
 
 /* -------------------------------------------------------------------------- */
