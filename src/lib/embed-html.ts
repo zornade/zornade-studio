@@ -124,6 +124,8 @@ export function buildEmbedHtml(
     showLegend: !!d.showLegend,
     legendType: d.legendType,
     legendColors,
+    breaks: classes.breaks,
+    readerFilters: !!d.readerFilters,
     scaleColors,
     min: classes.min,
     max: classes.max,
@@ -159,6 +161,10 @@ ${canonical ? `<link rel="canonical" href="${canonical}">` : ""}
   .lgd-mm{display:flex;justify-content:space-between;margin-top:4px;color:#64748b;font-size:10px}
   .lgd-nd{display:flex;align-items:center;gap:6px;margin-top:6px;color:#94a3b8;font-size:10px}
   .lgd-sw{display:inline-block;width:10px;height:10px;border-radius:3px}
+  .lgd-row{display:flex;align-items:center;gap:6px;width:100%;border:0;background:none;
+    padding:2px 2px;cursor:pointer;font-size:10px;color:#475569;text-align:left;border-radius:4px}
+  .lgd-row:hover{background:#f1f5f9}
+  .lgd-sw2{display:inline-block;width:16px;height:10px;border-radius:3px;flex-shrink:0}
   .attr{position:absolute;right:8px;bottom:6px;font-size:11px;z-index:2;
     background:rgba(255,255,255,.85);padding:2px 6px;border-radius:6px}
   .attr a{color:#01646f;text-decoration:none}
@@ -241,18 +247,49 @@ function fit(){try{var b=new maplibregl.LngLatBounds();
 function legend(noData){
   var box=document.createElement("div");box.className="lgd";
   var t=document.createElement("p");t.className="lgd-t";t.textContent=E.valueLabel||"Legenda";box.appendChild(t);
-  var bar=document.createElement("div");bar.className="lgd-bar";
-  if(E.legendType==="steps"){E.legendColors.forEach(function(c){
-    var sp=document.createElement("span");sp.style.background=c;sp.style.flex="1";bar.appendChild(sp);});}
-  else{bar.style.background="linear-gradient(to right,"+E.scaleColors.join(",")+")";}
-  box.appendChild(bar);
-  var mm=document.createElement("div");mm.className="lgd-mm";
-  mm.innerHTML="<span>"+esc(fmt(E.min))+"</span><span>"+esc(fmt(E.max))+"</span>";box.appendChild(mm);
+  // Reader-facing clickable legend: each class toggles its visibility.
+  if(E.readerFilters&&E.legendType==="steps"&&E.breaks){
+    var hidden={};
+    function applyFilter(){
+      var hid=[];for(var k in hidden){if(hidden[k])hid.push(parseInt(k,10));}
+      map.setFilter("d-fill",classFilter(hid));map.setFilter("d-line",classFilter(hid));
+    }
+    E.legendColors.forEach(function(c,i){
+      var row=document.createElement("button");row.className="lgd-row";
+      row.title="Mostra/Nascondi questa classe";
+      row.innerHTML='<span class="lgd-sw2" style="background:'+esc(c)+'"></span>'+
+        '<span class="lgd-lbl">'+esc(classLabel(i))+'</span>';
+      row.onclick=function(){hidden[i]=!hidden[i];row.style.opacity=hidden[i]?"0.35":"1";applyFilter();};
+      box.appendChild(row);
+    });
+  }else{
+    var bar=document.createElement("div");bar.className="lgd-bar";
+    if(E.legendType==="steps"){E.legendColors.forEach(function(c){
+      var sp=document.createElement("span");sp.style.background=c;sp.style.flex="1";bar.appendChild(sp);});}
+    else{bar.style.background="linear-gradient(to right,"+E.scaleColors.join(",")+")";}
+    box.appendChild(bar);
+    var mm=document.createElement("div");mm.className="lgd-mm";
+    mm.innerHTML="<span>"+esc(fmt(E.min))+"</span><span>"+esc(fmt(E.max))+"</span>";box.appendChild(mm);
+  }
   if(noData>0){var nd=document.createElement("div");nd.className="lgd-nd";
     nd.innerHTML='<span class="lgd-sw" style="background:'+esc(E.noData)+'"></span>'+esc(E.noDataLabel)+" ("+noData+")";
     box.appendChild(nd);}
   document.body.appendChild(box);
 }
+function classBounds(i){var b=E.breaks||[];
+  return [i===0?-Infinity:b[i-1], i>=b.length?Infinity:b[i]];}
+function classLabel(i){var bb=classBounds(i);
+  if(bb[0]===-Infinity)return "< "+fmt(bb[1]);
+  if(bb[1]===Infinity)return "\u2265 "+fmt(bb[0]);
+  return fmt(bb[0])+" \u2013 "+fmt(bb[1]);}
+function classFilter(hid){if(!hid.length)return null;
+  var v=["to-number",["get","__value"]];
+  var tests=hid.map(function(i){var bb=classBounds(i);
+    if(bb[0]===-Infinity)return ["<",v,bb[1]];
+    if(bb[1]===Infinity)return [">=",v,bb[0]];
+    return ["all",[">=",v,bb[0]],["<",v,bb[1]]];});
+  var any=tests.length===1?tests[0]:["any"].concat(tests);
+  return ["!",["all",["has","__value"],any]];}
 function tooltip(){
   var pop=new maplibregl.Popup({closeButton:false,closeOnClick:false,className:"studio-tooltip"});
   function tplRender(tpl,vals){return tpl.replace(/\{([^{}]+)\}/g,function(_,t){

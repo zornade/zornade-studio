@@ -53,6 +53,11 @@ interface MapPreviewProps {
    * when the underlying dataset changes (not on every restyle).
    */
   fitKey?: string | null;
+  /**
+   * MapLibre filter expression applied to the data layer(s) for reader-facing
+   * class filtering. `null` clears any filter (all features shown).
+   */
+  dataFilter?: unknown | null;
 }
 
 // Centred on the Italian peninsula.
@@ -76,11 +81,14 @@ export function MapPreview({
   basemap = true,
   basemapUrl = null,
   fitKey = null,
+  dataFilter = null,
 }: MapPreviewProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const dataLayerRef = useRef<DataLayer | null>(dataLayer);
   dataLayerRef.current = dataLayer;
+  const dataFilterRef = useRef<unknown | null>(dataFilter);
+  dataFilterRef.current = dataFilter;
   const navControlRef = useRef<maplibregl.NavigationControl | null>(null);
   const popupRef = useRef<maplibregl.Popup | null>(null);
   const tooltipEnabledRef = useRef<boolean>(tooltip);
@@ -156,6 +164,17 @@ export function MapPreview({
       },
       firstSymbol,
     );
+    applyDataFilter(map);
+  };
+
+  /** Apply the reader-facing class filter to the data layers (if present). */
+  const applyDataFilter = (map: maplibregl.Map) => {
+    const filter = (dataFilterRef.current ?? null) as
+      | maplibregl.FilterSpecification
+      | null;
+    for (const id of [FILL, LINE]) {
+      if (map.getLayer(id)) map.setFilter(id, filter);
+    }
   };
 
   // Resolve the MapLibre style: an external URL (OpenFreeMap) takes priority,
@@ -277,6 +296,13 @@ export function MapPreview({
     if (map) syncData(map);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dataLayer]);
+
+  // Re-apply the reader class filter when it changes (without rebuilding data).
+  useEffect(() => {
+    const map = mapRef.current;
+    if (map) applyDataFilter(map);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dataFilter]);
 
   // Auto fit-bounds to the data extent when the dataset changes (fitKey).
   // Guarded by lastFitRef so restyling (basemap change) does not refit and

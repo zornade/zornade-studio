@@ -53,6 +53,8 @@ export interface DesignSettings {
   tooltipTemplate: string;
   /** Allow the reader to zoom and pan the published map. */
   zoomPan: boolean;
+  /** Clickable legend: the reader can show/hide value classes. */
+  readerFilters: boolean;
 }
 
 /**

@@ -18,7 +18,7 @@ function state(title: string, value: string): StudioState {
       nClasses: 5, valueLabel: "", valueUnit: "", pointColor: "#01646f",
       pointSize: 7, showTitle: true,
       showLegend: true, showSource: true, tooltip: true, tooltipTemplate: "",
-      zoomPan: true,
+      zoomPan: true, readerFilters: false,
     },
     data: {
       kind: "area",

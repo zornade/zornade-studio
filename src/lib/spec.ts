@@ -53,6 +53,7 @@ export interface SpecDesign {
   tooltip: boolean;
   tooltipTemplate: string;
   zoomPan: boolean;
+  readerFilters: boolean;
 }
 
 export interface ChoroplethSpec {
@@ -150,6 +151,7 @@ export function buildSpec(state: StudioState): BuildSpecResult {
       tooltip: design.tooltip,
       tooltipTemplate: design.tooltipTemplate,
       zoomPan: design.zoomPan,
+      readerFilters: design.readerFilters,
     },
   };
   return { spec };

@@ -19,6 +19,7 @@ function spec(over: Partial<ChoroplethSpec> = {}): ChoroplethSpec {
       manualBreaks: [], legendType: "steps", nClasses: 5, valueLabel: "",
       valueUnit: "", titleFont: "Inter", showTitle: true, showLegend: true,
       showSource: true, tooltip: true, tooltipTemplate: "", zoomPan: true,
+      readerFilters: false,
     },
     ...over,
   };

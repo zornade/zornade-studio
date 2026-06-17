@@ -34,6 +34,7 @@ function baseState(overrides: Partial<StudioState> = {}): StudioState {
       tooltip: true,
       tooltipTemplate: "",
       zoomPan: true,
+      readerFilters: false,
     },
     data: {
       kind: "area",

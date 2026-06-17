@@ -19,6 +19,7 @@ import {
 } from "../lib/points";
 import { featureCentroid } from "../lib/centroid";
 import { templateColumns } from "../lib/tooltip";
+import { buildClassVisibilityFilter, classLabel } from "../lib/class-filter";
 
 const NO_DATA_COLOR = DEFAULT_NO_DATA_COLOR;
 /** Categorical palette for point/category colouring (falls back to teal). */
@@ -242,6 +243,29 @@ export function MapCanvas() {
   const showLegend =
     design.showLegend && vizType === "choropleth";
 
+  // Reader class filter (clickable legend). Only meaningful for the choropleth.
+  const filtersOn = design.readerFilters && vizType === "choropleth" && !!joined;
+  const [hiddenClasses, setHiddenClasses] = useState<Set<number>>(new Set());
+  // Reset the hidden set whenever the classification or dataset changes.
+  const classKey = joined ? joined.classes.breaks.join(",") : "";
+  useEffect(() => {
+    setHiddenClasses(new Set());
+  }, [classKey, vizType, design.readerFilters]);
+  const toggleClass = (i: number) =>
+    setHiddenClasses((prev) => {
+      const next = new Set(prev);
+      if (next.has(i)) next.delete(i);
+      else next.add(i);
+      return next;
+    });
+  const dataFilter = useMemo(
+    () =>
+      filtersOn && joined
+        ? buildClassVisibilityFilter(joined.classes.breaks, hiddenClasses)
+        : null,
+    [filtersOn, joined, hiddenClasses],
+  );
+
   // Resolve the chosen basemap. OpenFreeMap styles load by URL (no hosting/key);
   // "none"/"custom" → no basemap (transparent background).
   const basemapDef = MAP_BASEMAPS.find((b) => b.id === design.basemap);
@@ -270,6 +294,7 @@ export function MapCanvas() {
         zoomPan={design.zoomPan}
         basemap={false}
         basemapUrl={basemapUrl}
+        dataFilter={dataFilter}
         fitKey={
           data
             ? data.kind === "area"
@@ -304,16 +329,48 @@ export function MapCanvas() {
       {/* Legend (bottom-left), driven by the chosen data color scale. */}
       {showLegend && (
         <div className="pointer-events-none absolute bottom-8 left-4">
-          <div className="rounded-lg bg-white/92 px-3 py-2 shadow-md ring-1 ring-black/5 backdrop-blur">
+          <div
+            className={`rounded-lg bg-white/92 px-3 py-2 shadow-md ring-1 ring-black/5 backdrop-blur ${
+              filtersOn ? "pointer-events-auto" : ""
+            }`}
+          >
             <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
               {valueLabel || "Legenda"}
             </p>
             {design.legendType === "steps" ? (
-              <div className="flex h-2.5 w-40 overflow-hidden rounded-full">
-                {legendColors.map((c, i) => (
-                  <span key={`${c}-${i}`} className="flex-1" style={{ background: c }} />
-                ))}
-              </div>
+              filtersOn && joined ? (
+                <div className="flex flex-col gap-0.5">
+                  {legendColors.map((c, i) => {
+                    const hidden = hiddenClasses.has(i);
+                    return (
+                      <button
+                        key={`${c}-${i}`}
+                        onClick={() => toggleClass(i)}
+                        title={hidden ? "Mostra questa classe" : "Nascondi questa classe"}
+                        className={`flex items-center gap-1.5 rounded px-1 py-0.5 text-left text-[10px] transition-opacity hover:bg-slate-100 ${
+                          hidden ? "opacity-35" : ""
+                        }`}
+                      >
+                        <span
+                          className="inline-block h-2.5 w-4 flex-shrink-0 rounded-sm"
+                          style={{ background: c }}
+                        />
+                        <span className="text-slate-600">
+                          {classLabel(joined.classes.breaks, i, (n) =>
+                            formatNum(n, design.valueUnit),
+                          )}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="flex h-2.5 w-40 overflow-hidden rounded-full">
+                  {legendColors.map((c, i) => (
+                    <span key={`${c}-${i}`} className="flex-1" style={{ background: c }} />
+                  ))}
+                </div>
+              )
             ) : (
               <div
                 className="h-2.5 w-40 rounded-full"

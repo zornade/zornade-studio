@@ -517,14 +517,15 @@ L'utente incolla **host / utente / password** (credenziali read-only generate a 
    non un classificatore a soglia (misurato: nessuna soglia redmean separa pulito Okabe-Ito da palette
    rischiose — si sovrappongono); la simulazione lascia **verificare a occhio**. Le palette valgono
    anche negli **embed** (via `colorsForScale`).
-- **O2.8** **Tooltip HTML personalizzato** ✅ + controlli lettore ⏳. `lib/tooltip.ts`
-   (`templateColumns`/`renderTooltipTemplate`, testati): l'operatore scrive un template con token
-   `{nome}`, `{valore}` e `{colonna}`; **l'HTML del template** (autore fidato) è preservato, **i valori
-   interpolati** (dai dati) sono **HTML-escaped** → niente injection da una cella malevola. Le colonne
-   referenziate sono portate sulle feature (prefisso `col:`) in editor e **incluse nello spec**
-   (`SpecDatum.extra`) → il tooltip custom funziona identico nell'**embed**. Campo nel Design (sezione
-   Interattività) via capability `tooltipTemplate`. *(Restano: filtri/dropdown lato lettore; geocoder
-   escluso per ora.)*
+- **O2.8** ✅ **Tooltip HTML personalizzato** + **filtri per il lettore**. Tooltip: `lib/tooltip.ts`
+   (`templateColumns`/`renderTooltipTemplate`, testati) con token `{nome}`/`{valore}`/`{colonna}`;
+   l'HTML del template è preservato, i valori dai dati sono **HTML-escaped** (niente injection);
+   colonne referenziate incluse nello spec (`SpecDatum.extra`) → identico nell'embed. **Filtri lettore:**
+   **legenda cliccabile** sulla coropletica (`lib/class-filter.ts`: `buildClassVisibilityFilter` →
+   espressione MapLibre che mostra/nasconde le classi di valore, testata) — il reader clicca una classe
+   per filtrarla, in editor **e nell'embed pubblicato** (le aree senza dato restano sempre visibili come
+   contesto). Capability `tooltipTemplate` + `readerFilters`. *(Geocoder/ricerca indirizzo escluso per
+   ora — richiesta utente.)*
 - **O2.9** Salvataggio progetti (locale → poi DB)
 
 ### Onda 3 — DB Zornade & grafici

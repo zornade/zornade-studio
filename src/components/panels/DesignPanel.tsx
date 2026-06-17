@@ -489,6 +489,27 @@ export function DesignPanel() {
                 />
               </Field>
             </div>
+            {caps.has("readerFilters") && (
+              <label className="mt-1 flex cursor-pointer items-start gap-2 rounded-lg border border-slate-200 px-3 py-2 hover:border-zornade">
+                <input
+                  type="checkbox"
+                  checked={design.readerFilters}
+                  onChange={(e) =>
+                    updateDesign({ readerFilters: e.target.checked })
+                  }
+                  className="mt-0.5 h-4 w-4 rounded accent-zornade"
+                />
+                <span className="min-w-0 flex-1">
+                  <span className="block text-sm font-medium text-slate-700">
+                    Legenda cliccabile (filtri per il lettore)
+                  </span>
+                  <span className="block text-xs text-slate-500">
+                    Il lettore clicca una classe per mostrarla o nasconderla.
+                    Richiede la legenda “a gradini”.
+                  </span>
+                </span>
+              </label>
+            )}
           </>
         )}
       </PanelSection>

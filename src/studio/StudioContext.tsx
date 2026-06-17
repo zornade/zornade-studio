@@ -55,6 +55,7 @@ const INITIAL_DESIGN: DesignSettings = {
   tooltip: true,
   tooltipTemplate: "",
   zoomPan: true,
+  readerFilters: false,
 };
 
 export function StudioProvider({ children }: { children: ReactNode }) {
