@@ -7,7 +7,17 @@ import { evaluateCompatibility } from "../../lib/viz-compat";
 import { GEO_LEVELS, type GeoResolution } from "../../lib/choropleth";
 
 /** Viz types whose rendering is actually implemented today. */
-const IMPLEMENTED = new Set<string>(["choropleth", "points", "symbol", "category"]);
+const IMPLEMENTED = new Set<string>([
+  "choropleth",
+  "points",
+  "symbol",
+  "category",
+  "bar",
+  "line",
+  "area",
+  "scatter",
+  "table",
+]);
 
 /** Italian label for the geometry primitives in a custom geometry dataset. */
 function geoKindsLabel(kinds: ("polygon" | "line" | "point")[]): string {
@@ -77,6 +87,13 @@ export function VisualizePanel() {
                 </span>{" "}
                 ({geoKindsLabel(data.geometryKinds)})
               </>
+            ) : data.kind === "table" ? (
+              <>
+                Tipo di dato:{" "}
+                <span className="font-medium text-slate-800">
+                  tabella (senza geografia)
+                </span>
+              </>
             ) : (
               <>
                 Tipo di dato:{" "}
@@ -88,6 +105,12 @@ export function VisualizePanel() {
             <p className="mt-1 text-[11px] text-slate-500">
               La tua geometria viene disegnata direttamente sulla mappa. Scegli
               colore e dato da mappare nel passo “Design”.
+            </p>
+          )}
+          {data.kind === "table" && (
+            <p className="mt-1 text-[11px] text-slate-500">
+              Dati senza una dimensione geografica: usali per un grafico o una
+              tabella. Scegli gli assi nel passo “Design”.
             </p>
           )}
           <div className="mt-1.5 flex flex-wrap gap-1">

@@ -182,10 +182,29 @@ async function buildDatasetFromTable(
     };
   }
 
+  // No geography (no area key, no lat/lon): fall back to a plain table dataset.
+  // It can't go on a map, but it feeds the chart pipeline (bar/line/area/
+  // scatter) and the rich table. Need at least one numeric column to be useful.
+  const numericColumns = detectNumericColumns(columns, rows);
+  if (numericColumns.length === 0) {
+    return {
+      error:
+        "Nessuna colonna numerica trovata: serve almeno una colonna di numeri " +
+        "per fare un grafico, oppure una colonna geografica per una mappa.",
+    };
+  }
+  const labelColumns = profile.columns
+    .filter((c) => c.type !== "quantitative" && c.type !== "empty")
+    .map((c) => c.name);
   return {
-    error:
-      "Nessuna colonna geografica riconosciuta: serve una chiave area " +
-      "(regione/provincia/comune/paese) oppure coordinate (lat/lon).",
+    dataset: {
+      kind: "table",
+      fileName,
+      columns,
+      rows,
+      numericColumns,
+      labelColumns,
+    },
   };
 }
 
@@ -884,12 +903,15 @@ function UploadSource() {
                 ? `${data.rows.length} righe · livello ${GEO_LEVELS[data.geoLevel].label} · chiave “${data.keyColumn}”`
                 : data.kind === "point"
                   ? `${data.rows.length} righe · punti (lat “${data.latColumn}”, lon “${data.lonColumn}”)`
-                  : `${data.geojson.features.length} geometrie · ${geoKindsLabel(data.geometryKinds)}`}
+                  : data.kind === "geo"
+                    ? `${data.geojson.features.length} geometrie · ${geoKindsLabel(data.geometryKinds)}`
+                    : `${data.rows.length} righe · tabella (per grafici)`}
             </p>
           </div>
         </div>
 
-        {(data.kind === "area" || data.numericColumns.length > 0) && (
+        {data.kind !== "table" &&
+          (data.kind === "area" || data.numericColumns.length > 0) && (
           <Field
             label={data.kind === "area" ? "Colonna da mappare" : "Dimensione (opzionale)"}
           >

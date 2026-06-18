@@ -55,6 +55,14 @@ export interface DesignSettings {
   zoomPan: boolean;
   /** Clickable legend: the reader can show/hide value classes. */
   readerFilters: boolean;
+  /** Chart: column for the x-axis (category/time). "" = first label column. */
+  chartX: string;
+  /** Chart: column(s) for the y-axis (numeric). "" = first numeric column. */
+  chartY: string;
+  /** Chart: optional column to split into series/colour. "" = none. */
+  chartSeries: string;
+  /** Chart: sort bars/categories by value descending. */
+  chartSortByValue: boolean;
 }
 
 /**
@@ -63,15 +71,20 @@ export interface DesignSettings {
  * only carries the rows and the chosen key/value columns.
  */
 /**
- * A parsed tabular dataset, in one of two shapes:
+ * A parsed tabular dataset, in one of four shapes:
  *  - **area**: rows joined to bundled geometry by a key → choropleth.
  *  - **point**: rows with lat/lon coordinates → point layer.
  *  - **geo**: the user's own geometry (Shapefile/KML/KMZ/GeoJSON) → drawn
  *    directly, optionally coloured by a value/category in its properties.
+ *  - **table**: plain tabular data with no geography → charts only.
  * The `kind` discriminant lets the editor pick the right pipeline; geometry for
  * the area case is loaded lazily from the level definition.
  */
-export type DatasetState = AreaDataset | PointDataset | GeoDataset;
+export type DatasetState =
+  | AreaDataset
+  | PointDataset
+  | GeoDataset
+  | TableDataset;
 
 interface DatasetBase {
   fileName: string;
@@ -124,6 +137,18 @@ export interface GeoDataset extends DatasetBase {
   categoryColumn?: string;
   /** Optional label column shown in tooltips. */
   nameColumn?: string;
+}
+
+/**
+ * Plain tabular data with no geographic dimension: a CSV of categories and
+ * numbers (e.g. "regione, arrivi" or "anno, valore"). It feeds the chart
+ * pipeline only — there is nothing to put on a map. Charts read `columns`/
+ * `rows`; the editor lets the operator pick which column is the axis/series.
+ */
+export interface TableDataset extends DatasetBase {
+  kind: "table";
+  /** Columns that hold categorical/temporal labels (candidate x-axis). */
+  labelColumns: string[];
 }
 
 export interface StudioState {

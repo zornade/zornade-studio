@@ -29,7 +29,9 @@ export type DesignCapability =
   /** Custom HTML tooltip template. */
   | "tooltipTemplate"
   /** Reader-facing clickable legend filter (choropleth). */
-  | "readerFilters";
+  | "readerFilters"
+  /** Chart axes: x/y/series column pickers + value label. */
+  | "chartAxes";
 
 /** Capabilities per visualisation type (catalog id → blocks). */
 export const VIZ_DESIGN_CAPS: Record<string, DesignCapability[]> = {
@@ -51,6 +53,13 @@ export const VIZ_DESIGN_CAPS: Record<string, DesignCapability[]> = {
     "pointStyle",
     "tooltipTemplate",
   ],
+  // Charts: pick axes (x/y/series) + colour scale. No geography.
+  bar: ["chartAxes", "colorScale"],
+  line: ["chartAxes", "colorScale"],
+  area: ["chartAxes", "colorScale"],
+  scatter: ["chartAxes", "colorScale"],
+  // Rich table: no design controls beyond the universal sections.
+  table: [],
 };
 
 /** Capability set for a visualisation type (empty for unknown types). */

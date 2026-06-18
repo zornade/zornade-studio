@@ -19,6 +19,7 @@ function state(title: string, value: string): StudioState {
       pointSize: 7, showTitle: true,
       showLegend: true, showSource: true, tooltip: true, tooltipTemplate: "",
       zoomPan: true, readerFilters: false,
+      chartX: "", chartY: "", chartSeries: "", chartSortByValue: false,
     },
     data: {
       kind: "area",

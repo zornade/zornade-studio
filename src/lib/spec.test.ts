@@ -35,6 +35,10 @@ function baseState(overrides: Partial<StudioState> = {}): StudioState {
       tooltipTemplate: "",
       zoomPan: true,
       readerFilters: false,
+      chartX: "",
+      chartY: "",
+      chartSeries: "",
+      chartSortByValue: false,
     },
     data: {
       kind: "area",

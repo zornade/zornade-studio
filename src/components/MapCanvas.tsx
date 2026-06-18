@@ -165,7 +165,8 @@ export function MapCanvas() {
   }, [data, tooltipCols]);
 
   const valueLabel =
-    (design.valueLabel || (data?.kind === "point" ? data.valueColumn : data?.valueColumn)) ??
+    (design.valueLabel ||
+      (data && data.kind !== "table" ? data.valueColumn : "")) ??
     "";
 
   const dataLayer: DataLayer | null = useMemo(() => {
@@ -352,7 +353,9 @@ export function MapCanvas() {
               ? `${data.fileName}:${data.geoLevel}:${data.valueColumn}`
               : data.kind === "point"
                 ? `${data.fileName}:point:${data.latColumn},${data.lonColumn}`
-                : `${data.fileName}:geo:${data.valueColumn}`
+                : data.kind === "geo"
+                  ? `${data.fileName}:geo:${data.valueColumn}`
+                  : data.fileName
             : null
         }
       />

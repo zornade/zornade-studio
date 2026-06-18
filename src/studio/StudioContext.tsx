@@ -60,6 +60,10 @@ const INITIAL_DESIGN: DesignSettings = {
   tooltipTemplate: "",
   zoomPan: true,
   readerFilters: false,
+  chartX: "",
+  chartY: "",
+  chartSeries: "",
+  chartSortByValue: false,
 };
 
 /** localStorage key for the best-effort session autosave. */

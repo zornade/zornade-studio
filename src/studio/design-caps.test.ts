@@ -51,6 +51,7 @@ describe("designCaps", () => {
       "pointStyle",
       "tooltipTemplate",
       "readerFilters",
+      "chartAxes",
     ]);
     for (const caps of Object.values(VIZ_DESIGN_CAPS)) {
       for (const cap of caps) expect(known.has(cap)).toBe(true);

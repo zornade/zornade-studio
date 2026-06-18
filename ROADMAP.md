@@ -582,7 +582,23 @@ L'utente incolla **host / utente / password** (credenziali read-only generate a 
    Popolazione 7.884, Edifici 7.899 (Roma 381.838). **Da fare (operativo):** creare il ruolo Postgres
    **read-only** e impostare `ZORNADE_DB_URL` su Netlify (porta pooler **6543**); il proxy 404 in dev
    `vite` puro (la UI lo segnala). *(Modalità SQL avanzata e altri livelli geo = step futuri.)*
-- **O3.2** Grafici base (barre, linee, aree, scatter) via **Observable Plot** + **tabella ricca** (TanStack Table)
+- **O3.2** ✅ **Grafici base** (barre, linee, aree, dispersione) via **Observable Plot** (ISC, 0.6.17,
+   **lazy** → chunk separato ~133 KB gz, fuori dal bundle iniziale) + **tabella**. Nuovo `DatasetState`
+   **`table`** (`area | point | geo | table`): un CSV **senza** geografia (categorie + numeri) ora si
+   **carica** invece di dare errore — `buildDatasetFromTable` ripiega su un dataset tabellare quando non
+   trova né chiave area né lat/lon (serve ≥1 colonna numerica). Modulo puro `lib/chart-data.ts`
+   (**testato**, 12 test): `chartColumnRoles` (numerico vs etichetta dal profilo), `resolveChartAxes`
+   (assi di default sensati, override dal Design), `buildChartPoints` (tipizza le righe, numeri IT,
+   scarta y non numeriche), `aggregatePoints` (somma per categoria/serie), `sortPointsByValue`. Nuovo
+   `ChartCanvas` (dispatch da `App` quando `vizType` è un grafico o il dataset è `table`): rende
+   bar/line/area/scatter con Plot e la **tabella** in HTML; titolo/fonte coerenti con la mappa, nodo
+   esposto per l'export PNG. `DesignPanel`: blocco **“Assi del grafico”** (x/y/serie, nome asse Y,
+   ordina-per-valore per le barre), mostrato solo per i grafici; la sezione mappa “Dato e legenda” è
+   nascosta per grafici/tabella. `VisualizePanel`: `IMPLEMENTED` += bar/line/area/scatter/table, con il
+   motore di compatibilità già pronto (`viz-compat.ts`) che accende solo i grafici sensati per i dati.
+   I grafici girano su **qualsiasi** dataset (anche quelli geografici, riusando `columns`/`rows`).
+   *(Pubblicazione/embed dei grafici = O3.5; per ora restano in-editor come symbol/category. Smoke-test
+   visivo browser da fare. La “tabella ricca” con sparkline/TanStack = rifinitura successiva.)*
 - **O3.3** **Time slider / animazione temporale** (OMI storico 2015→2025)
 - **O3.4** Annotazioni custom (testo, frecce, evidenziazioni, marker) + disegno sulla mappa
 - **O3.5** Tabella dati scaricabile / accessibile + export SVG/PDF + oEmbed WordPress

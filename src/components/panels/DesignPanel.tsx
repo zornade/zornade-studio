@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Upload, Image as ImageIcon } from "lucide-react";
 import { useStudio } from "../../studio/StudioContext";
 import {
@@ -13,15 +13,8 @@ import {
   NEWSROOM_KIT_LIST,
   NEWSROOM_KITS,
 } from "../../studio/catalog";
-import {
-  GEO_LEVELS,
-  bestKeyColumnForLevel,
-  type GeoLevel,
-} from "../../lib/choropleth";
-import { loadGeoKeys } from "../../lib/geo-keys";
-import { designCaps } from "../../studio/design-caps";
-import { simulatePalette, CVD_TYPES } from "../../lib/cvd";
 import { PanelSection, Field, SoonBadge } from "../primitives";
+import { isChartType } from "../../lib/chart-data";
 
 const PRESET_OPTIONS: { id: PresetChoice; label: string }[] = [
   ...NEWSROOM_KIT_LIST.map((k) => ({ id: k.id as PresetChoice, label: k.label })),
@@ -43,35 +36,13 @@ export function DesignPanel() {
     vizType,
   } = useStudio();
 
-  // Which Design blocks the active visualisation exposes (see design-caps.ts).
-  // A "geo" dataset renders by its own geometry regardless of the viz type, so
-  // its capabilities come from the dataset kind, not the selected viz.
-  const caps = data?.kind === "geo" ? designCaps("geo") : designCaps(vizType);
   const [noData, setNoData] = useState("#e5e7eb");
-  // Geo-key index for level overrides (value-based best key column per level).
-  const [geoKeys, setGeoKeys] = useState<Record<string, Set<string>> | null>(
-    null,
-  );
-  useEffect(() => {
-    let alive = true;
-    loadGeoKeys().then((k) => {
-      if (alive) setGeoKeys(k);
-    });
-    return () => {
-      alive = false;
-    };
-  }, []);
   const activeKit = preset !== "custom" ? NEWSROOM_KITS[preset] : null;
   // Cap classes at the number of source rows (each row can be its own class).
   const maxClasses = data ? Math.max(2, data.rows.length) : 9;
   const fontId =
     FONT_OPTIONS.find((f) => f.stack === design.titleFont)?.id ??
     "space-grotesk";
-  const activeScale =
-    COLOR_SCALES.find((s) => s.id === design.colorScale) ?? COLOR_SCALES[0];
-  const activeScaleColors = design.reverseScale
-    ? [...activeScale.colors].reverse()
-    : activeScale.colors;
 
   const inputCls =
     "w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-zornade focus:outline-none";
@@ -235,98 +206,44 @@ export function DesignPanel() {
         </div>
       </PanelSection>
 
-      {/* ---- Dato, colori e legenda ---- */}
-      <PanelSection
-        title="Dato e legenda"
-        hint="Etichetta del dato, scala colore, classi e legenda."
-      >
-        {data && caps.has("geoBinding") && data.kind === "area" && (
-          <>
-            <Field
-              label="Livello geografico"
-              hint="Riconosciuto dai dati. Cambialo se l'abbinamento è sbagliato."
-            >
-              <select
-                value={data.geoLevel}
-                onChange={(e) => {
-                  const level = e.target.value as GeoLevel;
-                  const keyColumn =
-                    (geoKeys &&
-                      bestKeyColumnForLevel(
-                        level,
-                        data.columns,
-                        data.rows,
-                        geoKeys,
-                      )) ||
-                    data.keyColumn;
-                  setData({ ...data, geoLevel: level, keyColumn });
-                }}
-                className={inputCls}
-              >
-                {Object.values(GEO_LEVELS)
-                  .filter((l) => l.ready)
-                  .map((l) => (
-                    <option key={l.id} value={l.id}>
-                      {l.label}
-                    </option>
-                  ))}
-              </select>
-            </Field>
-            <Field
-              label="Colonna chiave (abbinamento geografico)"
-              hint="La colonna che identifica l'area (nome o codice)."
-            >
-              <select
-                value={data.keyColumn}
-                onChange={(e) =>
-                  setData({ ...data, keyColumn: e.target.value })
-                }
-                className={inputCls}
-              >
-                {data.columns.map((c) => (
-                  <option key={c} value={c}>
-                    {c}
-                  </option>
-                ))}
-              </select>
-            </Field>
-          </>
-        )}
-
-        {data && data.kind === "area" && caps.has("categoryBinding") && (
-          <Field
-            label="Colonna delle categorie"
-            hint="La colonna che assegna una categoria a ogni area."
-          >
+      {/* ---- Assi del grafico (solo per i grafici) ---- */}
+      {data && isChartType(vizType) && (
+        <PanelSection
+          title="Assi del grafico"
+          hint="Scegli le colonne per gli assi e le serie."
+        >
+          <Field label={vizType === "scatter" ? "Asse X (numerico)" : "Asse X (categoria)"}>
             <select
-              value={data.categoryColumn ?? ""}
-              onChange={(e) =>
-                setData({ ...data, categoryColumn: e.target.value || undefined })
-              }
+              value={design.chartX}
+              onChange={(e) => updateDesign({ chartX: e.target.value })}
               className={inputCls}
             >
-              <option value="">— scegli una colonna —</option>
-              {data.columns
-                .filter((c) => c !== data.keyColumn)
-                .map((c) => (
-                  <option key={c} value={c}>
-                    {c}
-                  </option>
-                ))}
+              <option value="">— automatico —</option>
+              {data.columns.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
             </select>
           </Field>
-        )}
-
-        {data && data.kind === "geo" && caps.has("categoryBinding") && (
-          <Field
-            label="Colonna delle categorie"
-            hint="Colora aree, linee o punti per categoria (alternativa al valore numerico)."
-          >
+          <Field label="Asse Y (valore)">
             <select
-              value={data.categoryColumn ?? ""}
-              onChange={(e) =>
-                setData({ ...data, categoryColumn: e.target.value || undefined })
-              }
+              value={design.chartY}
+              onChange={(e) => updateDesign({ chartY: e.target.value })}
+              className={inputCls}
+            >
+              <option value="">— automatico —</option>
+              {data.numericColumns.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label="Serie / colore (opzionale)">
+            <select
+              value={design.chartSeries}
+              onChange={(e) => updateDesign({ chartSeries: e.target.value })}
               className={inputCls}
             >
               <option value="">— nessuna —</option>
@@ -337,19 +254,35 @@ export function DesignPanel() {
               ))}
             </select>
           </Field>
-        )}
+          <Field label="Nome dell'asse Y (opzionale)">
+            <input
+              value={design.valueLabel}
+              onChange={(e) => updateDesign({ valueLabel: e.target.value })}
+              placeholder={design.chartY || "valore"}
+              className={inputCls}
+            />
+          </Field>
+          {vizType === "bar" && (
+            <div className="pt-1">
+              <Toggle
+                label="Ordina per valore"
+                checked={design.chartSortByValue}
+                onChange={(v) => updateDesign({ chartSortByValue: v })}
+              />
+            </div>
+          )}
+        </PanelSection>
+      )}
 
-        {data && caps.has("valueLabel") && (
+      {/* ---- Dato, colori e legenda (solo per le mappe) ---- */}
+      {!isChartType(vizType) && vizType !== "table" && (
+      <PanelSection
+        title="Dato e legenda"
+        hint="Etichetta del dato, scala colore, classi e legenda."
+      >
+        {data && data.kind !== "table" && (
           <>
-            <Field
-              label={
-                data.kind === "area"
-                  ? "Colonna da mappare"
-                  : data.kind === "geo"
-                    ? "Colonna da colorare (aree)"
-                    : "Dimensione dei punti"
-              }
-            >
+            <Field label="Colonna da mappare">
               <select
                 value={data.valueColumn}
                 onChange={(e) =>
@@ -357,13 +290,6 @@ export function DesignPanel() {
                 }
                 className={inputCls}
               >
-                {(data.kind === "point" || data.kind === "geo") && (
-                  <option value="">
-                    {data.kind === "geo"
-                      ? "Nessuna (tinta unita)"
-                      : "Nessuna (dimensione uniforme)"}
-                  </option>
-                )}
                 {data.numericColumns.map((c) => (
                   <option key={c} value={c}>
                     {c}
@@ -390,217 +316,85 @@ export function DesignPanel() {
           </>
         )}
 
-        {caps.has("colorScale") && (
-          <Field
-            label="Scala colore"
-            hint={
-              data?.kind === "point"
-                ? "Usata per le categorie dei punti."
-                : undefined
-            }
-          >
-            <div className="space-y-1.5">
-              {COLOR_SCALES.map((s) => (
-                <button
-                  key={s.id}
-                  onClick={() => updateDesign({ colorScale: s.id })}
-                  className={`flex w-full items-center gap-2 rounded-lg border px-2.5 py-1.5 transition-colors ${
-                    design.colorScale === s.id
-                      ? "border-zornade bg-zornade-50"
-                      : "border-slate-200 hover:border-slate-300"
-                  }`}
-                >
-                  <span className="flex h-3.5 w-24 overflow-hidden rounded-full">
-                    {(design.reverseScale ? [...s.colors].reverse() : s.colors).map(
-                      (c, i) => (
-                        <span key={i} className="flex-1" style={{ background: c }} />
-                      ),
-                    )}
-                  </span>
-                  <span className="flex-1 text-left text-xs text-slate-600">
-                    {s.label}
-                  </span>
-                  {s.cvdSafe && (
-                    <span
-                      title="Adatta al daltonismo"
-                      className="rounded bg-emerald-50 px-1 py-0.5 text-[9px] font-medium text-emerald-600"
-                    >
-                      ✓ daltonismo
-                    </span>
-                  )}
-                </button>
-              ))}
-            </div>
-            <label className="mt-2 flex cursor-pointer items-center gap-2 text-xs font-medium text-slate-600">
-              <input
-                type="checkbox"
-                checked={design.reverseScale}
-                onChange={(e) => updateDesign({ reverseScale: e.target.checked })}
-                className="h-4 w-4 rounded accent-zornade"
-              />
-              Inverti la scala
-            </label>
-            <CvdPreview
-              colors={activeScaleColors}
-              cvdSafe={!!activeScale.cvdSafe}
-            />
-          </Field>
-        )}
-
-        {caps.has("classification") && (
-          <>
-            <Field label="Metodo di classificazione">
-              <select
-                value={design.classification}
-                onChange={(e) => updateDesign({ classification: e.target.value })}
-                className={inputCls}
+        <Field label="Scala colore">
+          <div className="space-y-1.5">
+            {COLOR_SCALES.map((s) => (
+              <button
+                key={s.id}
+                onClick={() => updateDesign({ colorScale: s.id })}
+                className={`flex w-full items-center gap-2 rounded-lg border px-2.5 py-1.5 transition-colors ${
+                  design.colorScale === s.id
+                    ? "border-zornade bg-zornade-50"
+                    : "border-slate-200 hover:border-slate-300"
+                }`}
               >
-                {CLASSIFICATION_METHODS.map((m) => (
-                  <option key={m.id} value={m.id}>
-                    {m.label}
-                  </option>
-                ))}
-              </select>
-            </Field>
-
-            {design.classification === "manual" && (
-              <Field
-                label="Soglie manuali"
-                hint="Valori separati da virgola; decimali col punto (es. 100, 500.5, 1000)."
-              >
-                <input
-                  type="text"
-                  defaultValue={design.manualBreaks.join(", ")}
-                  onChange={(e) =>
-                    updateDesign({
-                      manualBreaks: e.target.value
-                        .split(",")
-                        .map((s) => Number(s.trim()))
-                        .filter((n) => Number.isFinite(n)),
-                    })
-                  }
-                  placeholder="es. 100, 500, 1000"
-                  className={inputCls}
-                />
-              </Field>
-            )}
-
-            <Field label={`Numero di classi · ${design.nClasses}`}>
-              <input
-                type="range"
-                min={2}
-                max={maxClasses}
-                step={1}
-                value={Math.min(design.nClasses, maxClasses)}
-                onChange={(e) => updateDesign({ nClasses: Number(e.target.value) })}
-                className="w-full accent-zornade"
-              />
-              {data && (
-                <p className="mt-1 text-[11px] text-slate-400">
-                  Fino a {maxClasses} classi ({data.rows.length} righe nel file).
-                </p>
-              )}
-            </Field>
-
-            <div className="grid grid-cols-2 gap-3">
-              <Field label="Tipo di legenda">
-                <select
-                  value={design.legendType}
-                  onChange={(e) => updateDesign({ legendType: e.target.value })}
-                  className={inputCls}
-                >
-                  {LEGEND_TYPES.map((l) => (
-                    <option key={l.id} value={l.id}>
-                      {l.label}
-                    </option>
+                <span className="flex h-3.5 w-24 overflow-hidden rounded-full">
+                  {s.colors.map((c) => (
+                    <span key={c} className="flex-1" style={{ background: c }} />
                   ))}
-                </select>
-              </Field>
-              <Field label="Nessun dato">
-                <input
-                  type="color"
-                  value={noData}
-                  onChange={(e) => setNoData(e.target.value)}
-                  className="h-9 w-full cursor-pointer rounded border border-slate-200"
-                />
-              </Field>
-            </div>
-            {caps.has("readerFilters") && (
-              <label className="mt-1 flex cursor-pointer items-start gap-2 rounded-lg border border-slate-200 px-3 py-2 hover:border-zornade">
-                <input
-                  type="checkbox"
-                  checked={design.readerFilters}
-                  onChange={(e) =>
-                    updateDesign({ readerFilters: e.target.checked })
-                  }
-                  className="mt-0.5 h-4 w-4 rounded accent-zornade"
-                />
-                <span className="min-w-0 flex-1">
-                  <span className="block text-sm font-medium text-slate-700">
-                    Legenda cliccabile (filtri per il lettore)
-                  </span>
-                  <span className="block text-xs text-slate-500">
-                    Il lettore clicca una classe per mostrarla o nasconderla.
-                    Richiede la legenda “a gradini”.
-                  </span>
                 </span>
-              </label>
-            )}
-          </>
-        )}
-      </PanelSection>
+                <span className="text-xs text-slate-600">{s.label}</span>
+              </button>
+            ))}
+          </div>
+        </Field>
 
-      {/* ---- Stile dei punti ---- */}
-      {caps.has("pointStyle") &&
-        (data?.kind === "point" || data?.kind === "geo") && (
-        <PanelSection
-          title={data.kind === "geo" ? "Colore e dimensione" : "Stile dei punti"}
-          hint={
-            data.categoryColumn
-              ? "Le geometrie sono colorate per categoria (scala colore sopra)."
-              : data.kind === "geo"
-                ? "Colore di base (aree senza valore, linee e punti) e dimensione dei punti."
-                : "Colore e dimensione dei punti."
-          }
-        >
-          {!data.categoryColumn && (
-            <Field label={data.kind === "geo" ? "Colore di base" : "Colore dei punti"}>
-              <div className="flex items-center gap-2">
-                <input
-                  type="color"
-                  value={design.pointColor}
-                  onChange={(e) => updateDesign({ pointColor: e.target.value })}
-                  className="h-9 w-12 cursor-pointer rounded border border-slate-200"
-                />
-                <input
-                  value={design.pointColor}
-                  onChange={(e) => updateDesign({ pointColor: e.target.value })}
-                  className="w-28 rounded-lg border border-slate-200 px-3 py-2 font-mono text-sm focus:border-zornade focus:outline-none"
-                />
-              </div>
-            </Field>
-          )}
-          <Field
-            label={`Dimensione punti · ${design.pointSize} px`}
-            hint={
-              data.kind === "point" && data.valueColumn
-                ? "Dimensione base; i punti scalano con il valore scelto sopra."
-                : undefined
-            }
+        <Field label="Metodo di classificazione">
+          <select
+            value={design.classification}
+            onChange={(e) => updateDesign({ classification: e.target.value })}
+            className={inputCls}
           >
+            {CLASSIFICATION_METHODS.map((m) => (
+              <option key={m.id} value={m.id}>
+                {m.label}
+              </option>
+            ))}
+          </select>
+        </Field>
+
+        <Field label={`Numero di classi · ${design.nClasses}`}>
+          <input
+            type="range"
+            min={2}
+            max={maxClasses}
+            step={1}
+            value={Math.min(design.nClasses, maxClasses)}
+            onChange={(e) => updateDesign({ nClasses: Number(e.target.value) })}
+            className="w-full accent-zornade"
+          />
+          {data && (
+            <p className="mt-1 text-[11px] text-slate-400">
+              Fino a {maxClasses} classi ({data.rows.length} righe nel file).
+            </p>
+          )}
+        </Field>
+
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Tipo di legenda">
+            <select
+              value={design.legendType}
+              onChange={(e) => updateDesign({ legendType: e.target.value })}
+              className={inputCls}
+            >
+              {LEGEND_TYPES.map((l) => (
+                <option key={l.id} value={l.id}>
+                  {l.label}
+                </option>
+              ))}
+            </select>
+          </Field>
+          <Field label="Nessun dato">
             <input
-              type="range"
-              min={3}
-              max={24}
-              step={1}
-              value={design.pointSize}
-              onChange={(e) => updateDesign({ pointSize: Number(e.target.value) })}
-              className="w-full accent-zornade"
+              type="color"
+              value={noData}
+              onChange={(e) => setNoData(e.target.value)}
+              className="h-9 w-full cursor-pointer rounded border border-slate-200"
             />
           </Field>
-        </PanelSection>
+        </div>
+      </PanelSection>
       )}
-
 
       {/* ---- Interattività ---- */}
       <PanelSection title="Interattività" hint="Cosa può fare il lettore con la mappa pubblicata.">
@@ -643,26 +437,6 @@ export function DesignPanel() {
             );
           })}
         </div>
-
-        {caps.has("tooltipTemplate") && design.tooltip && (
-          <Field
-            label="Tooltip personalizzato (HTML)"
-            hint="Lascia vuoto per il tooltip predefinito. Token: {nome}, {valore} e {nome_colonna}."
-          >
-            <textarea
-              value={design.tooltipTemplate}
-              onChange={(e) => updateDesign({ tooltipTemplate: e.target.value })}
-              placeholder={"<b>{nome}</b><br>{valore}"}
-              rows={3}
-              className={`${inputCls} font-mono text-xs`}
-            />
-            {data && (
-              <p className="mt-1 text-[11px] text-slate-400">
-                Colonne disponibili: {data.columns.join(", ")}
-              </p>
-            )}
-          </Field>
-        )}
       </PanelSection>
 
       {/* ---- Annotazioni (mockup) ---- */}
@@ -710,57 +484,5 @@ function Toggle({
       />
       {label}
     </label>
-  );
-}
-
-/**
- * Colour-blindness preview: shows the active palette as it appears under the
- * three CVD types (Machado 2009 simulation). The "safe" badge reflects the
- * palette's **curated** `cvdSafe` flag (from published colour-blind-safe
- * palettes), not a fragile runtime metric — the simulation lets the operator
- * verify visually.
- */
-function CvdPreview({
-  colors,
-  cvdSafe,
-}: {
-  colors: string[];
-  cvdSafe: boolean;
-}) {
-  return (
-    <div className="mt-2 rounded-lg border border-slate-200 bg-slate-50 p-2">
-      <div className="mb-1.5 flex items-center justify-between">
-        <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-          Daltonismo
-        </span>
-        {cvdSafe ? (
-          <span className="rounded bg-emerald-50 px-1.5 py-0.5 text-[10px] font-medium text-emerald-600">
-            Palette adatta
-          </span>
-        ) : (
-          <span className="rounded bg-slate-200 px-1.5 py-0.5 text-[10px] font-medium text-slate-600">
-            Verifica sotto
-          </span>
-        )}
-      </div>
-      <div className="space-y-1">
-        {CVD_TYPES.map(({ type, label }) => (
-          <div key={type} className="flex items-center gap-2">
-            <span className="w-28 flex-shrink-0 text-[10px] text-slate-500">
-              {label}
-            </span>
-            <span className="flex h-3 flex-1 overflow-hidden rounded-full">
-              {simulatePalette(colors, type).map((c, i) => (
-                <span key={i} className="flex-1" style={{ background: c }} />
-              ))}
-            </span>
-          </div>
-        ))}
-      </div>
-      <p className="mt-1.5 text-[10px] text-slate-400">
-        Anteprima di come appare la scala a chi ha un deficit della visione dei
-        colori. Scegli una scala “✓ daltonismo” se i colori si confondono.
-      </p>
-    </div>
   );
 }

@@ -5,12 +5,14 @@ import { LoginScreen } from "./components/LoginScreen";
 import { Topbar } from "./components/Topbar";
 import { Stepper } from "./components/Stepper";
 import { MapCanvas } from "./components/MapCanvas";
+import { ChartCanvas } from "./components/ChartCanvas";
 import { MapErrorBoundary } from "./components/MapErrorBoundary";
 import { DataPanel } from "./components/panels/DataPanel";
 import { VisualizePanel } from "./components/panels/VisualizePanel";
 import { DesignPanel } from "./components/panels/DesignPanel";
 import { PublishPanel } from "./components/panels/PublishPanel";
 import { Button } from "./components/primitives";
+import { isChartType } from "./lib/chart-data";
 import type { StepId } from "./studio/types";
 
 const STEP_ORDER: StepId[] = ["data", "visualize", "design", "publish"];
@@ -36,8 +38,13 @@ function MapEmptyState() {
 }
 
 function Workspace() {
-  const { step, setStep, data } = useStudio();
+  const { step, setStep, data, vizType } = useStudio();
   const idx = STEP_ORDER.indexOf(step);
+
+  // Charts and the rich table render on a separate canvas (Observable Plot /
+  // HTML), not MapLibre. A non-geographic "table" dataset always uses it.
+  const useChartCanvas =
+    isChartType(vizType) || vizType === "table" || data?.kind === "table";
 
   return (
     <div className="flex min-h-0 flex-1">
@@ -71,7 +78,7 @@ function Workspace() {
       <main className="min-w-0 flex-1">
         {data ? (
           <MapErrorBoundary>
-            <MapCanvas />
+            {useChartCanvas ? <ChartCanvas /> : <MapCanvas />}
           </MapErrorBoundary>
         ) : (
           <MapEmptyState />
