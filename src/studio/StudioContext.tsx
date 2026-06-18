@@ -19,6 +19,7 @@ import type {
 } from "./types";
 import type { PresetChoice } from "./catalog";
 import { NEWSROOM_KITS } from "./catalog";
+import { isChartType } from "../lib/chart-data";
 import type { SavableProject } from "../lib/project";
 
 interface StudioContextValue extends StudioState {
@@ -150,7 +151,19 @@ export function StudioProvider({ children }: { children: ReactNode }) {
         setBrand((b) => ({ ...b, ...patch }));
       },
       updateDesign: (patch) => setDesign((d) => ({ ...d, ...patch })),
-      setData,
+      setData: (next) => {
+        setData(next);
+        // A non-geographic table can't go on a map: if the current viz is a map
+        // type, switch to a sensible default chart so the canvas isn't blank.
+        if (
+          next &&
+          next.kind === "table" &&
+          !isChartType(vizType) &&
+          vizType !== "table"
+        ) {
+          setVizType("bar");
+        }
+      },
       loadProject: (s) => {
         setStep(s.step ?? "design");
         setProject(s.project);

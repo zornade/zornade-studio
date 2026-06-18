@@ -20,6 +20,23 @@ function loadPlot(): Promise<PlotModule> {
   return plotPromise;
 }
 
+/** Italian number formatting — identical to the choropleth tooltip/legend. */
+const fmt = new Intl.NumberFormat("it-IT", { maximumFractionDigits: 2 });
+
+/** Minimal HTML escaping for tooltip content (mirrors MapPreview). */
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+/** Format a numeric value the choropleth way: IT number + optional unit. */
+function formatValue(n: number, unit: string): string {
+  return `${fmt.format(n)}${unit ? `\u00a0${unit}` : ""}`;
+}
+
 /**
  * Central canvas for chart visualisations (bar/line/area/scatter) and the rich
  * table. Mirrors `MapCanvas`'s role for maps: reads the Studio context, prepares
@@ -104,12 +121,16 @@ interface PlotViewProps {
     chartSortByValue: boolean;
     valueLabel: string;
     valueUnit: string;
+    tooltip: boolean;
+    showLegend: boolean;
   };
   colors: string[];
 }
 
 function PlotView({ data, vizType, design, colors }: PlotViewProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const hostRef = useRef<HTMLDivElement | null>(null);
+  const tipRef = useRef<HTMLDivElement | null>(null);
   const [size, setSize] = useState<{ w: number; h: number }>({ w: 640, h: 400 });
   const [plot, setPlot] = useState<PlotModule | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -153,25 +174,26 @@ function PlotView({ data, vizType, design, colors }: PlotViewProps) {
     return { axes, points, ok: points.length > 0 };
   }, [data, vizType, design]);
 
-  // Render the Plot figure into the container.
+  // Render the Plot figure into the host, with a custom tooltip identical to
+  // the choropleth (name + value, IT number + unit).
   useEffect(() => {
-    const el = containerRef.current;
-    if (!el || !plot || !prepared.ok) return;
+    const host = hostRef.current;
+    if (!host || !plot || !prepared.ok) return;
     const { points, axes } = prepared;
+    const isScatter = vizType === "scatter";
     const hasSeries = points.some((p) => p.series != null);
-
-    const yLabel = design.valueLabel || axes.y;
-    const marks: unknown[] = [plot.ruleY([0])];
     const baseColor = colors[colors.length - 1] ?? "#01646f";
+
+    const xLabel = axes.x;
+    const yLabel = design.valueLabel || axes.y;
+    const unit = design.valueUnit;
+    const yAxisLabel = unit ? `${yLabel} (${unit})` : yLabel;
+
+    const marks: unknown[] = [plot.ruleY([0])];
 
     if (vizType === "bar") {
       marks.push(
-        plot.barY(points, {
-          x: "x",
-          y: "y",
-          fill: hasSeries ? "series" : baseColor,
-          tip: true,
-        }),
+        plot.barY(points, { x: "x", y: "y", fill: hasSeries ? "series" : baseColor }),
       );
     } else if (vizType === "line") {
       marks.push(
@@ -180,9 +202,14 @@ function PlotView({ data, vizType, design, colors }: PlotViewProps) {
           y: "y",
           stroke: hasSeries ? "series" : baseColor,
           strokeWidth: 2,
-          tip: true,
+          z: hasSeries ? "series" : undefined,
         }),
-        plot.dot(points, { x: "x", y: "y", fill: hasSeries ? "series" : baseColor, r: 2.5 }),
+        plot.dot(points, {
+          x: "x",
+          y: "y",
+          fill: hasSeries ? "series" : baseColor,
+          r: 2,
+        }),
       );
     } else if (vizType === "area") {
       marks.push(
@@ -190,19 +217,33 @@ function PlotView({ data, vizType, design, colors }: PlotViewProps) {
           x: "x",
           y: "y",
           fill: hasSeries ? "series" : baseColor,
-          fillOpacity: hasSeries ? 0.7 : 0.85,
-          tip: true,
+          fillOpacity: hasSeries ? 0.6 : 0.85,
+          z: hasSeries ? "series" : undefined,
         }),
       );
     } else if (vizType === "scatter") {
       marks.push(
-        plot.dot(points, {
-          x: "x",
-          y: "y",
-          fill: hasSeries ? "series" : baseColor,
-          r: 4,
-          tip: true,
-        }),
+        plot.dot(points, { x: "x", y: "y", fill: hasSeries ? "series" : baseColor, r: 4 }),
+      );
+    }
+
+    // Pointer-driven highlight that also makes `figure.value` track the nearest
+    // datum, which we read to drive the custom HTML tooltip. 2D nearest for
+    // scatter/multi-series, x-nearest for single-series bar/line/area.
+    if (design.tooltip) {
+      const pointer = isScatter || hasSeries ? plot.pointer : plot.pointerX;
+      marks.push(
+        plot.dot(
+          points,
+          pointer({
+            x: "x",
+            y: "y",
+            fill: hasSeries ? "series" : baseColor,
+            stroke: "white",
+            strokeWidth: 1.5,
+            r: 5,
+          }),
+        ),
       );
     }
 
@@ -211,23 +252,79 @@ function PlotView({ data, vizType, design, colors }: PlotViewProps) {
       height: size.h,
       marginLeft: 64,
       marginBottom: 56,
+      marginTop: 16,
       style: { background: "transparent", fontFamily: "inherit", fontSize: "12px" },
       x: {
-        label: axes.x,
+        label: xLabel,
         tickRotate: vizType === "bar" && points.length > 6 ? -35 : 0,
+        tickFormat: isScatter ? (d: number) => fmt.format(d) : undefined,
       },
-      y: { label: yLabel, grid: true },
-      color: hasSeries
-        ? { legend: true, scheme: undefined, range: colors }
-        : undefined,
+      y: { label: yAxisLabel, grid: true, tickFormat: (d: number) => fmt.format(d) },
+      color: hasSeries ? { legend: design.showLegend, range: colors } : undefined,
       marks: marks as Plot.Markish[],
     });
 
-    el.replaceChildren(figure);
+    host.replaceChildren(figure);
+
+    // Custom tooltip wiring (only when tooltips are enabled).
+    if (design.tooltip) {
+      const tip = tipRef.current;
+      const container = containerRef.current;
+      const fig = figure as HTMLElement & { value?: ChartPoint | null };
+
+      const showTip = () => {
+        const d = fig.value;
+        if (!tip || !d) {
+          if (tip) tip.style.opacity = "0";
+          return;
+        }
+        const name = isScatter
+          ? d.series != null
+            ? escapeHtml(String(d.series))
+            : ""
+          : d.series != null
+            ? `${escapeHtml(String(d.x))} · ${escapeHtml(String(d.series))}`
+            : escapeHtml(String(d.x));
+        let html = name ? `<div class="studio-tooltip-name">${name}</div>` : "";
+        if (isScatter) {
+          html +=
+            `<div class="studio-tooltip-value"><span>${escapeHtml(xLabel)}</span> ${escapeHtml(formatValue(Number(d.x), ""))}</div>` +
+            `<div class="studio-tooltip-value"><span>${escapeHtml(yLabel)}</span> ${escapeHtml(formatValue(d.y, unit))}</div>`;
+        } else {
+          html += `<div class="studio-tooltip-value"><span>${escapeHtml(yLabel)}</span> ${escapeHtml(formatValue(d.y, unit))}</div>`;
+        }
+        tip.innerHTML = html;
+        tip.style.opacity = "1";
+      };
+      const moveTip = (e: PointerEvent) => {
+        if (!tip || !container) return;
+        const r = container.getBoundingClientRect();
+        const x = e.clientX - r.left;
+        const y = e.clientY - r.top;
+        // Flip to the left near the right edge to avoid overflow.
+        const flip = x > r.width - 160;
+        tip.style.left = `${flip ? x - 14 : x + 14}px`;
+        tip.style.top = `${y + 14}px`;
+        tip.style.transform = flip ? "translateX(-100%)" : "none";
+      };
+      const hideTip = () => {
+        if (tip) tip.style.opacity = "0";
+      };
+      fig.addEventListener("input", showTip);
+      figure.addEventListener("pointermove", moveTip as EventListener);
+      figure.addEventListener("pointerleave", hideTip);
+      return () => {
+        fig.removeEventListener("input", showTip);
+        figure.removeEventListener("pointermove", moveTip as EventListener);
+        figure.removeEventListener("pointerleave", hideTip);
+        host.replaceChildren();
+      };
+    }
+
     return () => {
-      el.replaceChildren();
+      host.replaceChildren();
     };
-  }, [plot, prepared, size, vizType, colors, design.valueLabel]);
+  }, [plot, prepared, size, vizType, colors, design.valueLabel, design.valueUnit, design.tooltip, design.showLegend]);
 
   if (error) {
     return <p className="text-sm text-amber-700">{error}</p>;
@@ -239,7 +336,12 @@ function PlotView({ data, vizType, design, colors }: PlotViewProps) {
       </p>
     );
   }
-  return <div ref={containerRef} className="h-full w-full" />;
+  return (
+    <div ref={containerRef} className="relative h-full w-full">
+      <div ref={hostRef} className="h-full w-full" />
+      <div ref={tipRef} className="studio-chart-tip" style={{ opacity: 0 }} />
+    </div>
+  );
 }
 
 /* ------------------------------- Table view ------------------------------- */

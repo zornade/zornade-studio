@@ -262,6 +262,36 @@ export function DesignPanel() {
               className={inputCls}
             />
           </Field>
+          <Field label="Unità di misura (opzionale)">
+            <input
+              value={design.valueUnit}
+              onChange={(e) => updateDesign({ valueUnit: e.target.value })}
+              placeholder="es. %, €, GWh, ab."
+              className={inputCls}
+            />
+          </Field>
+          <Field label="Scala colore">
+            <div className="space-y-1.5">
+              {COLOR_SCALES.map((s) => (
+                <button
+                  key={s.id}
+                  onClick={() => updateDesign({ colorScale: s.id })}
+                  className={`flex w-full items-center gap-2 rounded-lg border px-2.5 py-1.5 transition-colors ${
+                    design.colorScale === s.id
+                      ? "border-zornade bg-zornade-50"
+                      : "border-slate-200 hover:border-slate-300"
+                  }`}
+                >
+                  <span className="flex h-3.5 w-24 overflow-hidden rounded-full">
+                    {s.colors.map((c) => (
+                      <span key={c} className="flex-1" style={{ background: c }} />
+                    ))}
+                  </span>
+                  <span className="text-xs text-slate-600">{s.label}</span>
+                </button>
+              ))}
+            </div>
+          </Field>
           {vizType === "bar" && (
             <div className="pt-1">
               <Toggle

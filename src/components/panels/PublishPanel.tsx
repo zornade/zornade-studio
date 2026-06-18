@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { useStudio } from "../../studio/StudioContext";
 import { PanelSection, Button, SoonBadge } from "../primitives";
+import { isChartType } from "../../lib/chart-data";
 
 export function PublishPanel() {
   const studio = useStudio();
@@ -83,7 +84,7 @@ export function PublishPanel() {
   const exportPng = async () => {
     const node = exportNodeRef.current;
     if (!node) {
-      setExportError("Apri prima la mappa (passo Dati).");
+      setExportError("Carica prima i dati (passo Dati).");
       return;
     }
     setExporting(true);
@@ -218,6 +219,16 @@ export function PublishPanel() {
         title="Pubblica & incorpora"
         hint="Genera uno snapshot immutabile e ottieni il codice da incollare."
       >
+        {data &&
+          (isChartType(studio.vizType) ||
+            studio.vizType === "table" ||
+            data.kind === "table") && (
+          <p className="mb-3 rounded-lg bg-blue-50 px-3 py-2 text-xs text-blue-700">
+            L'incorporamento (embed) è disponibile per ora solo per le mappe. I
+            grafici e le tabelle puoi comunque scaricarli come immagine PNG qui
+            sotto.
+          </p>
+        )}
         <button
           onClick={publish}
           disabled={!data || publishing}
