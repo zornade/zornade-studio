@@ -18,6 +18,7 @@ import type { StudioState } from "../studio/types";
 import type { GeoLevel } from "./choropleth";
 import { parseNumber } from "./csv";
 import { templateColumns } from "./tooltip";
+import { rowsForFrame } from "./temporal";
 
 /** Bump when the shape changes incompatibly; older embeds keep their version. */
 export const SPEC_SCHEMA_VERSION = 1 as const;
@@ -34,6 +35,12 @@ export interface SpecDatum {
   value: number;
   /** Extra columns referenced by a custom tooltip template (key→text). */
   extra?: Record<string, string>;
+}
+
+/** One time frame of a temporal choropleth: a period label + its data (O3.3). */
+export interface SpecFrame {
+  period: string;
+  data: SpecDatum[];
 }
 
 export interface SpecDesign {
@@ -61,8 +68,14 @@ export interface ChoroplethSpec {
   type: "choropleth";
   project: SpecProject;
   geo: { level: GeoLevel; keyColumn: string; valueColumn: string };
-  /** Minimal data: one {key, value} per non-empty, numeric row. */
+  /** Minimal data: one {key, value} per non-empty, numeric row. For a temporal
+   * map this is the INITIAL (most recent) frame, so non-temporal viewers still
+   * render a valid map. */
   data: SpecDatum[];
+  /** Temporal dimension (O3.3): the period column + ordered frame labels. */
+  time?: { column: string; frames: string[] };
+  /** Per-frame data, present only for a temporal map (one entry per period). */
+  frames?: SpecFrame[];
   design: SpecDesign;
 }
 
@@ -93,31 +106,35 @@ export function buildSpec(state: StudioState): BuildSpecResult {
   const extraCols = templateColumns(design.tooltipTemplate).filter((c) =>
     data.columns.includes(c),
   );
-  const seen = new Set<string>();
-  const datums: SpecDatum[] = [];
-  for (const row of data.rows) {
-    const rawKey = row[data.keyColumn];
-    const key = rawKey == null ? "" : String(rawKey).trim();
-    const value = parseNumber(row[data.valueColumn]);
-    if (key === "" || value == null) continue;
-    const extra =
-      extraCols.length > 0
-        ? Object.fromEntries(extraCols.map((c) => [c, String(row[c] ?? "")]))
-        : undefined;
-    // Last value wins for duplicate keys, matching the join's Map semantics.
-    if (seen.has(key)) {
-      const idx = datums.findIndex((d) => d.key === key);
-      if (idx !== -1) {
-        datums[idx].value = value;
-        if (extra) datums[idx].extra = extra;
-      }
-      continue;
+
+  const isTemporal =
+    !!data.timeColumn && !!data.timeFrames && data.timeFrames.length >= 2;
+
+  let datums: SpecDatum[];
+  let time: { column: string; frames: string[] } | undefined;
+  let frames: SpecFrame[] | undefined;
+  if (isTemporal) {
+    const col = data.timeColumn!;
+    frames = data.timeFrames!.map((period) => ({
+      period,
+      data: reduceDatums(
+        rowsForFrame(data.rows, col, period),
+        data.keyColumn,
+        data.valueColumn,
+        extraCols,
+      ),
+    }));
+    if (!frames.some((f) => f.data.length > 0)) {
+      return { error: "Nessun valore numerico da pubblicare." };
     }
-    seen.add(key);
-    datums.push(extra ? { key, value, extra } : { key, value });
-  }
-  if (datums.length === 0) {
-    return { error: "Nessun valore numerico da pubblicare." };
+    time = { column: col, frames: data.timeFrames! };
+    // Initial display = the most recent frame (matches the editor default).
+    datums = frames[frames.length - 1].data;
+  } else {
+    datums = reduceDatums(data.rows, data.keyColumn, data.valueColumn, extraCols);
+    if (datums.length === 0) {
+      return { error: "Nessun valore numerico da pubblicare." };
+    }
   }
 
   const spec: ChoroplethSpec = {
@@ -134,6 +151,7 @@ export function buildSpec(state: StudioState): BuildSpecResult {
       valueColumn: data.valueColumn,
     },
     data: datums,
+    ...(time && frames ? { time, frames } : {}),
     design: {
       basemap: design.basemap,
       colorScale: design.colorScale,
@@ -155,6 +173,42 @@ export function buildSpec(state: StudioState): BuildSpecResult {
     },
   };
   return { spec };
+}
+
+/**
+ * Reduce rows to minimal {key, value(+extra)} data, dropping empty/non-numeric
+ * rows and de-duplicating keys (last value wins, matching the join's Map
+ * semantics). Shared by the single-frame and per-frame (temporal) paths.
+ */
+function reduceDatums(
+  rows: Record<string, string>[],
+  keyColumn: string,
+  valueColumn: string,
+  extraCols: string[],
+): SpecDatum[] {
+  const seen = new Set<string>();
+  const datums: SpecDatum[] = [];
+  for (const row of rows) {
+    const rawKey = row[keyColumn];
+    const key = rawKey == null ? "" : String(rawKey).trim();
+    const value = parseNumber(row[valueColumn]);
+    if (key === "" || value == null) continue;
+    const extra =
+      extraCols.length > 0
+        ? Object.fromEntries(extraCols.map((c) => [c, String(row[c] ?? "")]))
+        : undefined;
+    if (seen.has(key)) {
+      const idx = datums.findIndex((dd) => dd.key === key);
+      if (idx !== -1) {
+        datums[idx].value = value;
+        if (extra) datums[idx].extra = extra;
+      }
+      continue;
+    }
+    seen.add(key);
+    datums.push(extra ? { key, value, extra } : { key, value });
+  }
+  return datums;
 }
 
 /** Serialise a spec to a stable JSON string (recursively sorted keys →

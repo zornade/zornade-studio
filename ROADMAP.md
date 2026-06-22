@@ -599,7 +599,27 @@ L'utente incolla **host / utente / password** (credenziali read-only generate a 
    I grafici girano su **qualsiasi** dataset (anche quelli geografici, riusando `columns`/`rows`).
    *(Pubblicazione/embed dei grafici = O3.5; per ora restano in-editor come symbol/category. Smoke-test
    visivo browser da fare. La “tabella ricca” con sparkline/TanStack = rifinitura successiva.)*
-- **O3.3** **Time slider / animazione temporale** (OMI storico 2015→2025)
+- **O3.3** ✅ **Time slider / animazione temporale** (2026-06-22). Una coropletica *temporale* è
+   un `AreaDataset` con una **colonna periodo** (forma lunga: una riga per area×periodo) + i `timeFrames`
+   ordinati. Modulo puro `lib/temporal.ts` (**testato**, 19 test): `periodSortKey` (ordina semestri OMI
+   `2015_1`, anni, ISO, trimestri su un'unica scala anno+mese/12), `orderFrames`, `frameLabel`
+   (`2015_1`→`2015 S1`), `detectTimeColumn` (colonna con ≥80 % valori-periodo e ≥2 frame), `framesOf`,
+   `rowsForFrame`. **Due sorgenti**: (1) **CSV** — una tabella *wide* (una colonna per anno) viene
+   **melted** a lungo via `reshape` e la colonna `periodo` diventa il time-column; una tabella già lunga
+   con colonna temporale viene rilevata; (2) **DB OMI** — opzione "Tutti i semestri (2015→2025)" che
+   carica i **22 semestri**. **Scala condivisa**: `temporalSharedValues` (choropleth.ts) raccoglie i
+   valori dipinti su **tutti** i frame (stesso match di `matchedFeatureValues`) → `computeBreaks` **una
+   volta** sola, così un colore vale lo stesso valore nel 2015 e nel 2025. `MapCanvas` rende il frame
+   corrente con le classi condivise + un **overlay slider + play** (loop, 900 ms). `StudioContext` porta
+   `timeIndex` (stato di vista, non serializzato, default = frame più recente). **Embed pubblicato**: lo
+   spec porta `time` + `frames[]` (dati per periodo, frame iniziale = più recente); l'embed inietta i
+   frame keyed e mostra **slider + play** che scambiano i `__value` mantenendo fill/classi condivise;
+   `publish.mts` classifica sull'**unione** di tutti i frame. **Verificato dal vivo** (psql sul DB
+   reale): l'aggregato OMI di tutta la storia in un colpo scansiona ~450k righe e fa **hash su disco
+   (6–20 s, oltre il budget 8 s)** → riscritto come **22 query per-semestre** (`semestre` = colonna
+   guida della pkey → range indicizzato ~50–100 ms) per un totale **~3,2 s**, sotto il timeout. 256 test
+   verdi (+24), tsc + build OK (336 KB gz). *(Smoke-test browser da fare: carica un CSV wide / OMI tutti
+   i semestri → scrub + play; pubblica → slider nell'embed.)*
 - **O3.4** Annotazioni custom (testo, frecce, evidenziazioni, marker) + disegno sulla mappa
 - **O3.5** Tabella dati scaricabile / accessibile + export SVG/PDF + oEmbed WordPress
 

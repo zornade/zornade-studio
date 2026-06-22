@@ -150,13 +150,20 @@ async function classifyAgainstGeometry(
     const res = await fetch(`${geoBase}/${spec.geo.level}.geojson`);
     if (!res.ok) return undefined;
     const geojson = (await res.json()) as GeoJSON.FeatureCollection;
-    // Normalised key → numeric value (last value wins), matching buildEmbedHtml.
-    const valueByKey = new Map<string, number>();
-    for (const d of spec.data) {
-      const k = normaliseKey(d.key);
-      if (k !== "") valueByKey.set(k, d.value);
+    // For a temporal map, classify over EVERY frame's matched values so the
+    // shared scale is comparable across periods; otherwise just spec.data.
+    const values: number[] = [];
+    const frameDataSets = spec.frames ? spec.frames.map((f) => f.data) : [spec.data];
+    for (const datums of frameDataSets) {
+      const valueByKey = new Map<string, number>();
+      for (const dd of datums) {
+        const k = normaliseKey(dd.key);
+        if (k !== "") valueByKey.set(k, dd.value);
+      }
+      for (const v of matchedFeatureValues(geojson, spec.geo.level, valueByKey)) {
+        values.push(v);
+      }
     }
-    const values = matchedFeatureValues(geojson, spec.geo.level, valueByKey);
     if (values.length === 0) return undefined;
     return computeBreaks(
       values,

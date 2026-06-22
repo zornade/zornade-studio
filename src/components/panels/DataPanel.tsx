@@ -40,6 +40,8 @@ import { parseExcel } from "../../lib/ingest/parse-excel";
 import { parseGeoJson } from "../../lib/ingest/parse-geojson";
 import { hasDrawableGeometry } from "../../lib/geo-dataset";
 import { profileColumns } from "../../lib/profile";
+import { detectWide, meltWide } from "../../lib/reshape";
+import { detectTimeColumn, framesOf } from "../../lib/temporal";
 import {
   buildOverpassQuery,
   runOverpass,
@@ -139,45 +141,67 @@ async function buildDatasetFromTable(
   }
 
   // 2) AREA (choropleth) path: match values against geometry keys.
+  // First, melt a WIDE table (one column per period, e.g. comune,2015,2016) to
+  // long form so it becomes a temporal choropleth (one frame per period) rather
+  // than N separate value columns. Only the area attempt uses the melted form;
+  // points (handled above) and the table fallback keep the original shape.
+  const wide = detectWide(columns);
+  const aColumns = wide
+    ? meltWide({ columns, rows }, wide, { periodName: "periodo", valueName: "valore" }).columns
+    : columns;
+  const aRows = wide
+    ? meltWide({ columns, rows }, wide, { periodName: "periodo", valueName: "valore" }).rows
+    : rows;
+
   const keys = await loadGeoKeys();
   const resolved =
-    Object.keys(keys).length > 0 ? resolveGeoJoin(columns, rows, keys) : null;
+    Object.keys(keys).length > 0 ? resolveGeoJoin(aColumns, aRows, keys) : null;
   let areaLevel: GeoLevel | null = null;
   let areaKey: string | null = null;
   if (resolved) {
     areaLevel = resolved.level;
     areaKey = resolved.keyColumn;
   } else {
-    const detected = detectGeoLevel(columns);
+    const detected = detectGeoLevel(aColumns);
     if (detected && GEO_LEVELS[detected].ready) {
       areaLevel = detected;
-      areaKey = detectKeyColumn(detected, columns);
+      areaKey = detectKeyColumn(detected, aColumns);
     }
   }
 
   if (areaLevel && areaKey) {
-    const numericColumns = detectNumericColumns(columns, rows).filter(
-      (c) => c !== areaKey,
+    // Temporal: the melted "periodo" column, or a detected period column in an
+    // already-long table (e.g. comune,anno,valore). The period column is never
+    // a measure, so it is excluded from the value candidates.
+    const timeColumn = wide
+      ? "periodo"
+      : detectTimeColumn(aColumns, aRows, [areaKey]);
+    const numericColumns = detectNumericColumns(aColumns, aRows).filter(
+      (c) => c !== areaKey && c !== timeColumn,
     );
     if (numericColumns.length === 0) {
       return { error: "Nessuna colonna numerica da mappare trovata." };
     }
+    const timeFrames = timeColumn ? framesOf(aRows, timeColumn) : undefined;
     // A sensible default category column for the category map: the first
     // categorical column that isn't the geo key (may be undefined).
-    const categoryColumn = profile.columns.find(
-      (c) => c.type === "categorical" && c.name !== areaKey,
+    const categoryColumn = profileColumns(aColumns, aRows).columns.find(
+      (c) => c.type === "categorical" && c.name !== areaKey && c.name !== timeColumn,
     )?.name;
     return {
       dataset: {
         kind: "area",
         fileName,
-        columns,
-        rows,
+        columns: aColumns,
+        rows: aRows,
         geoLevel: areaLevel,
         keyColumn: areaKey,
         valueColumn: numericColumns[0],
         categoryColumn,
         numericColumns,
+        ...(timeColumn && timeFrames && timeFrames.length >= 2
+          ? { timeColumn, timeFrames }
+          : {}),
       },
     };
   }
@@ -1180,6 +1204,8 @@ function ZornadeDbSource() {
   const [semestre, setSemestre] = useState<string>("2025_2");
   const [tipologia, setTipologia] = useState<string>("20");
   const [market, setMarket] = useState<OmiMarket>("compravendita");
+  // OMI: load all 22 semesters at once → time slider (animazione temporale).
+  const [omiTemporal, setOmiTemporal] = useState(false);
   // Solar metric.
   const [metric, setMetric] = useState<string>(SOLAR_METRICS[0].id);
   const [loading, setLoading] = useState(false);
@@ -1189,7 +1215,7 @@ function ZornadeDbSource() {
   const buildRequest = (): DbQueryRequest => {
     switch (dataset) {
       case "omi":
-        return { dataset: "omi", semestre, tipologia, market };
+        return { dataset: "omi", semestre, tipologia, market, temporal: omiTemporal };
       case "solar":
         return { dataset: "solar", metric };
       case "population":
@@ -1300,7 +1326,8 @@ function ZornadeDbSource() {
             <select
               value={semestre}
               onChange={(e) => setSemestre(e.target.value)}
-              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-zornade focus:outline-none"
+              disabled={omiTemporal}
+              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-zornade focus:outline-none disabled:bg-slate-50 disabled:text-slate-400"
             >
               {omiSemesters().map((s) => (
                 <option key={s} value={s}>
@@ -1309,6 +1336,18 @@ function ZornadeDbSource() {
               ))}
             </select>
           </Field>
+          <label className="flex cursor-pointer items-start gap-2 rounded-lg bg-slate-50 px-3 py-2">
+            <input
+              type="checkbox"
+              checked={omiTemporal}
+              onChange={(e) => setOmiTemporal(e.target.checked)}
+              className="mt-0.5 accent-zornade"
+            />
+            <span className="text-xs text-slate-600">
+              <strong>Tutti i semestri</strong> (2015→2025) per l'animazione
+              temporale con time slider.
+            </span>
+          </label>
         </div>
       )}
 

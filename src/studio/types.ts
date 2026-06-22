@@ -103,6 +103,13 @@ export interface AreaDataset extends DatasetBase {
   valueColumn: string;
   /** Optional column used to colour areas by category (category map). */
   categoryColumn?: string;
+  /**
+   * Optional period column (long/tidy form) enabling the time slider (O3.3).
+   * When set, the choropleth shows one frame per distinct period and the editor
+   * /embed scrub them. `timeFrames` is the ordered (oldest→newest) frame list.
+   */
+  timeColumn?: string;
+  timeFrames?: string[];
 }
 
 export interface PointDataset extends DatasetBase {

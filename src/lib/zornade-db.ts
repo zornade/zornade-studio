@@ -94,7 +94,7 @@ export function omiSemesters(): string[] {
 
 /** Request payload sent to the proxy (discriminated by `dataset`). */
 export type DbQueryRequest =
-  | { dataset: "omi"; semestre: string; tipologia: string; market: OmiMarket }
+  | { dataset: "omi"; semestre: string; tipologia: string; market: OmiMarket; temporal: boolean }
   | { dataset: "solar"; metric: string }
   | { dataset: "population" }
   | { dataset: "buildings" };
@@ -107,6 +107,8 @@ export interface DbRow {
   comune: string;
   /** The numeric value for the comune. */
   value: number;
+  /** Period label, present only for temporal (multi-semester) OMI queries. */
+  periodo?: string;
 }
 
 const SEMESTRE_RE = /^20(1[5-9]|2[0-5])_[12]$/;
@@ -132,7 +134,8 @@ export function parseDbRequest(
         return { error: "Tipologia OMI non valida." };
       }
       const market = r.market === "locazione" ? "locazione" : "compravendita";
-      return { request: { dataset: "omi", semestre, tipologia, market } };
+      const temporal = r.temporal === true;
+      return { request: { dataset: "omi", semestre, tipologia, market, temporal } };
     }
     case "solar": {
       const metric = String(r.metric ?? "");
@@ -168,7 +171,9 @@ export function describeDbRequest(req: DbQueryRequest): {
       return {
         valueLabel: `${side} ${type.toLowerCase()}`,
         valueUnit: unit,
-        title: `${side} ${type.toLowerCase()} · ${sem}`,
+        title: req.temporal
+          ? `${side} ${type.toLowerCase()} · 2015→2025`
+          : `${side} ${type.toLowerCase()} · ${sem}`,
       };
     }
     case "solar": {
@@ -188,19 +193,28 @@ export function describeDbRequest(req: DbQueryRequest): {
 
 /**
  * Convert proxy rows into a tabular { columns, rows } ready for the area
- * dataset builder. Columns: `codice_istat`, `comune`, `valore`. The geo-resolve
- * step matches `codice_istat` (or `comune`) against the bundled comuni geometry.
+ * dataset builder. Columns: `codice_istat`, `comune`, `valore` — plus `periodo`
+ * for temporal (multi-semester) OMI, which drives the time slider. The
+ * geo-resolve step matches `codice_istat` (or `comune`) against the comuni
+ * geometry.
  */
 export function dbRowsToTable(rows: DbRow[]): {
   columns: string[];
   rows: Record<string, string>[];
 } {
-  const columns = ["codice_istat", "comune", "valore"];
-  const tableRows = rows.map((r) => ({
-    codice_istat: r.istat,
-    comune: r.comune,
-    valore: String(r.value),
-  }));
+  const temporal = rows.some((r) => r.periodo != null);
+  const columns = temporal
+    ? ["codice_istat", "comune", "periodo", "valore"]
+    : ["codice_istat", "comune", "valore"];
+  const tableRows: Record<string, string>[] = rows.map((r) => {
+    const out: Record<string, string> = {
+      codice_istat: r.istat,
+      comune: r.comune,
+      valore: String(r.value),
+    };
+    if (temporal) out.periodo = r.periodo ?? "";
+    return out;
+  });
   return { columns, rows: tableRows };
 }
 

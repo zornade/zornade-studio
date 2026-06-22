@@ -33,6 +33,12 @@ interface StudioContextValue extends StudioState {
   setData: (data: DatasetState | null) => void;
   /** Replace the whole editor state (open a saved project). */
   loadProject: (state: SavableProject) => void;
+  /**
+   * Current time-slider frame index (view state, not serialised). Valid only
+   * for a temporal area dataset; clamped by consumers to the frame count.
+   */
+  timeIndex: number;
+  setTimeIndex: (i: number) => void;
   /** Ref to the map container node, for PNG export (set by MapCanvas). */
   exportNodeRef: MutableRefObject<HTMLElement | null>;
 }
@@ -69,6 +75,14 @@ const INITIAL_DESIGN: DesignSettings = {
 
 /** localStorage key for the best-effort session autosave. */
 const AUTOSAVE_KEY = "zornade-studio:autosave";
+
+/** Default time-slider index for a dataset: the most recent frame, or 0. */
+function initialTimeIndex(data: DatasetState | null): number {
+  if (data && data.kind === "area" && data.timeFrames && data.timeFrames.length > 0) {
+    return data.timeFrames.length - 1;
+  }
+  return 0;
+}
 
 /** Read the autosaved session, or null if absent/corrupt. */
 function readAutosave(): StudioState | null {
@@ -116,6 +130,11 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     restored?.design ?? INITIAL_DESIGN,
   );
   const [data, setData] = useState<DatasetState | null>(restored?.data ?? null);
+  // Time-slider frame index. View state only (never serialised): defaults to
+  // the most recent frame when a temporal dataset loads.
+  const [timeIndex, setTimeIndex] = useState<number>(() =>
+    initialTimeIndex(restored?.data ?? null),
+  );
   const exportNodeRef = useRef<HTMLElement | null>(null);
 
   const value = useMemo<StudioContextValue>(
@@ -153,6 +172,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       updateDesign: (patch) => setDesign((d) => ({ ...d, ...patch })),
       setData: (next) => {
         setData(next);
+        setTimeIndex(initialTimeIndex(next));
         // A non-geographic table can't go on a map: if the current viz is a map
         // type, switch to a sensible default chart so the canvas isn't blank.
         if (
@@ -173,10 +193,13 @@ export function StudioProvider({ children }: { children: ReactNode }) {
         setBrand(s.brand);
         setDesign(s.design);
         setData(s.data);
+        setTimeIndex(initialTimeIndex(s.data));
       },
+      timeIndex,
+      setTimeIndex,
       exportNodeRef,
     }),
-    [step, project, dataSource, vizType, preset, brand, design, data],
+    [step, project, dataSource, vizType, preset, brand, design, data, timeIndex],
   );
 
   // Best-effort autosave of the current session to localStorage. Wrapped so a

@@ -604,6 +604,44 @@ export function matchedFeatureValues(
 }
 
 /**
+ * Collect the values actually painted on features across **all** time frames of
+ * a temporal choropleth (ROADMAP O3.3). Used to compute a **single, shared**
+ * classification so colours are comparable across periods (a value means the
+ * same colour in 2015 and 2025). Mirrors {@link joinChoropleth}'s matching via
+ * {@link matchedFeatureValues}, so the population is exactly the rendered one.
+ */
+export function temporalSharedValues(params: {
+  geojson: GeoJSON.FeatureCollection;
+  level: GeoLevel;
+  rows: Record<string, string>[];
+  keyColumn: string;
+  valueColumn: string;
+  timeColumn: string;
+  frames: string[];
+}): number[] {
+  const { geojson, level, rows, keyColumn, valueColumn, timeColumn, frames } = params;
+  // Group rows by frame once (avoids re-scanning all rows per frame).
+  const byFrame = new Map<string, Map<string, number>>();
+  for (const f of frames) byFrame.set(f, new Map());
+  for (const row of rows) {
+    const frame = (row[timeColumn] ?? "").trim();
+    const bucket = byFrame.get(frame);
+    if (!bucket) continue;
+    const key = normaliseKey(row[keyColumn]);
+    const value = parseNumber(row[valueColumn]);
+    if (key === "" || value == null) continue;
+    bucket.set(key, value);
+  }
+  const out: number[] = [];
+  for (const f of frames) {
+    const bucket = byFrame.get(f);
+    if (!bucket || bucket.size === 0) continue;
+    for (const v of matchedFeatureValues(geojson, level, bucket)) out.push(v);
+  }
+  return out;
+}
+
+/**
  * Join a **categorical** column onto the geometry (ROADMAP O2.6 — category
  * map). Mirrors {@link joinChoropleth}'s code→name→alias matching, but injects
  * a string `__cat` per matched feature and collects the distinct categories

@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Play, Pause } from "lucide-react";
 import { makeFlavor } from "../basemap";
 import { useStudio } from "../studio/StudioContext";
 import { COLOR_SCALES, MAP_BASEMAPS } from "../studio/catalog";
@@ -10,6 +11,7 @@ import {
   joinCategory,
   buildFillColorExpression,
   computeBreaks,
+  temporalSharedValues,
   sampleColors,
   DEFAULT_NO_DATA_COLOR,
 } from "../lib/choropleth";
@@ -22,6 +24,7 @@ import { prepareGeoRender } from "../lib/geo-dataset";
 import { featureCentroid } from "../lib/centroid";
 import { templateColumns } from "../lib/tooltip";
 import { buildClassVisibilityFilter, classLabel } from "../lib/class-filter";
+import { rowsForFrame, frameLabel } from "../lib/temporal";
 
 const NO_DATA_COLOR = DEFAULT_NO_DATA_COLOR;
 /** Categorical palette for point/category colouring (falls back to teal). */
@@ -29,7 +32,8 @@ const CAT_PALETTE =
   COLOR_SCALES.find((s) => s.id === "cat")?.colors ?? ["#01646f"];
 
 export function MapCanvas() {
-  const { project, brand, vizType, design, data, exportNodeRef } = useStudio();
+  const { project, brand, vizType, design, data, exportNodeRef, timeIndex, setTimeIndex } =
+    useStudio();
   const flavor = useMemo(() => makeFlavor(brand), [brand]);
 
   const scale =
@@ -92,7 +96,65 @@ export function MapCanvas() {
     });
   }, [data, rawGeo, vizType, design.nClasses, design.classification, design.manualBreaks, tooltipCols]);
 
-  // Category area join: feeds the category map (colour per category).
+  // --- Temporal choropleth (O3.3) ------------------------------------------
+  // A temporal area dataset carries a period column + ordered frames. The
+  // slider scrubs frames; the classification is computed ONCE over every
+  // frame's matched values so a colour means the same value across time.
+  const temporalArea =
+    data?.kind === "area" &&
+    !!data.timeColumn &&
+    (data.timeFrames?.length ?? 0) >= 2 &&
+    vizType === "choropleth";
+  const frames = temporalArea ? data!.timeFrames! : null;
+  const frameIdx = frames ? Math.min(Math.max(0, timeIndex), frames.length - 1) : 0;
+  const currentFrame = frames ? frames[frameIdx] : null;
+
+  // Shared classification across all frames (comparable colours over time).
+  const temporalClasses = useMemo(() => {
+    if (!temporalArea || !rawGeo || data?.kind !== "area" || !data.timeColumn || !data.timeFrames)
+      return null;
+    const values = temporalSharedValues({
+      geojson: rawGeo,
+      level: data.geoLevel,
+      rows: data.rows,
+      keyColumn: data.keyColumn,
+      valueColumn: data.valueColumn,
+      timeColumn: data.timeColumn,
+      frames: data.timeFrames,
+    });
+    return computeBreaks(values, design.classification, design.nClasses, design.manualBreaks);
+  }, [temporalArea, rawGeo, data, design.classification, design.nClasses, design.manualBreaks]);
+
+  // Join the rows of the CURRENT frame onto the geometry (geometry + __value).
+  const temporalJoined = useMemo(() => {
+    if (!temporalArea || !rawGeo || data?.kind !== "area" || !data.timeColumn || !currentFrame)
+      return null;
+    return joinChoropleth({
+      geojson: rawGeo,
+      level: data.geoLevel,
+      rows: rowsForFrame(data.rows, data.timeColumn, currentFrame),
+      keyColumn: data.keyColumn,
+      valueColumn: data.valueColumn,
+      nClasses: design.nClasses,
+      method: design.classification,
+      manualBreaks: design.manualBreaks,
+      extraColumns: tooltipCols,
+    });
+  }, [temporalArea, rawGeo, currentFrame, data, design.nClasses, design.classification, design.manualBreaks, tooltipCols]);
+
+  // The choropleth join actually used downstream: the current frame's geometry
+  // with the SHARED classes (temporal), or the plain single join otherwise.
+  const choro =
+    temporalArea && temporalJoined && temporalClasses
+      ? {
+          geojson: temporalJoined.geojson,
+          classes: temporalClasses,
+          matched: temporalJoined.matched,
+          unmatchedCsv: temporalJoined.unmatchedCsv,
+          noDataFeatures: temporalJoined.noDataFeatures,
+        }
+      : joined;
+
   const categoryJoin = useMemo(() => {
     if (!data || data.kind !== "area" || !rawGeo || vizType !== "category")
       return null;
@@ -171,15 +233,15 @@ export function MapCanvas() {
 
   const dataLayer: DataLayer | null = useMemo(() => {
     // Choropleth: graduated fill.
-    if (vizType === "choropleth" && joined) {
+    if (vizType === "choropleth" && choro) {
       const fillColor = buildFillColorExpression(
-        joined.classes,
+        choro.classes,
         scaleColors,
         NO_DATA_COLOR,
       );
       return {
         kind: "area",
-        geojson: joined.geojson,
+        geojson: choro.geojson,
         fillColor,
         nameField: data?.kind === "area" ? GEO_LEVELS[data.geoLevel].nameField : undefined,
         valueLabel,
@@ -290,16 +352,16 @@ export function MapCanvas() {
       };
     }
     return null;
-  }, [vizType, joined, symbolPoints, categoryJoin, points, geoRender, scaleColors, data, valueLabel, design.valueUnit, design.pointColor, design.pointSize, design.tooltipTemplate, design.classification, design.nClasses, design.manualBreaks]);
+  }, [vizType, joined, choro, symbolPoints, categoryJoin, points, geoRender, scaleColors, data, valueLabel, design.valueUnit, design.pointColor, design.pointSize, design.tooltipTemplate, design.classification, design.nClasses, design.manualBreaks]);
 
   const showLegend =
     design.showLegend && vizType === "choropleth";
 
   // Reader class filter (clickable legend). Only meaningful for the choropleth.
-  const filtersOn = design.readerFilters && vizType === "choropleth" && !!joined;
+  const filtersOn = design.readerFilters && vizType === "choropleth" && !!choro;
   const [hiddenClasses, setHiddenClasses] = useState<Set<number>>(new Set());
   // Reset the hidden set whenever the classification or dataset changes.
-  const classKey = joined ? joined.classes.breaks.join(",") : "";
+  const classKey = choro ? choro.classes.breaks.join(",") : "";
   useEffect(() => {
     setHiddenClasses(new Set());
   }, [classKey, vizType, design.readerFilters]);
@@ -312,11 +374,28 @@ export function MapCanvas() {
     });
   const dataFilter = useMemo(
     () =>
-      filtersOn && joined
-        ? buildClassVisibilityFilter(joined.classes.breaks, hiddenClasses)
+      filtersOn && choro
+        ? buildClassVisibilityFilter(choro.classes.breaks, hiddenClasses)
         : null,
-    [filtersOn, joined, hiddenClasses],
+    [filtersOn, choro, hiddenClasses],
   );
+
+  // Time-slider playback. `playing` is local; stepping reads the current index
+  // from a ref so the interval always advances from the latest frame.
+  const [playing, setPlaying] = useState(false);
+  const frameIdxRef = useRef(frameIdx);
+  frameIdxRef.current = frameIdx;
+  useEffect(() => {
+    if (!temporalArea) setPlaying(false);
+  }, [temporalArea]);
+  useEffect(() => {
+    if (!playing || !frames) return;
+    const id = window.setInterval(() => {
+      const next = frameIdxRef.current + 1 >= frames.length ? 0 : frameIdxRef.current + 1;
+      setTimeIndex(next);
+    }, 900);
+    return () => window.clearInterval(id);
+  }, [playing, frames, setTimeIndex]);
 
   // Resolve the chosen basemap. OpenFreeMap styles load by URL (no hosting/key);
   // "none"/"custom" → no basemap (transparent background).
@@ -324,8 +403,8 @@ export function MapCanvas() {
   const basemapUrl = basemapDef?.styleUrl ?? null;
   const hasBasemap = Boolean(basemapUrl);
 
-  const legendColors = joined
-    ? sampleColors(scaleColors, joined.classes.breaks.length + 1)
+  const legendColors = choro
+    ? sampleColors(scaleColors, choro.classes.breaks.length + 1)
     : scaleColors;
 
   return (
@@ -394,7 +473,7 @@ export function MapCanvas() {
               {valueLabel || "Legenda"}
             </p>
             {design.legendType === "steps" ? (
-              filtersOn && joined ? (
+              filtersOn && choro ? (
                 <div className="flex flex-col gap-0.5">
                   {legendColors.map((c, i) => {
                     const hidden = hiddenClasses.has(i);
@@ -412,7 +491,7 @@ export function MapCanvas() {
                           style={{ background: c }}
                         />
                         <span className="text-slate-600">
-                          {classLabel(joined.classes.breaks, i, (n) =>
+                          {classLabel(choro.classes.breaks, i, (n) =>
                             formatNum(n, design.valueUnit),
                           )}
                         </span>
@@ -436,16 +515,16 @@ export function MapCanvas() {
               />
             )}
             <div className="mt-1 flex justify-between text-[10px] text-slate-500">
-              <span>{joined ? formatNum(joined.classes.min, design.valueUnit) : "min"}</span>
-              <span>{joined ? formatNum(joined.classes.max, design.valueUnit) : "max"}</span>
+              <span>{choro ? formatNum(choro.classes.min, design.valueUnit) : "min"}</span>
+              <span>{choro ? formatNum(choro.classes.max, design.valueUnit) : "max"}</span>
             </div>
-            {joined && joined.noDataFeatures > 0 && (
+            {choro && choro.noDataFeatures > 0 && (
               <div className="mt-1.5 flex items-center gap-1.5 text-[10px] text-slate-400">
                 <span
                   className="inline-block h-2.5 w-2.5 rounded-sm"
                   style={{ background: NO_DATA_COLOR }}
                 />
-                Dato non disponibile ({joined.noDataFeatures})
+                Dato non disponibile ({choro.noDataFeatures})
               </div>
             )}
           </div>
@@ -456,6 +535,36 @@ export function MapCanvas() {
       {design.showSource && (
         <div className="pointer-events-none absolute bottom-2 left-4 text-[11px] text-slate-500">
           {project.source}
+        </div>
+      )}
+
+      {/* Time slider (bottom-centre) for a temporal choropleth. */}
+      {temporalArea && frames && currentFrame && (
+        <div className="pointer-events-none absolute bottom-8 left-1/2 w-[min(440px,82%)] -translate-x-1/2">
+          <div className="pointer-events-auto flex items-center gap-3 rounded-xl bg-white/92 px-3 py-2 shadow-lg ring-1 ring-black/5 backdrop-blur">
+            <button
+              onClick={() => setPlaying((p) => !p)}
+              title={playing ? "Pausa" : "Riproduci l'animazione"}
+              className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-zornade text-white transition-colors hover:bg-zornade-700"
+            >
+              {playing ? <Pause size={15} /> : <Play size={15} className="ml-0.5" />}
+            </button>
+            <input
+              type="range"
+              min={0}
+              max={frames.length - 1}
+              value={frameIdx}
+              onChange={(e) => {
+                setPlaying(false);
+                setTimeIndex(Number(e.target.value));
+              }}
+              aria-label="Periodo"
+              className="h-1 flex-1 cursor-pointer accent-zornade"
+            />
+            <span className="w-14 flex-shrink-0 text-right text-xs font-semibold tabular-nums text-slate-700">
+              {frameLabel(currentFrame)}
+            </span>
+          </div>
         </div>
       )}
     </div>

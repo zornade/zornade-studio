@@ -23,6 +23,7 @@ import {
   type ClassBreaks,
 } from "./choropleth";
 import { colorsForScale, basemapStyleUrl } from "../studio/palettes";
+import { frameLabel } from "./temporal";
 
 /** Pinned MapLibre version for embeds (matches the app's maplibre-gl). */
 export const EMBED_MAPLIBRE_VERSION = "4.7.1";
@@ -99,16 +100,35 @@ export function buildEmbedHtml(
     if (k !== "") extraByKey[k] = datum.extra;
   }
   // Prefer the breaks computed against the real geometry (matched values only);
-  // fall back to classifying the raw spec data when none were supplied.
+  // fall back to classifying the raw spec data when none were supplied. For a
+  // temporal map the fallback classifies over EVERY frame's values so colours
+  // are comparable across periods (a value means the same colour over time).
+  const fallbackValues = spec.frames
+    ? spec.frames.flatMap((f) => f.data.map((dd) => dd.value))
+    : Object.values(keyed);
   const classes =
     opts.classes ??
-    computeBreaks(Object.values(keyed), d.classification, d.nClasses, d.manualBreaks);
+    computeBreaks(fallbackValues, d.classification, d.nClasses, d.manualBreaks);
   const scaleColors = colorsForScale(d.colorScale, d.reverseScale);
   const noData = DEFAULT_NO_DATA_COLOR;
   const fill = buildFillColorExpression(classes, scaleColors, noData);
   const legendColors = sampleColors(scaleColors, classes.breaks.length + 1);
   const { fields, nameField } = geoJoinFields(spec.geo.level);
   const valueLabel = d.valueLabel || spec.geo.valueColumn || "Valore";
+
+  // Temporal frames: normalised key→value per period, with a human label. The
+  // initial paint uses `keyed` (= spec.data = newest frame); the slider swaps
+  // in another frame's `keyed` at runtime, keeping the shared fill/classes.
+  const frames = spec.frames
+    ? spec.frames.map((f) => {
+        const k: Record<string, number> = {};
+        for (const dd of f.data) {
+          const nk = normaliseKey(dd.key);
+          if (nk !== "") k[nk] = dd.value;
+        }
+        return { label: frameLabel(f.period), keyed: k };
+      })
+    : null;
 
   const embed = {
     geoUrl,
@@ -135,6 +155,8 @@ export function buildEmbedHtml(
     noDataLabel: "Dato non disponibile",
     tooltipTemplate: d.tooltipTemplate || "",
     extraByKey,
+    frames,
+    initialFrame: frames ? frames.length - 1 : 0,
   };
 
   return `<!doctype html>
@@ -174,6 +196,17 @@ ${canonical ? `<link rel="canonical" href="${canonical}">` : ""}
   .studio-tooltip-name{font-weight:600;font-size:13px;color:#0f172a}
   .studio-tooltip-value{margin-top:2px;font-size:12px;color:#334155}
   .studio-tooltip-value span{color:#64748b;text-transform:capitalize}
+  .tsl{position:absolute;left:50%;bottom:46px;transform:translateX(-50%);
+    width:min(440px,82%);display:flex;align-items:center;gap:10px;
+    background:rgba(255,255,255,.92);padding:7px 12px;border-radius:12px;
+    box-shadow:0 2px 10px rgba(0,0,0,.14);z-index:3}
+  .tsl-btn{flex-shrink:0;width:30px;height:30px;border:0;border-radius:999px;
+    background:#01646f;color:#fff;cursor:pointer;font-size:13px;line-height:1;
+    display:flex;align-items:center;justify-content:center}
+  .tsl-btn:hover{background:#024e57}
+  .tsl input[type=range]{flex:1;accent-color:#01646f;cursor:pointer}
+  .tsl-lbl{flex-shrink:0;width:52px;text-align:right;font-size:12px;
+    font-weight:600;color:#334155;font-variant-numeric:tabular-nums}
 </style>
 </head>
 <body>
@@ -220,14 +253,7 @@ var GEO=null,ready=false;
 map.on("load",function(){ready=true;if(GEO)build();});
 fetch(E.geoUrl).then(function(r){return r.json();}).then(function(g){GEO=g;if(ready)build();});
 function build(){
-  var noData=0;
-  GEO.features.forEach(function(f){var p=f.properties||(f.properties={});var val,mk="";
-    for(var i=0;i<E.fields.length;i++){var k=nk(p[E.fields[i]]);
-      if(k&&Object.prototype.hasOwnProperty.call(E.keyed,k)){val=E.keyed[k];mk=k;break;}}
-    if(val!=null){p.__value=val;
-      if(E.extraByKey&&E.extraByKey[mk]){var ex=E.extraByKey[mk];
-        for(var c in ex){if(Object.prototype.hasOwnProperty.call(ex,c))p["col:"+c]=ex[c];}}
-    }else{delete p.__value;noData++;}});
+  var noData=paint(E.keyed);
   map.addSource("d",{type:"geojson",data:GEO});
   var firstSym=(map.getStyle().layers||[]).filter(function(l){return l.type==="symbol";})[0];
   var before=firstSym&&firstSym.id;
@@ -238,6 +264,41 @@ function build(){
   fit();
   if(E.showLegend)legend(noData);
   if(E.tooltip)tooltip();
+  if(E.frames&&E.frames.length>1)timeUI();
+}
+// Apply a frame's values (key→value) onto the geometry; returns the no-data
+// count. Shared by the first paint and by the time slider.
+function paint(keyed){
+  var noData=0;
+  GEO.features.forEach(function(f){var p=f.properties||(f.properties={});var val,mk="";
+    for(var i=0;i<E.fields.length;i++){var k=nk(p[E.fields[i]]);
+      if(k&&Object.prototype.hasOwnProperty.call(keyed,k)){val=keyed[k];mk=k;break;}}
+    if(val!=null){p.__value=val;
+      if(E.extraByKey&&E.extraByKey[mk]){var ex=E.extraByKey[mk];
+        for(var c in ex){if(Object.prototype.hasOwnProperty.call(ex,c))p["col:"+c]=ex[c];}}
+    }else{delete p.__value;noData++;}});
+  return noData;
+}
+function setFrame(i){if(!E.frames||!E.frames[i])return;
+  paint(E.frames[i].keyed);var src=map.getSource("d");if(src)src.setData(GEO);}
+// Time slider + play button for a temporal map. The fill expression / classes
+// are shared across frames, so only the per-feature __value changes per period.
+function timeUI(){
+  var idx=E.initialFrame||0;
+  var box=document.createElement("div");box.className="tsl";
+  var btn=document.createElement("button");btn.className="tsl-btn";
+  btn.innerHTML="\u25B6";btn.title="Riproduci l'animazione";
+  var rng=document.createElement("input");rng.type="range";rng.min=0;
+  rng.max=E.frames.length-1;rng.value=idx;rng.setAttribute("aria-label","Periodo");
+  var lbl=document.createElement("span");lbl.className="tsl-lbl";lbl.textContent=E.frames[idx].label;
+  box.appendChild(btn);box.appendChild(rng);box.appendChild(lbl);document.body.appendChild(box);
+  var timer=null;
+  function show(i){idx=i;rng.value=i;lbl.textContent=E.frames[i].label;setFrame(i);}
+  function stop(){if(timer){clearInterval(timer);timer=null;btn.innerHTML="\u25B6";btn.title="Riproduci l'animazione";}}
+  function play(){btn.innerHTML="\u2759\u2759";btn.title="Pausa";
+    timer=setInterval(function(){show(idx+1>=E.frames.length?0:idx+1);},900);}
+  btn.onclick=function(){if(timer)stop();else play();};
+  rng.oninput=function(){stop();show(parseInt(rng.value,10));};
 }
 function fit(){try{var b=new maplibregl.LngLatBounds();
   GEO.features.forEach(function(f){var g=f.geometry;if(!g)return;

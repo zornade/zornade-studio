@@ -114,6 +114,57 @@ describe("buildSpec", () => {
   });
 });
 
+describe("buildSpec · temporal (O3.3)", () => {
+  function temporalState(): StudioState {
+    const s = baseState();
+    s.data = {
+      kind: "area",
+      fileName: "arrivi-temporale.csv",
+      columns: ["Regione", "periodo", "Arrivi"],
+      rows: [
+        { Regione: "Lombardia", periodo: "2020", Arrivi: "100" },
+        { Regione: "Lazio", periodo: "2020", Arrivi: "50" },
+        { Regione: "Lombardia", periodo: "2021", Arrivi: "120" },
+        { Regione: "Lazio", periodo: "2021", Arrivi: "60" },
+      ],
+      geoLevel: "regioni",
+      keyColumn: "Regione",
+      valueColumn: "Arrivi",
+      numericColumns: ["Arrivi"],
+      timeColumn: "periodo",
+      timeFrames: ["2020", "2021"],
+    };
+    return s;
+  }
+
+  it("emits time + per-frame data, with the newest frame as the initial data", () => {
+    const out = buildSpec(temporalState());
+    expect("spec" in out).toBe(true);
+    if (!("spec" in out)) return;
+    const { spec } = out;
+    expect(spec.time).toEqual({ column: "periodo", frames: ["2020", "2021"] });
+    expect(spec.frames).toHaveLength(2);
+    expect(spec.frames![0].period).toBe("2020");
+    expect(spec.frames![0].data).toEqual([
+      { key: "Lombardia", value: 100 },
+      { key: "Lazio", value: 50 },
+    ]);
+    expect(spec.frames![1].data).toEqual([
+      { key: "Lombardia", value: 120 },
+      { key: "Lazio", value: 60 },
+    ]);
+    // Initial display = newest frame (2021).
+    expect(spec.data).toEqual(spec.frames![1].data);
+  });
+
+  it("a non-temporal spec carries no time/frames", () => {
+    const out = buildSpec(baseState());
+    if (!("spec" in out)) throw new Error("expected spec");
+    expect(out.spec.time).toBeUndefined();
+    expect(out.spec.frames).toBeUndefined();
+  });
+});
+
 describe("serialiseSpec", () => {
   it("is deterministic for equal specs", () => {
     const a = buildSpec(baseState());

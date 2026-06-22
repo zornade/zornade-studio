@@ -21,6 +21,7 @@ import postgres from "postgres";
 import { verifyToken, readCookie } from "./_session.mts";
 import {
   parseDbRequest,
+  omiSemesters,
   type DbQueryRequest,
   type DbRow,
 } from "../../src/lib/zornade-db";
@@ -91,6 +92,33 @@ async function runQuery(
       // istat(6); RIGHT(...,6) gives the 6-digit comune ISTAT code.
       const minCol = req.market === "locazione" ? "loc_min_eur_mq" : "compr_min_eur_mq";
       const maxCol = req.market === "locazione" ? "loc_max_eur_mq" : "compr_max_eur_mq";
+      if (req.temporal) {
+        // All 22 semesters. A single GROUP BY over the whole history scans ~450k
+        // rows and spills the hash to disk (6–20s — over budget). Instead run one
+        // aggregate PER semester: `semestre` is the leading primary-key column,
+        // so each is a fast indexed range (~50–100ms). Total ≈ 3s, well under the
+        // statement timeout, and never spills. Rows are concatenated long-form.
+        const all: DbRow[] = [];
+        for (const sem of omiSemesters()) {
+          const rows = await sql`
+            SELECT right(comune_istat, 6) AS istat,
+                   max(comune_descrizione) AS comune,
+                   semestre AS periodo,
+                   round(avg((${sql(minCol)} + ${sql(maxCol)}) / 2.0)::numeric, 0) AS value
+            FROM public.omi_historical
+            WHERE semestre = ${sem}
+              AND cod_tipologia = ${req.tipologia}
+              AND stato_conservativo = 'NORMALE'
+              AND ${sql(minCol)} IS NOT NULL
+              AND ${sql(maxCol)} IS NOT NULL
+              AND comune_istat IS NOT NULL
+            GROUP BY right(comune_istat, 6), semestre
+            LIMIT ${MAX_ROWS}
+          `;
+          for (const r of toRows(rows)) all.push(r);
+        }
+        return all;
+      }
       const rows = await sql`
         SELECT right(comune_istat, 6) AS istat,
                max(comune_descrizione) AS comune,
@@ -150,7 +178,9 @@ function toRows(rows: readonly Record<string, unknown>[]): DbRow[] {
     const comune = r.comune == null ? "" : String(r.comune);
     const value = typeof r.value === "number" ? r.value : Number(r.value);
     if (istat === "" || !Number.isFinite(value)) continue;
-    out.push({ istat, comune, value });
+    const row: DbRow = { istat, comune, value };
+    if (r.periodo != null) row.periodo = String(r.periodo);
+    out.push(row);
   }
   return out;
 }

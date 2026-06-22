@@ -23,8 +23,20 @@ describe("parseDbRequest", () => {
         semestre: "2025_2",
         tipologia: "20",
         market: "compravendita",
+        temporal: false,
       },
     });
+  });
+
+  it("accepts a temporal OMI request (all semesters)", () => {
+    const out = parseDbRequest({
+      dataset: "omi",
+      semestre: "2025_2",
+      tipologia: "20",
+      market: "compravendita",
+      temporal: true,
+    });
+    expect("request" in out && out.request.dataset === "omi" && out.request.temporal).toBe(true);
   });
 
   it("defaults an unknown market to compravendita", () => {
@@ -79,6 +91,7 @@ describe("describeDbRequest", () => {
       semestre: "2025_2",
       tipologia: "20",
       market: "compravendita",
+      temporal: false,
     });
     expect(buy.valueUnit).toBe("€/m²");
     expect(buy.title).toContain("2025/2");
@@ -88,6 +101,7 @@ describe("describeDbRequest", () => {
       semestre: "2025_2",
       tipologia: "20",
       market: "locazione",
+      temporal: false,
     });
     expect(rent.valueUnit).toBe("€/m²·mese");
     expect(rent.valueLabel.toLowerCase()).toContain("affitto");
@@ -112,6 +126,16 @@ describe("dbRowsToTable", () => {
     expect(t.columns).toEqual(["codice_istat", "comune", "valore"]);
     expect(t.rows[0]).toEqual({ codice_istat: "058091", comune: "Roma", valore: "3032" });
     expect(t.rows[1].comune).toBe("Torino");
+  });
+
+  it("adds a periodo column for temporal rows", () => {
+    const rows: DbRow[] = [
+      { istat: "058091", comune: "Roma", value: 3000, periodo: "2015_1" },
+      { istat: "058091", comune: "Roma", value: 3200, periodo: "2025_2" },
+    ];
+    const t = dbRowsToTable(rows);
+    expect(t.columns).toEqual(["codice_istat", "comune", "periodo", "valore"]);
+    expect(t.rows[0]).toEqual({ codice_istat: "058091", comune: "Roma", periodo: "2015_1", valore: "3000" });
   });
 });
 

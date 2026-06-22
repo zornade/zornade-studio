@@ -169,3 +169,48 @@ describe("buildEmbedHtml", () => {
     expect(out).not.toContain('<div class="src">');
   });
 });
+
+describe("buildEmbedHtml · temporal (O3.3)", () => {
+  const temporalSpec = spec({
+    data: [
+      { key: "Lombardia", value: 120 },
+      { key: "Lazio", value: 60 },
+    ],
+    time: { column: "periodo", frames: ["2020", "2021"] },
+    frames: [
+      { period: "2020", data: [{ key: "Lombardia", value: 100 }, { key: "Lazio", value: 50 }] },
+      { period: "2021", data: [{ key: "Lombardia", value: 120 }, { key: "Lazio", value: 60 }] },
+    ],
+  });
+  const out = buildEmbedHtml(temporalSpec, { geoBaseUrl: "https://embed.x/geo" });
+
+  it("injects the frames keyed by normalised key, with labels", () => {
+    expect(out).toContain('"frames":');
+    expect(out).toContain('"label":"2020"');
+    expect(out).toContain('"label":"2021"');
+    // Normalised keys present in a frame.
+    expect(out).toContain("lombardia");
+  });
+
+  it("starts on the most recent frame", () => {
+    expect(out).toContain('"initialFrame":1');
+  });
+
+  it("ships the time-slider data (frames array) that activates the UI", () => {
+    // The renderer always defines timeUI(); it activates only when frames exist.
+    expect(out).toContain('"frames":[');
+    expect(out).toContain("function timeUI(");
+  });
+
+  it("classifies over ALL frames so colours are comparable across time", () => {
+    // Shared scale spans both frames' values (50…120), not just the newest.
+    const { breaks } = computeBreaks([100, 50, 120, 60], "quantile", 5, []);
+    for (const b of breaks) expect(out).toContain(String(b));
+  });
+
+  it("a non-temporal spec ships no frames (slider stays inert)", () => {
+    const plain = buildEmbedHtml(spec(), { geoBaseUrl: "https://embed.x/geo" });
+    expect(plain).toContain('"frames":null');
+    expect(plain).toContain('"initialFrame":0');
+  });
+});
