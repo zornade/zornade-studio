@@ -7,6 +7,8 @@
  * static catalogue.
  */
 
+import { activeSources } from "./sources";
+
 export interface CkanResource {
   format: string;
   name: string;
@@ -33,15 +35,16 @@ export interface CatalogPortal {
   label: string;
 }
 
-/** Portals exposed by /api/ckan (kept in sync with the function whitelist). */
-export const CATALOG_PORTALS: CatalogPortal[] = [
-  { id: "nazionale", label: "dati.gov.it (nazionale)" },
-  { id: "milano", label: "Comune di Milano" },
-  { id: "napoli", label: "Comune di Napoli" },
-  { id: "toscana", label: "Regione Toscana" },
-  { id: "emilia", label: "Regione Emilia-Romagna" },
-  { id: "roma", label: "Roma Capitale" },
-];
+/**
+ * Portals exposed in the UI. Derived from the shared {@link activeSources}
+ * registry (single source of truth, also used by the `/api/ckan` proxy), with
+ * blacklisted sources already filtered out — so this never drifts from the
+ * server whitelist and a new portal appears automatically.
+ */
+export const CATALOG_PORTALS: CatalogPortal[] = activeSources().map((s) => ({
+  id: s.id,
+  label: s.label,
+}));
 
 let availability: boolean | null = null;
 
