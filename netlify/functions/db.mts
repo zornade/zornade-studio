@@ -62,6 +62,14 @@ export default async (req: Request): Promise<Response> => {
     idle_timeout: 5,
     connect_timeout: 8,
     prepare: false, // transaction pooler (PgBouncer) doesn't support prepared stmts
+    // Encrypt the connection but don't verify the certificate chain: the
+    // Supabase pooler presents a self-signed chain that Netlify's CA store
+    // doesn't trust, so full verification fails with "self-signed certificate
+    // in certificate chain". `ssl: "require"` is the libpq `sslmode=require`
+    // semantics (TLS on, no chain validation) — the documented setup for
+    // serverless drivers against Supabase. Set here so it holds regardless of
+    // whether the connection string carries `?sslmode=...`.
+    ssl: "require",
     // Belt-and-braces: even with a read-only role, forbid writes at the session.
     connection: { statement_timeout: STATEMENT_TIMEOUT_MS },
   });
