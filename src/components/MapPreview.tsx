@@ -505,7 +505,6 @@ export function MapPreview({
       lang,
       basemap,
     }) as maplibregl.StyleSpecification;
-    if (globe) style.projection = { type: "globe" } as maplibregl.StyleSpecification["projection"];
     return style;
   };
 
@@ -734,7 +733,7 @@ export function MapPreview({
       }
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tilesUrl, flavor, lang, basemap, basemapUrl, globe]);
+  }, [tilesUrl, flavor, lang, basemap, basemapUrl]);
 
   // Re-sync the overlay whenever the data layer changes.
   useEffect(() => {
@@ -761,6 +760,8 @@ export function MapPreview({
       if (globe) {
         map.easeTo({ zoom: 1.5, center: [0, 20], duration: 400 });
       }
+      // Re-sync data layers after projection change so they are visible on the globe.
+      syncData(map);
     };
     // setProjection requires the style to be fully loaded.
     if (map.isStyleLoaded()) {
@@ -768,7 +769,7 @@ export function MapPreview({
     } else {
       map.once("style.load", apply);
     }
-  }, [globe]);
+  }, [globe]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Re-apply the reader class filter when it changes (without rebuilding data).
   useEffect(() => {
