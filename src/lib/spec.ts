@@ -70,8 +70,7 @@ export type AreaRender =
   | "bivariate"
   | "spike"
   | "extrusion"
-  | "cartogram"
-  | "globe";
+  | "cartogram";
 
 /** One time frame of a temporal choropleth: a period label + its data (O3.3). */
 export interface SpecFrame {
@@ -110,6 +109,8 @@ export interface ChoroplethSpec {
   type: "choropleth";
   /** How the area data is painted; absent = "choropleth" (back-compat). */
   render?: AreaRender;
+  /** Render on a 3D globe (spherical projection). Absent = false (back-compat). */
+  globe?: boolean;
   /** Cartogram variant, present only when render === "cartogram". */
   cartogramKind?: "noncontiguous" | "dorling";
   project: SpecProject;
@@ -278,7 +279,6 @@ const AREA_RENDERS = new Set<AreaRender>([
   "spike",
   "extrusion",
   "cartogram",
-  "globe",
 ]);
 
 /** Result of {@link buildSpec}: the spec, or a human reason it can't be built. */
@@ -436,6 +436,7 @@ function makeAreaSpec(
     // already-published embeds stay byte-identical.
     ...(render !== "choropleth" ? { render } : {}),
     ...(render === "cartogram" ? { cartogramKind: design.cartogramKind } : {}),
+    ...(design.globe ? { globe: true } : {}),
     project: {
       title: project.title,
       subtitle: project.subtitle,

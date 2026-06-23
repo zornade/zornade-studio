@@ -178,7 +178,6 @@ const RULES: Record<string, Rule> = {
       ? { ok: true, score: 0.6 }
       : { ok: false, reason: "servono 4 colonne numeriche: coordinate di origine e destinazione" },
   raster: NOT_DATA_DRIVEN,
-  globe: NEED_GEO_AREA_VALUE,
   // Charts.
   bar: NEED_CAT_OR_TIME_VALUE,
   line: NEED_CAT_OR_TIME_VALUE,

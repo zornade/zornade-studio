@@ -1,4 +1,5 @@
 import { useMemo } from "react";
+import { Globe2 } from "lucide-react";
 import { useStudio } from "../../studio/StudioContext";
 import { VIZ_GROUPS } from "../../studio/catalog";
 import { PanelSection, SoonBadge } from "../primitives";
@@ -21,7 +22,6 @@ const IMPLEMENTED = new Set<string>([
   "dotdensity",
   "cartogram",
   "flow",
-  "globe",
   "bar",
   "line",
   "area",
@@ -48,7 +48,21 @@ const TYPE_LABEL: Record<SemanticType, string> = {
 };
 
 export function VisualizePanel() {
-  const { vizType, setVizType, data } = useStudio();
+  const { vizType, setVizType, data, design, updateDesign } = useStudio();
+
+  // Show the globe toggle for area-based viz types that support it.
+  const showGlobeToggle =
+    !!data &&
+    data.kind === "area" &&
+    [
+      "choropleth",
+      "category",
+      "bivariate",
+      "symbol",
+      "spike",
+      "extrusion",
+      "cartogram",
+    ].includes(vizType);
 
   // Profile the loaded data and evaluate which visualisations it supports.
   // Geo level/key are already resolved at load time (value-based), so we feed a
@@ -196,6 +210,43 @@ export function VisualizePanel() {
           </div>
         </PanelSection>
       ))}
+
+      {showGlobeToggle && (
+        <PanelSection title="Proiezione">
+          <button
+            onClick={() => updateDesign({ globe: !design.globe })}
+            className={`flex w-full items-center gap-3 rounded-xl border px-3 py-2.5 text-left transition-all ${
+              design.globe
+                ? "border-zornade bg-zornade-50 ring-1 ring-zornade"
+                : "border-slate-200 bg-white hover:border-zornade hover:shadow-sm"
+            }`}
+          >
+            <Globe2
+              size={18}
+              className={design.globe ? "text-zornade-700" : "text-slate-500"}
+            />
+            <span className="flex-1">
+              <span className="block text-sm font-medium text-slate-800">
+                Globo 3D
+              </span>
+              <span className="block text-xs text-slate-500">
+                Proiezione sferica interattiva
+              </span>
+            </span>
+            <span
+              className={`h-4 w-8 rounded-full transition-colors ${
+                design.globe ? "bg-zornade" : "bg-slate-200"
+              }`}
+            >
+              <span
+                className={`block h-4 w-4 rounded-full bg-white shadow transition-transform ${
+                  design.globe ? "translate-x-4" : "translate-x-0"
+                }`}
+              />
+            </span>
+          </button>
+        </PanelSection>
+      )}
     </div>
   );
 }

@@ -22,7 +22,7 @@ function state(title: string, value: string): StudioState {
       chartX: "", chartY: "", chartSeries: "", chartSortByValue: false,
       bivariateColumn2: "",
       cartogramKind: "noncontiguous", flowFromLat: "", flowFromLon: "",
-      flowToLat: "", flowToLon: "", flowValue: "", customBasemapUrl: "",
+      flowToLat: "", flowToLon: "", flowValue: "", customBasemapUrl: "", globe: false,
     },
     data: {
       kind: "area",

@@ -413,19 +413,6 @@ export function MapCanvas() {
         tooltipTemplate: design.tooltipTemplate,
       };
     }
-    // Globe: choropleth rendered on a spherical projection.
-    if (vizType === "globe" && choro) {
-      const fillColor = buildFillColorExpression(choro.classes, scaleColors, NO_DATA_COLOR);
-      return {
-        kind: "globe" as const,
-        geojson: choro.geojson,
-        fillColor,
-        nameField: data?.kind === "area" ? GEO_LEVELS[data.geoLevel].nameField : undefined,
-        valueLabel,
-        valueUnit: design.valueUnit || undefined,
-        tooltipTemplate: design.tooltipTemplate,
-      };
-    }
     // Heatmap: density surface from the point cloud.
     if (vizType === "heatmap" && points && data?.kind === "point") {
       return {
@@ -654,22 +641,18 @@ export function MapCanvas() {
       ? choro?.classes ?? null
       : vizType === "extrusion"
         ? joined?.classes ?? null
-        : vizType === "globe"
-          ? choro?.classes ?? null
-          : vizType === "cartogram"
-            ? joined?.classes ?? null
-            : vizType === "hexbin"
-              ? hexbinClasses
-              : null;
+        : vizType === "cartogram"
+          ? joined?.classes ?? null
+          : vizType === "hexbin"
+            ? hexbinClasses
+            : null;
   // Count of "no data" areas to note under the legend (graduated area maps).
   const legendNoData =
     vizType === "choropleth"
       ? choro?.noDataFeatures ?? 0
       : vizType === "extrusion"
         ? joined?.noDataFeatures ?? 0
-        : vizType === "globe"
-          ? choro?.noDataFeatures ?? 0
-          : 0;
+        : 0;
   const showLegend = design.showLegend && legendClasses != null;
 
   // Reader class filter (clickable legend). Only meaningful for the choropleth.
@@ -742,7 +725,7 @@ export function MapCanvas() {
         basemapUrl={basemapStyle}
         dataFilter={dataFilter}
         pitch={pitch}
-        globe={vizType === "globe"}
+        globe={design.globe}
         onMapReady={(api) => {
           mapApiRef.current = api;
         }}

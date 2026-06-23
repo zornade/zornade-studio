@@ -582,14 +582,14 @@ function buildAreaEmbedHtml(
     bivB,
     bivPalette: BIVARIATE_PALETTE,
     basemapStyle: resolveBasemap(d.basemap, d.customBasemapUrl ?? ""),
-    center: (spec.camera?.center ?? (render === "globe" ? [0, 20] : [12.5, 42])) as [number, number],
-    zoom: spec.camera?.zoom ?? (render === "globe" ? 1.5 : 4.4),
+    center: (spec.camera?.center ?? (spec.globe ? [0, 20] : [12.5, 42])) as [number, number],
+    zoom: spec.camera?.zoom ?? (spec.globe ? 1.5 : 4.4),
     pitch: spec.camera?.pitch ?? (render === "extrusion" ? 50 : 0),
     bearing: spec.camera?.bearing ?? 0,
     hasCamera: !!spec.camera,
     bounds: spec.camera?.bounds ?? null,
+    globe: spec.globe ?? false,
     interactive: !!d.zoomPan,
-    tooltip: !!d.tooltip,
     showLegend: !!d.showLegend,
     legendType: d.legendType,
     readerFilters: !!d.readerFilters,
@@ -704,7 +704,7 @@ function fmt(n){var s=NF.format(n);return E.valueUnit?(s+"\u00a0"+E.valueUnit):s
 var map=new maplibregl.Map({container:"map",
   style:E.basemapStyle||{version:8,sources:{},layers:[]},
   center:E.center,zoom:E.zoom,pitch:E.pitch,bearing:E.bearing,attributionControl:false,interactive:E.interactive});
-if(E.render==="globe")map.setProjection({type:"globe"});
+if(E.globe)map.setProjection({type:"globe"});
 map.addControl(new maplibregl.AttributionControl({compact:true}));
 var GEO=null,ready=false;
 map.on("load",function(){ready=true;if(GEO)build();});
@@ -720,11 +720,6 @@ function build(){
         "fill-extrusion-height":["interpolate",["linear"],
           ["coalesce",["to-number",["get","__value"]],E.min],E.min,0,E.max,120000],
         "fill-extrusion-base":0,"fill-extrusion-opacity":0.9}},before);
-  }else if(E.render==="globe"){
-    map.addLayer({id:"d-fill",type:"fill",source:"d",
-      paint:{"fill-color":E.fill,"fill-opacity":0.82}},before);
-    map.addLayer({id:"d-line",type:"line",source:"d",
-      paint:{"line-color":"#fff","line-width":0.4}},before);
   }else if(E.render==="symbol"||E.render==="spike"){
     map.addLayer({id:"d-line",type:"line",source:"d",
       paint:{"line-color":"#cbd5e1","line-width":0.5}},before);

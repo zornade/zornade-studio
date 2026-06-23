@@ -118,6 +118,7 @@ const INITIAL_DESIGN: DesignSettings = {
   flowToLon: "",
   flowValue: "",
   customBasemapUrl: "",
+  globe: false,
 };
 
 /** localStorage key for the best-effort session autosave. */

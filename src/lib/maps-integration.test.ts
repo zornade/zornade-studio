@@ -132,7 +132,7 @@ describe("area-map publish · real data end-to-end (O4 Fase 1)", () => {
         readerFilters: false, chartX: "", chartY: "", chartSeries: "",
         chartSortByValue: false, bivariateColumn2: "",
         cartogramKind: "noncontiguous", flowFromLat: "", flowFromLon: "",
-        flowToLat: "", flowToLon: "", flowValue: "", customBasemapUrl: "", ...over,
+        flowToLat: "", flowToLon: "", flowValue: "", customBasemapUrl: "", globe: false, ...over,
       },
       data: {
         kind: "area", fileName: "regioni-completo.csv", columns, rows,
@@ -199,7 +199,7 @@ describe("area-map publish · real data end-to-end (O4 Fase 1)", () => {
         readerFilters: false, chartX: "regione", chartY: "produzione_rinnovabile_gwh",
         chartSeries: "", chartSortByValue: true, bivariateColumn2: "",
         cartogramKind: "noncontiguous", flowFromLat: "", flowFromLon: "",
-        flowToLat: "", flowToLon: "", flowValue: "", customBasemapUrl: "",
+        flowToLat: "", flowToLon: "", flowValue: "", customBasemapUrl: "", globe: false,
       },
       data: {
         kind: "table", fileName: "rinnovabili.csv", columns, rows,
