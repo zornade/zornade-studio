@@ -1,6 +1,7 @@
 import type { NewsroomBrand } from "../basemap";
 import type { PresetChoice } from "./catalog";
 import type { GeoLevel } from "../lib/choropleth";
+import type { Annotation } from "../lib/annotations";
 
 export type StepId = "data" | "visualize" | "design" | "publish";
 
@@ -169,4 +170,6 @@ export interface StudioState {
   design: DesignSettings;
   /** Active dataset (null until a file is loaded). */
   data: DatasetState | null;
+  /** Custom map annotations drawn over the map (O3.4). */
+  annotations: Annotation[];
 }

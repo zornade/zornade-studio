@@ -4,6 +4,22 @@ import type { Flavor } from "@protomaps/basemaps";
 import { buildStyle } from "../basemap";
 import { ensurePmtilesProtocol } from "../lib/pmtiles";
 import { renderTooltipTemplate } from "../lib/tooltip";
+import {
+  annotationsToGeoJson,
+  markerAnnotations,
+  newAnnotationId,
+  makeMarker,
+  makeText,
+  makeLine,
+  makeArea,
+  DEFAULT_ANNOTATION_COLOR,
+  DEFAULT_LINE_WIDTH,
+  DEFAULT_AREA_OPACITY,
+  type Annotation,
+  type DrawTool,
+  type LngLat,
+  type MarkerDescriptor,
+} from "../lib/annotations";
 
 /** A choropleth data layer to overlay on the basemap. */
 export interface DataLayer {
@@ -63,6 +79,14 @@ interface MapPreviewProps {
    * class filtering. `null` clears any filter (all features shown).
    */
   dataFilter?: unknown | null;
+  /** Custom annotations to render over the map (O3.4). */
+  annotations?: Annotation[];
+  /** Armed drawing tool: clicks on the map place an annotation. */
+  annotationTool?: DrawTool | null;
+  /** Called when a placement completes with the new annotation. */
+  onPlaceAnnotation?: (a: Annotation) => void;
+  /** Called to disarm the tool (Escape, or after a one-shot placement). */
+  onExitTool?: () => void;
 }
 
 // Centred on the Italian peninsula.
@@ -74,6 +98,15 @@ const FILL = "studio-data-fill";
 const LINE = "studio-data-line";
 /** Extra layer for points inside a user "geo" dataset (KML/Shapefile points). */
 const GEO_POINT = "studio-geo-point";
+
+/** Annotation layers (O3.4): lines/areas as GeoJSON, drawn above the data. */
+const ANNOT_SRC = "studio-annot";
+const ANNOT_FILL = "studio-annot-fill";
+const ANNOT_LINE = "studio-annot-line";
+const ANNOT_PREVIEW_SRC = "studio-annot-preview";
+const ANNOT_PREVIEW_FILL = "studio-annot-preview-fill";
+const ANNOT_PREVIEW_LINE = "studio-annot-preview-line";
+const EMPTY_FC: GeoJSON.FeatureCollection = { type: "FeatureCollection", features: [] };
 
 /** Italian number formatting for tooltip values. */
 const fmt = new Intl.NumberFormat("it-IT", { maximumFractionDigits: 2 });
@@ -89,6 +122,10 @@ export function MapPreview({
   basemapUrl = null,
   fitKey = null,
   dataFilter = null,
+  annotations = [],
+  annotationTool = null,
+  onPlaceAnnotation,
+  onExitTool,
 }: MapPreviewProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
@@ -101,6 +138,20 @@ export function MapPreview({
   const tooltipEnabledRef = useRef<boolean>(tooltip);
   tooltipEnabledRef.current = tooltip;
   const lastFitRef = useRef<string | null>(null);
+
+  // --- Annotations (O3.4): live refs read by the once-bound map handlers. ---
+  const annotationsRef = useRef<Annotation[]>(annotations);
+  annotationsRef.current = annotations;
+  const annotToolRef = useRef<DrawTool | null>(annotationTool);
+  annotToolRef.current = annotationTool;
+  const onPlaceRef = useRef(onPlaceAnnotation);
+  onPlaceRef.current = onPlaceAnnotation;
+  const onExitRef = useRef(onExitTool);
+  onExitRef.current = onExitTool;
+  /** DOM markers currently on the map (marker + text annotations). */
+  const markerObjsRef = useRef<maplibregl.Marker[]>([]);
+  /** First click of a two-step (line/area) placement, or null. */
+  const pendingRef = useRef<LngLat | null>(null);
 
   // Add/update/remove the choropleth source + layers. Re-runs after every
   // setStyle (which wipes custom layers), so it is idempotent.
@@ -242,6 +293,99 @@ export function MapPreview({
     }
   };
 
+  // --- Annotations (O3.4) ---------------------------------------------------
+  // Render line/area annotations as a GeoJSON source + fill/line layers drawn
+  // ABOVE the data, and marker/text annotations as DOM markers. Idempotent:
+  // re-runs after every setStyle (which wipes custom layers), reusing the
+  // source when it already exists so updates are cheap.
+  const syncAnnotations = (map: maplibregl.Map) => {
+    if (!map.isStyleLoaded()) {
+      map.once("idle", () => syncAnnotations(map));
+      return;
+    }
+    const fc = annotationsToGeoJson(annotationsRef.current);
+    const src = map.getSource(ANNOT_SRC) as maplibregl.GeoJSONSource | undefined;
+    if (src) {
+      src.setData(fc);
+    } else {
+      map.addSource(ANNOT_SRC, { type: "geojson", data: fc });
+      map.addLayer({
+        id: ANNOT_FILL,
+        type: "fill",
+        source: ANNOT_SRC,
+        filter: ["==", ["geometry-type"], "Polygon"],
+        paint: {
+          "fill-color": ["get", "__color"],
+          "fill-opacity": ["get", "__opacity"],
+        },
+      });
+      map.addLayer({
+        id: ANNOT_LINE,
+        type: "line",
+        source: ANNOT_SRC,
+        layout: { "line-cap": "round", "line-join": "round" },
+        paint: {
+          "line-color": ["get", "__color"],
+          "line-width": ["get", "__width"],
+        },
+      });
+    }
+    syncAnnotationMarkers(map);
+  };
+
+  /** Rebuild the DOM markers for marker + text annotations (cheap; recreate). */
+  const syncAnnotationMarkers = (map: maplibregl.Map) => {
+    for (const m of markerObjsRef.current) m.remove();
+    markerObjsRef.current = [];
+    for (const desc of markerAnnotations(annotationsRef.current)) {
+      const marker = new maplibregl.Marker({
+        element: buildMarkerEl(desc),
+        anchor: desc.type === "marker" ? "bottom" : "center",
+      })
+        .setLngLat([desc.lng, desc.lat])
+        .addTo(map);
+      markerObjsRef.current.push(marker);
+    }
+  };
+
+  /** Lazily add the dashed preview layers used during a two-step placement. */
+  const ensurePreviewLayers = (map: maplibregl.Map) => {
+    if (map.getSource(ANNOT_PREVIEW_SRC)) return;
+    map.addSource(ANNOT_PREVIEW_SRC, { type: "geojson", data: EMPTY_FC });
+    map.addLayer({
+      id: ANNOT_PREVIEW_FILL,
+      type: "fill",
+      source: ANNOT_PREVIEW_SRC,
+      filter: ["==", ["geometry-type"], "Polygon"],
+      paint: {
+        "fill-color": ["get", "__color"],
+        "fill-opacity": ["get", "__opacity"],
+      },
+    });
+    map.addLayer({
+      id: ANNOT_PREVIEW_LINE,
+      type: "line",
+      source: ANNOT_PREVIEW_SRC,
+      layout: { "line-cap": "round", "line-join": "round" },
+      paint: {
+        "line-color": ["get", "__color"],
+        "line-width": ["get", "__width"],
+        "line-dasharray": [2, 1.5],
+      },
+    });
+  };
+
+  const setPreview = (map: maplibregl.Map, fc: GeoJSON.FeatureCollection) => {
+    if (!map.isStyleLoaded()) return;
+    ensurePreviewLayers(map);
+    const s = map.getSource(ANNOT_PREVIEW_SRC) as
+      | maplibregl.GeoJSONSource
+      | undefined;
+    if (s) s.setData(fc);
+  };
+
+  const clearPreview = (map: maplibregl.Map) => setPreview(map, EMPTY_FC);
+
   // Resolve the MapLibre style: an external URL (OpenFreeMap) takes priority,
   // otherwise build the bundled Protomaps/PMTiles style.
   const resolveStyle = ():
@@ -293,6 +437,7 @@ export function MapPreview({
     popupRef.current = popup;
 
     map.on("mousemove", FILL, (e) => {
+      if (annotToolRef.current) return;
       if (!tooltipEnabledRef.current) return;
       const f = e.features?.[0];
       if (!f) return;
@@ -320,6 +465,7 @@ export function MapPreview({
         .addTo(map);
     });
     map.on("mouseleave", FILL, () => {
+      if (annotToolRef.current) return;
       map.getCanvas().style.cursor = "";
       popup.remove();
     });
@@ -329,6 +475,7 @@ export function MapPreview({
     const showOnLayer = (
       e: maplibregl.MapLayerMouseEvent,
     ) => {
+      if (annotToolRef.current) return;
       if (!tooltipEnabledRef.current) return;
       const f = e.features?.[0];
       if (!f) return;
@@ -361,7 +508,64 @@ export function MapPreview({
       map.on("mouseleave", id, hideOnLayer);
     }
 
-    map.on("load", () => syncData(map));
+    // Annotation placement: a click with a tool armed adds the annotation.
+    // marker/text are one-shot single clicks; line/area take two clicks (a
+    // start, then the end) with a dashed live preview between them.
+    const handleAnnotClick = (e: maplibregl.MapMouseEvent) => {
+      const tool = annotToolRef.current;
+      if (!tool) return;
+      const pt: LngLat = [e.lngLat.lng, e.lngLat.lat];
+      const id = newAnnotationId();
+      const col = DEFAULT_ANNOTATION_COLOR;
+      if (tool.kind === "marker") {
+        onPlaceRef.current?.(makeMarker(id, pt[0], pt[1], col, ""));
+        onExitRef.current?.();
+        return;
+      }
+      if (tool.kind === "text") {
+        onPlaceRef.current?.(makeText(id, pt[0], pt[1], col, "Testo"));
+        onExitRef.current?.();
+        return;
+      }
+      const start = pendingRef.current;
+      if (!start) {
+        pendingRef.current = pt;
+        return;
+      }
+      if (tool.kind === "line") {
+        onPlaceRef.current?.(
+          makeLine(id, start, pt, col, DEFAULT_LINE_WIDTH, tool.arrow),
+        );
+      } else {
+        onPlaceRef.current?.(
+          makeArea(id, tool.shape, start, pt, col, DEFAULT_AREA_OPACITY),
+        );
+      }
+      pendingRef.current = null;
+      clearPreview(map);
+      onExitRef.current?.();
+    };
+    const handleAnnotMove = (e: maplibregl.MapMouseEvent) => {
+      const tool = annotToolRef.current;
+      const start = pendingRef.current;
+      if (!tool || !start) return;
+      const pt: LngLat = [e.lngLat.lng, e.lngLat.lat];
+      const col = DEFAULT_ANNOTATION_COLOR;
+      const temp =
+        tool.kind === "line"
+          ? makeLine("preview", start, pt, col, DEFAULT_LINE_WIDTH, tool.arrow)
+          : tool.kind === "area"
+            ? makeArea("preview", tool.shape, start, pt, col, DEFAULT_AREA_OPACITY)
+            : null;
+      if (temp) setPreview(map, annotationsToGeoJson([temp]));
+    };
+    map.on("click", handleAnnotClick);
+    map.on("mousemove", handleAnnotMove);
+
+    map.on("load", () => {
+      syncData(map);
+      syncAnnotations(map);
+    });
     mapRef.current = map;
 
     return () => {
@@ -387,7 +591,10 @@ export function MapPreview({
     if (!map) return;
     map.setStyle(resolveStyle());
     map.once("idle", () => {
-      if (mapRef.current) syncData(map);
+      if (mapRef.current) {
+        syncData(map);
+        syncAnnotations(map);
+      }
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tilesUrl, flavor, lang, basemap, basemapUrl]);
@@ -405,6 +612,40 @@ export function MapPreview({
     if (map) applyDataFilter(map);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dataFilter]);
+
+  // Re-render annotations whenever they change (O3.4).
+  useEffect(() => {
+    const map = mapRef.current;
+    if (map) syncAnnotations(map);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [annotations]);
+
+  // Reflect the armed tool: a crosshair cursor while drawing; reset the pending
+  // first-click and any preview when the tool is cleared.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    map.getCanvas().style.cursor = annotationTool ? "crosshair" : "";
+    if (!annotationTool) {
+      pendingRef.current = null;
+      clearPreview(map);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [annotationTool]);
+
+  // Escape cancels an in-progress placement and disarms the tool.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && annotToolRef.current) {
+        pendingRef.current = null;
+        const map = mapRef.current;
+        if (map) clearPreview(map);
+        onExitRef.current?.();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   // Auto fit-bounds to the data extent when the dataset changes (fitKey).
   // Guarded by lastFitRef so restyling (basemap change) does not refit and
@@ -463,6 +704,47 @@ function escapeHtml(s: string): string {
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
+}
+
+/** A coloured teardrop map-pin SVG (tip at the bottom centre). */
+function pinSvg(color: string): string {
+  return (
+    `<svg width="24" height="34" viewBox="0 0 24 34" style="display:block;filter:drop-shadow(0 1px 2px rgba(0,0,0,.35))">` +
+    `<path d="M12 0C5.4 0 0 5.4 0 12c0 8.4 12 22 12 22s12-13.6 12-22C24 5.4 18.6 0 12 0z" ` +
+    `fill="${escapeHtml(color)}" stroke="#fff" stroke-width="2"/>` +
+    `<circle cx="12" cy="12" r="4.5" fill="#fff"/></svg>`
+  );
+}
+
+/**
+ * Build the DOM element for a marker / text annotation. A marker is a coloured
+ * pin (anchored at its tip) with an optional label pill above it; a text
+ * annotation is a coloured label box (anchored at its centre). Both ignore
+ * pointer events so they never block map interaction.
+ */
+function buildMarkerEl(desc: MarkerDescriptor): HTMLElement {
+  const el = document.createElement("div");
+  el.style.pointerEvents = "none";
+  if (desc.type === "marker") {
+    el.style.position = "relative";
+    const label = desc.text
+      ? `<div style="position:absolute;bottom:38px;left:50%;transform:translateX(-50%);` +
+        `white-space:nowrap;background:rgba(255,255,255,.92);color:#0f172a;padding:2px 7px;` +
+        `border-radius:6px;font-size:12px;font-weight:600;box-shadow:0 1px 4px rgba(0,0,0,.2)">` +
+        `${escapeHtml(desc.text)}</div>`
+      : "";
+    el.innerHTML = label + pinSvg(desc.color);
+  } else {
+    el.style.background = "rgba(255,255,255,.85)";
+    el.style.padding = "3px 8px";
+    el.style.borderRadius = "6px";
+    el.style.fontWeight = "600";
+    el.style.fontSize = "13px";
+    el.style.boxShadow = "0 1px 4px rgba(0,0,0,.2)";
+    el.style.color = desc.color;
+    el.textContent = desc.text || "Testo";
+  }
+  return el;
 }
 
 /**

@@ -54,6 +54,7 @@ function baseState(overrides: Partial<StudioState> = {}): StudioState {
       valueColumn: "Arrivi",
       numericColumns: ["Arrivi"],
     },
+    annotations: [],
     ...overrides,
   };
 }

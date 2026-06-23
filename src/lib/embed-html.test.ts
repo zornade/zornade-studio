@@ -214,3 +214,43 @@ describe("buildEmbedHtml · temporal (O3.3)", () => {
     expect(plain).toContain('"initialFrame":0');
   });
 });
+
+describe("buildEmbedHtml · annotations (O3.4)", () => {
+  it("inlines area/line annotations as GeoJSON and renders them", () => {
+    const out = buildEmbedHtml(
+      spec({
+        annotations: [
+          { id: "ar1", type: "area", shape: "rectangle", a: [12, 42], b: [13, 43], color: "#ff0000", opacity: 0.3 },
+          { id: "l1", type: "line", start: [12, 42], end: [13, 43], arrow: true, color: "#00ff00", width: 3 },
+        ],
+      }),
+      { geoBaseUrl: "https://embed.x/geo" },
+    );
+    expect(out).toContain('"annotGeo":');
+    expect(out).toContain('"__color":"#ff0000"');
+    expect(out).toContain('"__opacity":0.3');
+    expect(out).toContain('function annotations(');
+    expect(out).toContain('"annot-fill"');
+  });
+
+  it("escapes a malicious marker label (no raw script injection)", () => {
+    const out = buildEmbedHtml(
+      spec({
+        annotations: [
+          { id: "m1", type: "marker", lng: 12, lat: 42, label: "<img src=x onerror=alert(1)>", color: "#000000" },
+        ],
+      }),
+      { geoBaseUrl: "https://embed.x/geo" },
+    );
+    // The label is carried as data (json-escaped) and escaped again at render.
+    expect(out).not.toContain("<img src=x onerror=alert(1)>");
+    expect(out).toContain('"annotMarkers":');
+  });
+
+  it("ships empty annotation collections when there are none", () => {
+    const out = buildEmbedHtml(spec(), { geoBaseUrl: "https://embed.x/geo" });
+    expect(out).toContain('"annotGeo":{"type":"FeatureCollection","features":[]}');
+    expect(out).toContain('"annotMarkers":[]');
+  });
+});
+

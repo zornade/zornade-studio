@@ -25,6 +25,7 @@ function sampleState(): StudioState {
       valueColumn: "V",
       numericColumns: ["V"],
     },
+    annotations: [],
   };
 }
 

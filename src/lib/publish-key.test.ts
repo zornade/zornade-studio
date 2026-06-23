@@ -28,6 +28,7 @@ function state(title: string, value: string): StudioState {
       geoLevel: "regioni", keyColumn: "Regione", valueColumn: "V",
       numericColumns: ["V"],
     },
+    annotations: [],
   };
 }
 

@@ -620,7 +620,29 @@ L'utente incolla **host / utente / password** (credenziali read-only generate a 
    guida della pkey → range indicizzato ~50–100 ms) per un totale **~3,2 s**, sotto il timeout. 256 test
    verdi (+24), tsc + build OK (336 KB gz). *(Smoke-test browser da fare: carica un CSV wide / OMI tutti
    i semestri → scrub + play; pubblica → slider nell'embed.)*
-- **O3.4** Annotazioni custom (testo, frecce, evidenziazioni, marker) + disegno sulla mappa
+- **O3.4** ✅ **Annotazioni custom geo-ancorate** (2026-06-22). Quattro tipi di annotazione **ancorati a
+   lng/lat** (restano sul punto geografico durante pan/zoom, in editor e nell'embed): **marker** (pin
+   con etichetta facoltativa), **testo**, **linea/freccia**, **evidenzia area** (rettangolo/cerchio).
+   Modulo puro `lib/annotations.ts` (**testato**, 15 test): modello dati (union discriminata
+   `Annotation`), geodesia minima (`haversineMeters`, `rectangleRing`, `circleRing` con correzione
+   cos(lat), `arrowBarbs` = testa freccia frazione della lunghezza, simmetrica nel piano corretto),
+   `annotationsToGeoJson` (linee/aree → FeatureCollection con paint nelle properties `__color/__width/
+   __opacity`; la freccia aggiunge 2 segmenti barba), `markerAnnotations` (marker/testo → descrittori
+   DOM), `sanitizeAnnotations` (valida input non fidato: scarta voci invalide, clampa numerici, default
+   colore) e `DrawTool` (strumento armato, con sotto-varianti arrow/shape). **Rendering split**:
+   linee/aree come **source GeoJSON + layer fill/line** sopra i dati; marker/testo come
+   **`maplibregl.Marker` DOM** (indipendenti dal basemap, niente glyph, catturati nell'export PNG perché
+   figli di `exportNodeRef`). **Posizionamento** in `MapPreview`: tool armato → cursore crosshair;
+   marker/testo = 1 click (one-shot), linea/area = 2 click con **preview tratteggiato** sul mousemove;
+   `Esc` annulla. I tooltip dati sono silenziati mentre si disegna. `StudioContext` porta
+   `annotations` (serializzato in autosave/progetto) + CRUD (`addAnnotation/updateAnnotation/
+   removeAnnotation`) e `annotationTool` (stato di vista, non serializzato). `DesignPanel`: 6 bottoni
+   strumento (Marker/Testo/Linea/Freccia/Rettangolo/Cerchio) + lista editabile (colore, testo, elimina).
+   **Embed pubblicato**: lo spec porta `annotations[]`; `embed-html` **precalcola** geojson + descrittori
+   marker a build-time (nessuna matematica geometrica spedita al browser) e il renderer inline aggiunge
+   source/layer + crea i `Marker` DOM, **escapando** ogni testo utente (XSS). 274 test verdi (+18), tsc +
+   build OK (340 KB gz). *(Smoke-test browser da fare: disegna i 4 tipi → pan/zoom restano ancorati →
+   pubblica → annotazioni nell'embed; export PNG include marker + forme.)*
 - **O3.5** Tabella dati scaricabile / accessibile + export SVG/PDF + oEmbed WordPress
 
 ### Onda 4 — Storytelling & avanzate

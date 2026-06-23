@@ -1,5 +1,15 @@
 import { useState } from "react";
-import { Upload, Image as ImageIcon } from "lucide-react";
+import {
+  Upload,
+  Image as ImageIcon,
+  MapPin,
+  Type,
+  Minus,
+  MoveUpRight,
+  Square,
+  Circle,
+  Trash2,
+} from "lucide-react";
 import { useStudio } from "../../studio/StudioContext";
 import {
   type PresetChoice,
@@ -8,12 +18,16 @@ import {
   MAP_BASEMAPS,
   CLASSIFICATION_METHODS,
   LEGEND_TYPES,
-  ANNOTATION_TOOLS,
   INTERACTION_OPTIONS,
   NEWSROOM_KIT_LIST,
   NEWSROOM_KITS,
 } from "../../studio/catalog";
 import { PanelSection, Field, SoonBadge } from "../primitives";
+import {
+  annotationSummary,
+  type Annotation,
+  type DrawTool,
+} from "../../lib/annotations";
 import { isChartType } from "../../lib/chart-data";
 
 const PRESET_OPTIONS: { id: PresetChoice; label: string }[] = [
@@ -34,6 +48,11 @@ export function DesignPanel() {
     data,
     setData,
     vizType,
+    annotations,
+    annotationTool,
+    setAnnotationTool,
+    updateAnnotation,
+    removeAnnotation,
   } = useStudio();
 
   const [noData, setNoData] = useState("#e5e7eb");
@@ -469,29 +488,133 @@ export function DesignPanel() {
         </div>
       </PanelSection>
 
-      {/* ---- Annotazioni (mockup) ---- */}
-      <PanelSection title="Annotazioni">
-        <div className="flex items-center gap-2 text-xs text-slate-500">
-          <SoonBadge />
-          Aggiungi elementi sopra la mappa.
-        </div>
-        <div className="grid grid-cols-2 gap-2">
-          {ANNOTATION_TOOLS.map((t) => {
+      {/* ---- Annotazioni (O3.4) ---- */}
+      <PanelSection
+        title="Annotazioni"
+        hint="Aggiungi elementi sopra la mappa: si ancorano al punto geografico."
+      >
+        <div className="grid grid-cols-3 gap-2">
+          {DRAW_TOOLS.map((t) => {
             const Icon = t.icon;
+            const active = sameTool(annotationTool, t.tool);
             return (
               <button
-                key={t.id}
-                disabled
-                className="flex cursor-not-allowed items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-500 opacity-70"
+                key={t.label}
+                onClick={() => setAnnotationTool(active ? null : t.tool)}
+                className={`flex flex-col items-center gap-1 rounded-lg border px-2 py-2 text-xs transition-colors ${
+                  active
+                    ? "border-zornade bg-zornade/10 text-zornade"
+                    : "border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50"
+                }`}
               >
-                <Icon size={15} />
+                <Icon size={16} />
                 {t.label}
               </button>
             );
           })}
         </div>
+
+        {annotationTool && (
+          <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">
+            {annotationTool.kind === "marker" || annotationTool.kind === "text"
+              ? "Clicca sulla mappa per posizionare."
+              : "Clicca il punto iniziale e poi quello finale."}{" "}
+            <span className="text-amber-600">Esc per annullare.</span>
+          </p>
+        )}
+
+        {annotations.length > 0 ? (
+          <ul className="space-y-1.5">
+            {annotations.map((a) => (
+              <AnnotationRow
+                key={a.id}
+                annotation={a}
+                onChange={(patch) => updateAnnotation(a.id, patch)}
+                onRemove={() => removeAnnotation(a.id)}
+              />
+            ))}
+          </ul>
+        ) : (
+          <p className="text-xs text-slate-400">Nessuna annotazione.</p>
+        )}
       </PanelSection>
     </div>
+  );
+}
+
+/** The annotation tools available in the design panel (O3.4). */
+const DRAW_TOOLS: {
+  label: string;
+  icon: typeof MapPin;
+  tool: DrawTool;
+}[] = [
+  { label: "Marker", icon: MapPin, tool: { kind: "marker" } },
+  { label: "Testo", icon: Type, tool: { kind: "text" } },
+  { label: "Linea", icon: Minus, tool: { kind: "line", arrow: false } },
+  { label: "Freccia", icon: MoveUpRight, tool: { kind: "line", arrow: true } },
+  { label: "Rettangolo", icon: Square, tool: { kind: "area", shape: "rectangle" } },
+  { label: "Cerchio", icon: Circle, tool: { kind: "area", shape: "circle" } },
+];
+
+/** Structural equality for two draw tools (sub-variants included). */
+function sameTool(a: DrawTool | null, b: DrawTool): boolean {
+  if (!a || a.kind !== b.kind) return false;
+  if (a.kind === "line" && b.kind === "line") return a.arrow === b.arrow;
+  if (a.kind === "area" && b.kind === "area") return a.shape === b.shape;
+  return true;
+}
+
+/** One editable row for an annotation: summary, colour, optional text, delete. */
+function AnnotationRow({
+  annotation,
+  onChange,
+  onRemove,
+}: {
+  annotation: Annotation;
+  onChange: (patch: Partial<Annotation>) => void;
+  onRemove: () => void;
+}) {
+  const a = annotation;
+  const textValue =
+    a.type === "marker" ? a.label : a.type === "text" ? a.text : "";
+  const editsText = a.type === "marker" || a.type === "text";
+  return (
+    <li className="rounded-lg border border-slate-200 px-2.5 py-2">
+      <div className="flex items-center gap-2">
+        <input
+          type="color"
+          value={a.color}
+          onChange={(e) => onChange({ color: e.target.value } as Partial<Annotation>)}
+          title="Colore"
+          className="h-6 w-6 flex-shrink-0 cursor-pointer rounded border border-slate-200 bg-white p-0"
+        />
+        <span className="flex-1 truncate text-xs font-medium text-slate-600">
+          {annotationSummary(a)}
+        </span>
+        <button
+          onClick={onRemove}
+          title="Elimina"
+          className="flex-shrink-0 rounded p-1 text-slate-400 transition-colors hover:bg-red-50 hover:text-red-600"
+        >
+          <Trash2 size={14} />
+        </button>
+      </div>
+      {editsText && (
+        <input
+          type="text"
+          value={textValue}
+          onChange={(e) =>
+            onChange(
+              (a.type === "marker"
+                ? { label: e.target.value }
+                : { text: e.target.value }) as Partial<Annotation>,
+            )
+          }
+          placeholder={a.type === "marker" ? "Etichetta (facoltativa)" : "Testo"}
+          className="mt-1.5 w-full rounded border border-slate-200 px-2 py-1 text-xs text-slate-700 focus:border-zornade focus:outline-none"
+        />
+      )}
+    </li>
   );
 }
 

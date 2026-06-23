@@ -52,6 +52,7 @@ export function PublishPanel() {
         brand: studio.brand,
         design: studio.design,
         data: studio.data,
+        annotations: studio.annotations,
       });
       if ("error" in out) {
         setPublishError(out.error);
@@ -151,6 +152,7 @@ export function PublishPanel() {
       brand: studio.brand,
       design: studio.design,
       data: studio.data,
+      annotations: studio.annotations,
     });
     const blob = new Blob([json], { type: "application/json" });
     const url = URL.createObjectURL(blob);

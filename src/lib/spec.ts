@@ -19,6 +19,7 @@ import type { GeoLevel } from "./choropleth";
 import { parseNumber } from "./csv";
 import { templateColumns } from "./tooltip";
 import { rowsForFrame } from "./temporal";
+import { sanitizeAnnotations, type Annotation } from "./annotations";
 
 /** Bump when the shape changes incompatibly; older embeds keep their version. */
 export const SPEC_SCHEMA_VERSION = 1 as const;
@@ -76,6 +77,8 @@ export interface ChoroplethSpec {
   time?: { column: string; frames: string[] };
   /** Per-frame data, present only for a temporal map (one entry per period). */
   frames?: SpecFrame[];
+  /** Custom annotations drawn over the map (O3.4); omitted when there are none. */
+  annotations?: Annotation[];
   design: SpecDesign;
 }
 
@@ -152,6 +155,9 @@ export function buildSpec(state: StudioState): BuildSpecResult {
     },
     data: datums,
     ...(time && frames ? { time, frames } : {}),
+    ...(state.annotations.length > 0
+      ? { annotations: sanitizeAnnotations(state.annotations) }
+      : {}),
     design: {
       basemap: design.basemap,
       colorScale: design.colorScale,

@@ -32,8 +32,20 @@ const CAT_PALETTE =
   COLOR_SCALES.find((s) => s.id === "cat")?.colors ?? ["#01646f"];
 
 export function MapCanvas() {
-  const { project, brand, vizType, design, data, exportNodeRef, timeIndex, setTimeIndex } =
-    useStudio();
+  const {
+    project,
+    brand,
+    vizType,
+    design,
+    data,
+    exportNodeRef,
+    timeIndex,
+    setTimeIndex,
+    annotations,
+    annotationTool,
+    addAnnotation,
+    setAnnotationTool,
+  } = useStudio();
   const flavor = useMemo(() => makeFlavor(brand), [brand]);
 
   const scale =
@@ -426,6 +438,10 @@ export function MapCanvas() {
         basemap={false}
         basemapUrl={basemapUrl}
         dataFilter={dataFilter}
+        annotations={annotations}
+        annotationTool={annotationTool}
+        onPlaceAnnotation={addAnnotation}
+        onExitTool={() => setAnnotationTool(null)}
         fitKey={
           data
             ? data.kind === "area"

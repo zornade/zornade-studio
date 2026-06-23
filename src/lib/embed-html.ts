@@ -24,6 +24,11 @@ import {
 } from "./choropleth";
 import { colorsForScale, basemapStyleUrl } from "../studio/palettes";
 import { frameLabel } from "./temporal";
+import {
+  annotationsToGeoJson,
+  markerAnnotations,
+  sanitizeAnnotations,
+} from "./annotations";
 
 /** Pinned MapLibre version for embeds (matches the app's maplibre-gl). */
 export const EMBED_MAPLIBRE_VERSION = "4.7.1";
@@ -130,6 +135,14 @@ export function buildEmbedHtml(
       })
     : null;
 
+  // Annotations (O3.4): precompute the GeoJSON (lines/areas) and the marker/
+  // text descriptors at build time, so the inline renderer only has to add a
+  // static source + create DOM markers (no geometry maths shipped to the
+  // browser). Sanitised defensively against a hand-edited spec.
+  const anns = spec.annotations ? sanitizeAnnotations(spec.annotations) : [];
+  const annotGeo = annotationsToGeoJson(anns);
+  const annotMarkers = markerAnnotations(anns);
+
   const embed = {
     geoUrl,
     fields,
@@ -157,6 +170,8 @@ export function buildEmbedHtml(
     extraByKey,
     frames,
     initialFrame: frames ? frames.length - 1 : 0,
+    annotGeo,
+    annotMarkers,
   };
 
   return `<!doctype html>
@@ -265,7 +280,42 @@ function build(){
   if(E.showLegend)legend(noData);
   if(E.tooltip)tooltip();
   if(E.frames&&E.frames.length>1)timeUI();
+  annotations();
 }
+// Render custom annotations (O3.4): lines/areas come pre-built as GeoJSON
+// (drawn above the data), markers/text as DOM markers. All user text is escaped.
+function annotations(){
+  if(E.annotGeo&&E.annotGeo.features&&E.annotGeo.features.length){
+    map.addSource("annot",{type:"geojson",data:E.annotGeo});
+    map.addLayer({id:"annot-fill",type:"fill",source:"annot",
+      filter:["==",["geometry-type"],"Polygon"],
+      paint:{"fill-color":["get","__color"],"fill-opacity":["get","__opacity"]}});
+    map.addLayer({id:"annot-line",type:"line",source:"annot",
+      layout:{"line-cap":"round","line-join":"round"},
+      paint:{"line-color":["get","__color"],"line-width":["get","__width"]}});
+  }
+  (E.annotMarkers||[]).forEach(function(m){
+    var el=document.createElement("div");el.style.pointerEvents="none";
+    if(m.type==="marker"){el.style.position="relative";
+      var lbl=m.text?'<div style="position:absolute;bottom:38px;left:50%;transform:translateX(-50%);'+
+        'white-space:nowrap;background:rgba(255,255,255,.92);color:#0f172a;padding:2px 7px;'+
+        'border-radius:6px;font-size:12px;font-weight:600;box-shadow:0 1px 4px rgba(0,0,0,.2)">'+
+        esc(m.text)+'</div>':"";
+      el.innerHTML=lbl+pin(m.color);
+      new maplibregl.Marker({element:el,anchor:"bottom"}).setLngLat([m.lng,m.lat]).addTo(map);
+    }else{
+      el.style.cssText="background:rgba(255,255,255,.85);padding:3px 8px;border-radius:6px;"+
+        "font-weight:600;font-size:13px;box-shadow:0 1px 4px rgba(0,0,0,.2);color:"+esc(m.color);
+      el.textContent=m.text||"Testo";
+      new maplibregl.Marker({element:el,anchor:"center"}).setLngLat([m.lng,m.lat]).addTo(map);
+    }
+  });
+}
+function pin(c){return '<svg width="24" height="34" viewBox="0 0 24 34" '+
+  'style="display:block;filter:drop-shadow(0 1px 2px rgba(0,0,0,.35))">'+
+  '<path d="M12 0C5.4 0 0 5.4 0 12c0 8.4 12 22 12 22s12-13.6 12-22C24 5.4 18.6 0 12 0z" '+
+  'fill="'+esc(c)+'" stroke="#fff" stroke-width="2"/>'+
+  '<circle cx="12" cy="12" r="4.5" fill="#fff"/></svg>';}
 // Apply a frame's values (key→value) onto the geometry; returns the no-data
 // count. Shared by the first paint and by the time slider.
 function paint(keyed){

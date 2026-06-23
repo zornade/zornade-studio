@@ -21,6 +21,7 @@ import type { PresetChoice } from "./catalog";
 import { NEWSROOM_KITS } from "./catalog";
 import { isChartType } from "../lib/chart-data";
 import type { SavableProject } from "../lib/project";
+import type { Annotation, DrawTool } from "../lib/annotations";
 
 interface StudioContextValue extends StudioState {
   setStep: (step: StepId) => void;
@@ -39,6 +40,19 @@ interface StudioContextValue extends StudioState {
    */
   timeIndex: number;
   setTimeIndex: (i: number) => void;
+  /** Add an annotation and return it. */
+  addAnnotation: (a: Annotation) => void;
+  /** Patch an existing annotation by id. */
+  updateAnnotation: (id: string, patch: Partial<Annotation>) => void;
+  /** Remove an annotation by id. */
+  removeAnnotation: (id: string) => void;
+  /**
+   * The annotation tool currently armed for placement on the map, or null.
+   * View state (not serialised): clicking the map with a tool armed creates an
+   * annotation, then the tool disarms (one-shot).
+   */
+  annotationTool: DrawTool | null;
+  setAnnotationTool: (t: DrawTool | null) => void;
   /** Ref to the map container node, for PNG export (set by MapCanvas). */
   exportNodeRef: MutableRefObject<HTMLElement | null>;
 }
@@ -130,6 +144,10 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     restored?.design ?? INITIAL_DESIGN,
   );
   const [data, setData] = useState<DatasetState | null>(restored?.data ?? null);
+  const [annotations, setAnnotations] = useState<Annotation[]>(
+    restored?.annotations ?? [],
+  );
+  const [annotationTool, setAnnotationTool] = useState<DrawTool | null>(null);
   // Time-slider frame index. View state only (never serialised): defaults to
   // the most recent frame when a temporal dataset loads.
   const [timeIndex, setTimeIndex] = useState<number>(() =>
@@ -147,6 +165,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       brand,
       design,
       data,
+      annotations,
       setStep,
       updateProject: (patch) => setProject((p) => ({ ...p, ...patch })),
       setDataSource,
@@ -193,21 +212,32 @@ export function StudioProvider({ children }: { children: ReactNode }) {
         setBrand(s.brand);
         setDesign(s.design);
         setData(s.data);
+        setAnnotations(s.annotations ?? []);
+        setAnnotationTool(null);
         setTimeIndex(initialTimeIndex(s.data));
       },
+      addAnnotation: (a) => setAnnotations((list) => [...list, a]),
+      updateAnnotation: (id, patch) =>
+        setAnnotations((list) =>
+          list.map((a) => (a.id === id ? ({ ...a, ...patch } as Annotation) : a)),
+        ),
+      removeAnnotation: (id) =>
+        setAnnotations((list) => list.filter((a) => a.id !== id)),
+      annotationTool,
+      setAnnotationTool,
       timeIndex,
       setTimeIndex,
       exportNodeRef,
     }),
-    [step, project, dataSource, vizType, preset, brand, design, data, timeIndex],
+    [step, project, dataSource, vizType, preset, brand, design, data, annotations, annotationTool, timeIndex],
   );
 
   // Best-effort autosave of the current session to localStorage. Wrapped so a
   // quota error (e.g. a very large dataset) degrades gracefully instead of
   // throwing — the explicit "Salva progetto" file is the reliable path.
   useEffect(() => {
-    writeAutosave({ step, project, dataSource, vizType, preset, brand, design, data });
-  }, [step, project, dataSource, vizType, preset, brand, design, data]);
+    writeAutosave({ step, project, dataSource, vizType, preset, brand, design, data, annotations });
+  }, [step, project, dataSource, vizType, preset, brand, design, data, annotations]);
 
   return (
     <StudioContext.Provider value={value}>{children}</StudioContext.Provider>
