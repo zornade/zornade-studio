@@ -18,7 +18,6 @@ import {
   Network,
   TreePine,
   Radar,
-  Clapperboard,
   Upload,
   ClipboardPaste,
   Link2,
@@ -154,13 +153,6 @@ export const VIZ_GROUPS: CatalogGroup[] = [
       { id: "gantt", label: "Gantt", desc: "Cronoprogramma", icon: GanttChart, status: "soon" },
       { id: "candlestick", label: "Candele", desc: "Finanza (OHLC)", icon: ChartCandlestick, status: "soon" },
       { id: "wordcloud", label: "Word cloud", desc: "Frequenze testo", icon: Type, status: "soon" },
-    ],
-  },
-  {
-    id: "stories",
-    label: "Storytelling",
-    items: [
-      { id: "scrolly", label: "Scrollytelling", desc: "Passi narrativi animati", icon: Clapperboard, status: "soon" },
     ],
   },
 ];

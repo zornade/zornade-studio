@@ -213,8 +213,6 @@ const RULES: Record<string, Rule> = {
   gantt: NEED_TIME_VALUE,
   candlestick: NEED_TIME_VALUE,
   wordcloud: NEED_TEXT,
-  // Stories.
-  scrolly: ALWAYS,
 };
 
 /**
