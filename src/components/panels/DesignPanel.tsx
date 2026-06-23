@@ -309,6 +309,34 @@ export function DesignPanel() {
         </PanelSection>
       )}
 
+      {/* ---- Bivariata: seconda variabile ---- */}
+      {caps.has("bivariateBinding") && data && data.kind !== "table" && (
+        <PanelSection
+          title="Seconda variabile"
+          hint="La mappa bivariata combina due variabili in una matrice 3×3 di colori."
+        >
+          <Field label="Seconda colonna numerica">
+            <select
+              value={design.bivariateColumn2}
+              onChange={(e) => updateDesign({ bivariateColumn2: e.target.value })}
+              className={inputCls}
+            >
+              <option value="">— automatica (la prossima numerica) —</option>
+              {data.numericColumns
+                .filter((c) => c !== data.valueColumn)
+                .map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+            </select>
+          </Field>
+          <p className="text-[11px] text-slate-400">
+            La prima variabile è la “colonna valore” scelta in “Struttura”.
+          </p>
+        </PanelSection>
+      )}
+
       {/* ---- Colore: scala del dato (mappe) ---- */}
       {caps.has("colorScale") && !caps.has("chartAxes") && (
         <PanelSection title="Colore" hint="Scala colore del dato.">
@@ -334,6 +362,36 @@ export function DesignPanel() {
               ))}
             </div>
           </Field>
+        </PanelSection>
+      )}
+
+      {/* ---- Stile punti (punti / simboli / spike / densità) ---- */}
+      {caps.has("pointStyle") && (
+        <PanelSection
+          title="Stile punti"
+          hint="Colore e dimensione dei punti/simboli."
+        >
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Colore">
+              <input
+                type="color"
+                value={design.pointColor}
+                onChange={(e) => updateDesign({ pointColor: e.target.value })}
+                className="h-9 w-full cursor-pointer rounded border border-slate-200"
+              />
+            </Field>
+            <Field label={`Dimensione · ${design.pointSize}`}>
+              <input
+                type="range"
+                min={2}
+                max={28}
+                step={1}
+                value={design.pointSize}
+                onChange={(e) => updateDesign({ pointSize: Number(e.target.value) })}
+                className="w-full accent-zornade"
+              />
+            </Field>
+          </div>
         </PanelSection>
       )}
 

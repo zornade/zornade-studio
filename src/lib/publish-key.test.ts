@@ -20,6 +20,7 @@ function state(title: string, value: string): StudioState {
       showLegend: true, showSource: true, tooltip: true, tooltipTemplate: "",
       zoomPan: true, readerFilters: false,
       chartX: "", chartY: "", chartSeries: "", chartSortByValue: false,
+      bivariateColumn2: "",
     },
     data: {
       kind: "area",

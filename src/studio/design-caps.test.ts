@@ -33,6 +33,16 @@ describe("designCaps", () => {
     expect(caps.has("classification")).toBe(false);
   });
 
+  it("the new thematic maps expose sensible capabilities", () => {
+    expect(designCaps("bivariate").has("bivariateBinding")).toBe(true);
+    expect(designCaps("bivariate").has("colorScale")).toBe(false); // fixed matrix
+    expect(designCaps("spike").has("pointStyle")).toBe(true);
+    expect(designCaps("extrusion").has("classification")).toBe(true);
+    expect(designCaps("heatmap").has("colorScale")).toBe(true);
+    expect(designCaps("hexbin").has("classification")).toBe(true);
+    expect(designCaps("dotdensity").has("pointStyle")).toBe(true);
+  });
+
   it("category exposes geo binding, the category selector and colour scale", () => {
     const caps = designCaps("category");
     expect(caps.has("categoryBinding")).toBe(true);
@@ -52,6 +62,7 @@ describe("designCaps", () => {
       "tooltipTemplate",
       "readerFilters",
       "chartAxes",
+      "bivariateBinding",
     ]);
     for (const caps of Object.values(VIZ_DESIGN_CAPS)) {
       for (const cap of caps) expect(known.has(cap)).toBe(true);

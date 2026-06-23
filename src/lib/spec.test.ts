@@ -39,6 +39,7 @@ function baseState(overrides: Partial<StudioState> = {}): StudioState {
       chartY: "",
       chartSeries: "",
       chartSortByValue: false,
+      bivariateColumn2: "",
     },
     data: {
       kind: "area",

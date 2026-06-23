@@ -31,7 +31,9 @@ export type DesignCapability =
   /** Reader-facing clickable legend filter (choropleth). */
   | "readerFilters"
   /** Chart axes: x/y/series column pickers + value label. */
-  | "chartAxes";
+  | "chartAxes"
+  /** Bivariate map: pick the second value column. */
+  | "bivariateBinding";
 
 /** Capabilities per visualisation type (catalog id → blocks). */
 export const VIZ_DESIGN_CAPS: Record<string, DesignCapability[]> = {
@@ -42,6 +44,18 @@ export const VIZ_DESIGN_CAPS: Record<string, DesignCapability[]> = {
   // Category map: areas coloured by a categorical column.
   category: ["geoBinding", "categoryBinding", "colorScale", "tooltipTemplate"],
   locator: ["pointStyle"],
+  // Bivariate map: two variables → a fixed 3×3 colour matrix (no colour ramp).
+  bivariate: ["valueLabel", "bivariateBinding", "tooltipTemplate"],
+  // Spike map: triangles at centroids, uniform colour + width (pointStyle).
+  spike: ["valueLabel", "colorScale", "pointStyle", "tooltipTemplate"],
+  // 3D extrusion: areas raised by value, graduated colour + classes.
+  extrusion: ["valueLabel", "colorScale", "classification", "tooltipTemplate"],
+  // Heatmap: density surface from points, coloured by a ramp + radius.
+  heatmap: ["colorScale", "pointStyle"],
+  // Hexbin: aggregated density hexagons, classified like a choropleth.
+  hexbin: ["colorScale", "classification"],
+  // Dot density: one dot per event, styled colour + size + category.
+  dotdensity: ["pointStyle", "categoryBinding"],
   // User-supplied geometry (Shapefile/KML/KMZ/GeoJSON): polygons coloured by
   // value (graduated) or category, lines/points styled uniformly. Not keyed to
   // a bundled geo level, so no geoBinding; not published, so no readerFilters.

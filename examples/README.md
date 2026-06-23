@@ -104,3 +104,33 @@ Dettaglio per tipo di mappa:
 
 Tutti i nomi/codici geografici di questi file sono stati verificati: combaciano
 al 100% con le geometrie incluse (20/20 regioni, 23/23 paesi).
+
+---
+
+# Dataset di esempio — Mappe tematiche avanzate (O4.x)
+
+Sei nuove mappe tematiche, tutte native (nessun plugin esterno). Le mappe a
+**punti** danno il meglio con tanti punti: usa `eventi-punti-italia.csv` (487
+eventi raggruppati attorno alle città). Le mappe ad **aree** usano
+`regioni-completo.csv` (che ha due colonne numeriche, indispensabili per la
+bivariata).
+
+| Mappa | Dati | File | Note |
+|-------|------|------|------|
+| **Mappa di calore** | punti | `eventi-punti-italia.csv` | densità; `intensita` pesa i punti (scegli `intensita` come valore in Struttura) |
+| **Densità di punti** | punti | `eventi-punti-italia.csv` | un puntino per evento; `categoria` li colora |
+| **Esagoni** | punti | `eventi-punti-italia.csv` | griglia esagonale, colore per conteggio |
+| **Bivariata** | aree (2 numeri) | `regioni-completo.csv` | combina due variabili in una matrice 3×3; la 2ª colonna si sceglie nel Design |
+| **Spike map** | aree | `regioni-completo.csv` | un picco per regione, altezza = valore |
+| **Estrusione 3D** | aree | `regioni-completo.csv` | aree estruse in 3D (la mappa si inclina automaticamente) |
+
+Note:
+- Per la **bivariata**: in “Struttura” imposta la *colonna valore* (1ª
+  variabile); in “Design” → “Seconda variabile” scegli la 2ª. La legenda 3×3
+  compare in basso a sinistra.
+- Per **mappa di calore / esagoni** scegli un livello di zoom adatto: la densità
+  si legge meglio sull'insieme dell'Italia.
+- L'**estrusione 3D** inclina la camera (pitch 50°); trascina con il tasto destro
+  per ruotare la vista.
+- Tutte queste mappe restano **in editor + export PNG** (come simboli/punti/
+  categorie): la pubblicazione embed oggi è solo per la coropletica.

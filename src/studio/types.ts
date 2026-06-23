@@ -64,6 +64,8 @@ export interface DesignSettings {
   chartSeries: string;
   /** Chart: sort bars/categories by value descending. */
   chartSortByValue: boolean;
+  /** Bivariate map: the SECOND value column (the first is the dataset value). */
+  bivariateColumn2: string;
 }
 
 /**

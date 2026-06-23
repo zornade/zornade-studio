@@ -85,6 +85,7 @@ const INITIAL_DESIGN: DesignSettings = {
   chartY: "",
   chartSeries: "",
   chartSortByValue: false,
+  bivariateColumn2: "",
 };
 
 /** localStorage key for the best-effort session autosave. */

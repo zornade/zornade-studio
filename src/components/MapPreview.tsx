@@ -26,9 +26,10 @@ export interface DataLayer {
   geojson: GeoJSON.FeatureCollection;
   /**
    * "area" → fill+line choropleth (default); "point" → circle layer;
-   * "geo" → the user's own geometry (polygons/lines/points drawn together).
+   * "geo" → the user's own geometry (polygons/lines/points drawn together);
+   * "heatmap" → density surface from points; "extrusion" → 3D fill-extrusion.
    */
-  kind?: "area" | "point" | "geo";
+  kind?: "area" | "point" | "geo" | "heatmap" | "extrusion";
   /** MapLibre paint expression for `fill-color` (area / geo polygons). */
   fillColor?: unknown;
   /** Outline colour for the polygons (area). */
@@ -39,6 +40,14 @@ export interface DataLayer {
   circleColor?: unknown;
   /** MapLibre paint expression/number for `circle-radius` (point / geo points). */
   circleRadius?: unknown;
+  /** Circle fill opacity (point). Default 0.9. */
+  circleOpacity?: number;
+  /** Heatmap paint object (kind "heatmap"). */
+  heatmapPaint?: Record<string, unknown>;
+  /** Value range driving the extrusion height (kind "extrusion"). */
+  extrusionRange?: { min: number; max: number };
+  /** Max extrusion height in metres (kind "extrusion"). Default 180000. */
+  extrusionMaxHeight?: number;
   /** Feature property holding the area name (for tooltips). */
   nameField?: string;
   /** Show always-on text labels from `nameField` (locator map). */
@@ -89,6 +98,8 @@ interface MapPreviewProps {
   onPlaceAnnotation?: (a: Annotation) => void;
   /** Called to disarm the tool (Escape, or after a one-shot placement). */
   onExitTool?: () => void;
+  /** Map pitch in degrees (e.g. for 3D extrusion). Default 0. */
+  pitch?: number;
 }
 
 // Centred on the Italian peninsula.
@@ -100,6 +111,10 @@ const FILL = "studio-data-fill";
 const LINE = "studio-data-line";
 /** Always-on point labels (locator map). */
 const LABEL = "studio-data-label";
+/** Density heatmap layer (heatmap map). */
+const HEATMAP = "studio-data-heatmap";
+/** 3D extrusion layer (extrusion map). */
+const EXTRUSION = "studio-data-extrusion";
 /** Extra layer for points inside a user "geo" dataset (KML/Shapefile points). */
 const GEO_POINT = "studio-geo-point";
 
@@ -130,6 +145,7 @@ export function MapPreview({
   annotationTool = null,
   onPlaceAnnotation,
   onExitTool,
+  pitch = 0,
 }: MapPreviewProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
@@ -166,6 +182,8 @@ export function MapPreview({
     }
     if (map.getLayer(GEO_POINT)) map.removeLayer(GEO_POINT);
     if (map.getLayer(LABEL)) map.removeLayer(LABEL);
+    if (map.getLayer(HEATMAP)) map.removeLayer(HEATMAP);
+    if (map.getLayer(EXTRUSION)) map.removeLayer(EXTRUSION);
     if (map.getLayer(LINE)) map.removeLayer(LINE);
     if (map.getLayer(FILL)) map.removeLayer(FILL);
     if (map.getSource(SRC)) map.removeSource(SRC);
@@ -179,6 +197,49 @@ export function MapPreview({
     const firstSymbol = map
       .getStyle()
       .layers?.find((l) => l.type === "symbol")?.id;
+
+    if (layer.kind === "heatmap") {
+      // Density heatmap from points (paint precomputed in lib/heatmap).
+      map.addLayer(
+        {
+          id: HEATMAP,
+          type: "heatmap",
+          source: SRC,
+          paint: (layer.heatmapPaint ?? {}) as maplibregl.HeatmapLayerSpecification["paint"],
+        },
+        firstSymbol,
+      );
+      return;
+    }
+
+    if (layer.kind === "extrusion") {
+      // 3D extrusion: height scaled from the value range; colour graduated like
+      // the choropleth. Needs map pitch > 0 (set via the pitch prop) to be seen.
+      const range = layer.extrusionRange ?? { min: 0, max: 1 };
+      const maxH = layer.extrusionMaxHeight ?? 180000;
+      map.addLayer({
+        id: EXTRUSION,
+        type: "fill-extrusion",
+        source: SRC,
+        paint: {
+          "fill-extrusion-color":
+            (layer.fillColor as maplibregl.ExpressionSpecification) ?? "#01646f",
+          "fill-extrusion-height": [
+            "interpolate",
+            ["linear"],
+            ["coalesce", ["get", "__value"], range.min],
+            range.min,
+            0,
+            range.max,
+            maxH,
+          ] as unknown as maplibregl.ExpressionSpecification,
+          "fill-extrusion-base": 0,
+          "fill-extrusion-opacity": 0.9,
+        },
+      });
+      applyDataFilter(map);
+      return;
+    }
 
     if (layer.kind === "point") {
       // Point layer: a single circle layer keyed FILL so the existing hover
@@ -196,7 +257,7 @@ export function MapPreview({
               (layer.circleRadius as maplibregl.ExpressionSpecification) ?? 5,
             "circle-stroke-color": "#ffffff",
             "circle-stroke-width": 1,
-            "circle-opacity": 0.9,
+            "circle-opacity": layer.circleOpacity ?? 0.9,
           },
         },
         firstSymbol,
@@ -540,6 +601,9 @@ export function MapPreview({
       map.on("mousemove", id, showOnLayer);
       map.on("mouseleave", id, hideOnLayer);
     }
+    // The 3D extrusion uses its own layer id; bind the same hover tooltip.
+    map.on("mousemove", EXTRUSION, showOnLayer);
+    map.on("mouseleave", EXTRUSION, hideOnLayer);
 
     // Annotation placement: a click with a tool armed adds the annotation.
     // marker/text are one-shot single clicks; line/area take two clicks (a
@@ -638,6 +702,15 @@ export function MapPreview({
     if (map) syncData(map);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dataLayer]);
+
+  // Tilt the camera for 3D extrusion (and flatten back for the other maps).
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    if (Math.abs(map.getPitch() - pitch) > 0.5) {
+      map.easeTo({ pitch, duration: 500 });
+    }
+  }, [pitch]);
 
   // Re-apply the reader class filter when it changes (without rebuilding data).
   useEffect(() => {

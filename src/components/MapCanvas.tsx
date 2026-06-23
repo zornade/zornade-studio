@@ -21,6 +21,10 @@ import {
   buildPointRadiusExpression,
 } from "../lib/points";
 import { prepareGeoRender } from "../lib/geo-dataset";
+import { joinBivariate, buildBivariateColorExpression, BIVARIATE_PALETTE } from "../lib/bivariate";
+import { spikeTriangles } from "../lib/spike";
+import { hexbin } from "../lib/hexbin";
+import { buildHeatmapPaint } from "../lib/heatmap";
 import { featureCentroid } from "../lib/centroid";
 import { templateColumns } from "../lib/tooltip";
 import { buildClassVisibilityFilter, classLabel } from "../lib/class-filter";
@@ -91,10 +95,17 @@ export function MapCanvas() {
   }, [geoUrl]);
 
   // Numeric area join: feeds the choropleth (graduated fill) AND the symbol map
-  // (bubble size). Same join, two renderings.
+  // (bubble size), the spike map (centroid heights) and the 3D extrusion.
+  // Same join, several renderings.
   const joined = useMemo(() => {
     if (!data || data.kind !== "area" || !rawGeo) return null;
-    if (vizType !== "choropleth" && vizType !== "symbol") return null;
+    if (
+      vizType !== "choropleth" &&
+      vizType !== "symbol" &&
+      vizType !== "spike" &&
+      vizType !== "extrusion"
+    )
+      return null;
     return joinChoropleth({
       geojson: rawGeo,
       level: data.geoLevel,
@@ -238,6 +249,69 @@ export function MapCanvas() {
     return prepareGeoRender(data, tooltipCols);
   }, [data, tooltipCols]);
 
+  // Bivariate map (O4): join two value columns onto the geometry → class 0..8.
+  const bivariate = useMemo(() => {
+    if (vizType !== "bivariate" || !rawGeo || data?.kind !== "area") return null;
+    const colB =
+      design.bivariateColumn2 && data.numericColumns.includes(design.bivariateColumn2)
+        ? design.bivariateColumn2
+        : data.numericColumns.find((c) => c !== data.valueColumn) ?? "";
+    if (!colB || !data.valueColumn) return null;
+    return joinBivariate({
+      geojson: rawGeo,
+      level: data.geoLevel,
+      rows: data.rows,
+      keyColumn: data.keyColumn,
+      columnA: data.valueColumn,
+      columnB: colB,
+    });
+  }, [vizType, rawGeo, data, design.bivariateColumn2]);
+
+  // Spike map (O4): a triangle at each area's centroid, height ∝ value.
+  const spike = useMemo(() => {
+    if (vizType !== "spike" || !joined || data?.kind !== "area") return null;
+    const nameField = GEO_LEVELS[data.geoLevel].nameField;
+    const inputs: { lng: number; lat: number; value: number; name?: string }[] = [];
+    let max = -Infinity;
+    for (const f of joined.geojson.features) {
+      const v = (f.properties as Record<string, unknown>)?.__value;
+      if (typeof v !== "number") continue;
+      const c = featureCentroid(f.geometry);
+      if (!c) continue;
+      if (v > max) max = v;
+      const name = (f.properties as Record<string, unknown>)?.[nameField];
+      inputs.push({ lng: c[0], lat: c[1], value: v, name: name ? String(name) : undefined });
+    }
+    if (inputs.length === 0) return null;
+    return spikeTriangles(inputs, { maxValue: max });
+  }, [vizType, joined, data]);
+
+  // Hexbin map (O4): aggregate the point cloud into a hex-grid density surface.
+  const hexbinResult = useMemo(() => {
+    if (vizType !== "hexbin" || data?.kind !== "point" || !points) return null;
+    const pts = points.geojson.features
+      .map((f) => {
+        const g = f.geometry;
+        return g.type === "Point"
+          ? { lng: g.coordinates[0], lat: g.coordinates[1] }
+          : null;
+      })
+      .filter((p): p is { lng: number; lat: number } => p != null);
+    if (pts.length === 0) return null;
+    return hexbin(pts, { targetCols: 22 });
+  }, [vizType, data, points]);
+
+  // Hexbin class breaks (shared by the fill expression and the legend).
+  const hexbinClasses = useMemo(() => {
+    if (vizType !== "hexbin" || !hexbinResult) return null;
+    return computeBreaks(
+      hexbinResult.counts,
+      design.classification,
+      design.nClasses,
+      design.manualBreaks,
+    );
+  }, [vizType, hexbinResult, design.classification, design.nClasses, design.manualBreaks]);
+
   const valueLabel =
     (design.valueLabel ||
       (data && data.kind !== "table" ? data.valueColumn : "")) ??
@@ -256,6 +330,85 @@ export function MapCanvas() {
         geojson: choro.geojson,
         fillColor,
         nameField: data?.kind === "area" ? GEO_LEVELS[data.geoLevel].nameField : undefined,
+        valueLabel,
+        valueUnit: design.valueUnit || undefined,
+        tooltipTemplate: design.tooltipTemplate,
+      };
+    }
+    // Bivariate map: two variables → a 3×3 colour matrix on the areas.
+    if (vizType === "bivariate" && bivariate) {
+      return {
+        kind: "area",
+        geojson: bivariate.geojson,
+        fillColor: buildBivariateColorExpression(BIVARIATE_PALETTE, NO_DATA_COLOR),
+        nameField: data?.kind === "area" ? GEO_LEVELS[data.geoLevel].nameField : undefined,
+        valueLabel,
+        valueUnit: design.valueUnit || undefined,
+        tooltipTemplate: design.tooltipTemplate,
+      };
+    }
+    // Spike map: triangles at centroids, height ∝ value, uniform colour.
+    if (vizType === "spike" && spike) {
+      return {
+        kind: "area",
+        geojson: spike,
+        fillColor: design.pointColor,
+        lineColor: design.pointColor,
+        nameField: "__name",
+        valueLabel,
+        valueUnit: design.valueUnit || undefined,
+        tooltipTemplate: design.tooltipTemplate,
+      };
+    }
+    // 3D extrusion: areas raised by value, graduated colour. Needs map pitch.
+    if (vizType === "extrusion" && joined) {
+      return {
+        kind: "extrusion",
+        geojson: joined.geojson,
+        fillColor: buildFillColorExpression(joined.classes, scaleColors, NO_DATA_COLOR),
+        extrusionRange: { min: joined.classes.min, max: joined.classes.max },
+        extrusionMaxHeight: 120000,
+        nameField: data?.kind === "area" ? GEO_LEVELS[data.geoLevel].nameField : undefined,
+        valueLabel,
+        valueUnit: design.valueUnit || undefined,
+        tooltipTemplate: design.tooltipTemplate,
+      };
+    }
+    // Heatmap: density surface from the point cloud.
+    if (vizType === "heatmap" && points && data?.kind === "point") {
+      return {
+        kind: "heatmap",
+        geojson: points.geojson,
+        heatmapPaint: buildHeatmapPaint({
+          valueRange: points.valueRange,
+          colors: scaleColors,
+          radius: Math.max(10, design.pointSize * 2.4),
+        }),
+      };
+    }
+    // Hexbin: aggregated density hexagons, classified like a choropleth.
+    if (vizType === "hexbin" && hexbinResult && hexbinClasses) {
+      return {
+        kind: "area",
+        geojson: hexbinResult.geojson,
+        fillColor: buildFillColorExpression(hexbinClasses, scaleColors, NO_DATA_COLOR),
+        valueLabel: valueLabel || "Conteggio",
+        valueUnit: design.valueUnit || undefined,
+        tooltipTemplate: design.tooltipTemplate,
+      };
+    }
+    // Dot density: one small translucent dot per event (no aggregation).
+    if (vizType === "dotdensity" && points && data?.kind === "point") {
+      const categoryPalette = scaleColors.length > 0 ? scaleColors : CAT_PALETTE;
+      return {
+        kind: "point",
+        geojson: points.geojson,
+        circleColor: data.categoryColumn
+          ? buildPointColorExpression(points.categories, categoryPalette, design.pointColor)
+          : design.pointColor,
+        circleRadius: Math.max(2, design.pointSize * 0.45),
+        circleOpacity: 0.55,
+        nameField: data.nameColumn || data.categoryColumn ? "__name" : undefined,
         valueLabel,
         valueUnit: design.valueUnit || undefined,
         tooltipTemplate: design.tooltipTemplate,
@@ -388,10 +541,31 @@ export function MapCanvas() {
       };
     }
     return null;
-  }, [vizType, joined, choro, symbolPoints, categoryJoin, points, geoRender, scaleColors, data, valueLabel, design.valueUnit, design.pointColor, design.pointSize, design.tooltipTemplate, design.classification, design.nClasses, design.manualBreaks]);
+  }, [vizType, joined, choro, symbolPoints, categoryJoin, points, geoRender, bivariate, spike, hexbinResult, hexbinClasses, scaleColors, data, valueLabel, design.valueUnit, design.pointColor, design.pointSize, design.tooltipTemplate, design.classification, design.nClasses, design.manualBreaks]);
 
-  const showLegend =
-    design.showLegend && vizType === "choropleth";
+  // Tilt the camera for the 3D extrusion; flat for every other map.
+  const pitch = vizType === "extrusion" ? 50 : 0;
+
+  // The class breaks the value legend should display, by map type. Choropleth,
+  // hexbin and 3D extrusion all colour areas by graduated classes, so they
+  // share the same steps/gradient legend; the others use their own legend
+  // (bivariate matrix, heatmap density, spike range) or none.
+  const legendClasses =
+    vizType === "choropleth"
+      ? choro?.classes ?? null
+      : vizType === "extrusion"
+        ? joined?.classes ?? null
+        : vizType === "hexbin"
+          ? hexbinClasses
+          : null;
+  // Count of "no data" areas to note under the legend (graduated area maps).
+  const legendNoData =
+    vizType === "choropleth"
+      ? choro?.noDataFeatures ?? 0
+      : vizType === "extrusion"
+        ? joined?.noDataFeatures ?? 0
+        : 0;
+  const showLegend = design.showLegend && legendClasses != null;
 
   // Reader class filter (clickable legend). Only meaningful for the choropleth.
   const filtersOn = design.readerFilters && vizType === "choropleth" && !!choro;
@@ -439,8 +613,8 @@ export function MapCanvas() {
   const basemapUrl = basemapDef?.styleUrl ?? null;
   const hasBasemap = Boolean(basemapUrl);
 
-  const legendColors = choro
-    ? sampleColors(scaleColors, choro.classes.breaks.length + 1)
+  const legendColors = legendClasses
+    ? sampleColors(scaleColors, legendClasses.breaks.length + 1)
     : scaleColors;
 
   return (
@@ -462,6 +636,7 @@ export function MapCanvas() {
         basemap={false}
         basemapUrl={basemapUrl}
         dataFilter={dataFilter}
+        pitch={pitch}
         annotations={annotations}
         annotationTool={annotationTool}
         onPlaceAnnotation={addAnnotation}
@@ -555,18 +730,96 @@ export function MapCanvas() {
               />
             )}
             <div className="mt-1 flex justify-between text-[10px] text-slate-500">
-              <span>{choro ? formatNum(choro.classes.min, design.valueUnit) : "min"}</span>
-              <span>{choro ? formatNum(choro.classes.max, design.valueUnit) : "max"}</span>
+              <span>{legendClasses ? formatNum(legendClasses.min, design.valueUnit) : "min"}</span>
+              <span>{legendClasses ? formatNum(legendClasses.max, design.valueUnit) : "max"}</span>
             </div>
-            {choro && choro.noDataFeatures > 0 && (
+            {legendNoData > 0 && (
               <div className="mt-1.5 flex items-center gap-1.5 text-[10px] text-slate-400">
                 <span
                   className="inline-block h-2.5 w-2.5 rounded-sm"
                   style={{ background: NO_DATA_COLOR }}
                 />
-                Dato non disponibile ({choro.noDataFeatures})
+                Dato non disponibile ({legendNoData})
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Bivariate legend (bottom-left): a 3×3 colour matrix with axis labels. */}
+      {design.showLegend && vizType === "bivariate" && bivariate && (
+        <div className="pointer-events-none absolute bottom-8 left-4">
+          <div className="rounded-lg bg-white/92 px-3 py-2.5 shadow-md ring-1 ring-black/5 backdrop-blur">
+            <div className="flex items-end gap-1.5">
+              {/* Vertical axis label (variable B), rotated. */}
+              <span className="mb-3 text-[9px] font-medium uppercase tracking-wide text-slate-500 [writing-mode:vertical-rl] rotate-180">
+                {design.bivariateColumn2 || "Variabile 2"} →
+              </span>
+              <div>
+                <div className="grid grid-cols-3 grid-rows-3 gap-0.5">
+                  {/* Render rows top (B high, row 2) to bottom (B low, row 0). */}
+                  {[2, 1, 0].map((r) =>
+                    [0, 1, 2].map((c) => (
+                      <span
+                        key={`${r}-${c}`}
+                        className="h-4 w-4"
+                        style={{ background: BIVARIATE_PALETTE[r * 3 + c] }}
+                      />
+                    )),
+                  )}
+                </div>
+                <span className="mt-0.5 block text-[9px] font-medium uppercase tracking-wide text-slate-500">
+                  {valueLabel || data?.kind === "area" && data.valueColumn || "Variabile 1"} →
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Heatmap density legend (bottom-left): a low→high colour ramp. */}
+      {design.showLegend && vizType === "heatmap" && (
+        <div className="pointer-events-none absolute bottom-8 left-4">
+          <div className="rounded-lg bg-white/92 px-3 py-2 shadow-md ring-1 ring-black/5 backdrop-blur">
+            <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+              {valueLabel || "Densità"}
+            </p>
+            <div
+              className="h-2.5 w-40 rounded-full"
+              style={{
+                background: `linear-gradient(to right, transparent, ${scaleColors.join(", ")})`,
+              }}
+            />
+            <div className="mt-1 flex justify-between text-[10px] text-slate-500">
+              <span>meno</span>
+              <span>più</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Spike legend (bottom-left): height is proportional to the value. */}
+      {design.showLegend && vizType === "spike" && joined && (
+        <div className="pointer-events-none absolute bottom-8 left-4">
+          <div className="rounded-lg bg-white/92 px-3 py-2 shadow-md ring-1 ring-black/5 backdrop-blur">
+            <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+              {valueLabel || "Valore"}
+            </p>
+            <div className="flex items-end gap-2">
+              <span
+                className="inline-block w-0 border-x-[5px] border-x-transparent border-b-[10px]"
+                style={{ borderBottomColor: design.pointColor }}
+              />
+              <span
+                className="inline-block w-0 border-x-[5px] border-x-transparent border-b-[24px]"
+                style={{ borderBottomColor: design.pointColor }}
+              />
+              <span className="text-[10px] text-slate-500">altezza ∝ valore</span>
+            </div>
+            <div className="mt-1 flex w-28 justify-between text-[10px] text-slate-500">
+              <span>{formatNum(joined.classes.min, design.valueUnit)}</span>
+              <span>{formatNum(joined.classes.max, design.valueUnit)}</span>
+            </div>
           </div>
         </div>
       )}

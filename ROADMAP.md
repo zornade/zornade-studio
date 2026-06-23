@@ -686,6 +686,36 @@ L'utente incolla **host / utente / password** (credenziali read-only generate a 
    Coropletica/Simboli/Categorie abilitati; mappatura a punti (lat/lon arbitrari) → Punti/Localizzatore
    abilitati; Design gated per viz. *(Smoke-test mappa vera da fare su browser con WebGL: render
    coropletica/punti/localizzatore con etichette.)*
+- **O4.0** ✅ **Mappe tematiche complete (6 tipi native)** (2026-06-23). Aggiunti e resi selezionabili
+   **6 nuovi tipi di mappa**, tutti con MapLibre nativo (nessuna nuova dipendenza) e moduli puri
+   **testati**: **Bivariata** (`lib/bivariate.ts` — join di due colonne valore → classe 0..8, matrice
+   3×3 terzili×terzili, palette Stevens teal×rosso, legenda 3×3 in mappa), **Spike map** (`lib/spike.ts`
+   — triangoli ai centroidi, altezza ∝ valore, correzione cos-lat), **Estrusione 3D** (`fill-extrusion`
+   nativo, altezza dal valore, camera inclinata a 50° via nuovo prop `pitch` di MapPreview), **Mappa di
+   calore** (`lib/heatmap.ts` — layer `heatmap` nativo, peso dal valore, raggio/intensità scalati sullo
+   zoom), **Esagoni** (`lib/hexbin.ts` — binning esagonale pointy-top in km con proiezione cos-lat,
+   cella adattiva, conteggio classificato come coropletica), **Densità di punti** (un puntino translucido
+   per evento, colore per categoria). `MapPreview`: `DataLayer.kind` += `"heatmap"|"extrusion"` +
+   `circleOpacity`/`heatmapPaint`/`extrusionRange`; rimozione layer idempotente; tooltip anche
+   sull'estrusione; effetto `pitch`. `MapCanvas`: 6 branch + memos (il join area alimenta anche
+   spike/estrusione). **design-caps** esteso (cap `bivariateBinding`) + **nuovi blocchi Design**:
+   “Seconda variabile” (bivariata) e “Stile punti” (colore+dimensione — colma un vuoto: prima
+   punti/simboli non erano personalizzabili). Catalogo: i 6 → `ready`; restano `soon` i 4 con blocchi
+   pesanti (globo=MapLibre v5, cartogramma=algoritmo di ricerca, flussi=dato O→D, raster/WMS=layer di
+   sfondo). Nuovo dato `eventi-punti-italia.csv` (487 punti). 345 test verdi (+24), tsc + build OK
+   (main ~345 KB gz). *(Render WebGL delle 6 mappe da verificare su browser con WebGL — selezionabilità
+   e gating Design già verificati via DOM.)*
+- **O4.0b** ✅ **Rifinitura legende + test d'integrazione su dati reali** (2026-06-23). **Legende**
+   completate per le nuove mappe: la legenda a gradini/sfumatura ora copre anche **esagoni** ed
+   **estrusione 3D** (stesse classi del fill, `hexbinClasses` sollevato in un memo condiviso; min/max e
+   conteggio "nessun dato" generalizzati da `legendClasses`/`legendNoData`); **mappa di calore** → legenda
+   a sfumatura densità (meno→più); **spike** → legenda “altezza ∝ valore” con min/max. Altezza estrusione
+   tarata (max 120 km, in un solo punto). **Test d'integrazione** nuovo (`maps-integration.test.ts`):
+   esegue le pipeline esatte (bivariate/spike/hexbin/heatmap) sulla **geometria reale** (`regioni.geojson`)
+   e sui **CSV d'esempio reali** → verifica end-to-end senza WebGL: bivariata aggancia 20/20 regioni,
+   spike genera 20 triangoli con centroidi dentro l'Italia, hexbin aggrega tutti i 487 punti senza
+   perdite. 348 test verdi (+3), tsc + build OK. *(WebGL assente nell'ambiente di test confermato:
+   render reale delle mappe da verificare sul browser dell'utente.)*
 - **O4.1** **Scrollytelling** (Scrollama: passi + transizioni camera/dati)
 - **O4.2** Heatmap, hexbin, flussi, estrusione 3D aggregata (deck.gl) + layer raster/satellite/WMS/GeoTIFF
 - **O4.3** Inset/minimappa isole + scale bar + freccia nord + proiezioni + **globo 3D (MapLibre v5)**
