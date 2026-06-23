@@ -643,7 +643,24 @@ L'utente incolla **host / utente / password** (credenziali read-only generate a 
    source/layer + crea i `Marker` DOM, **escapando** ogni testo utente (XSS). 274 test verdi (+18), tsc +
    build OK (340 KB gz). *(Smoke-test browser da fare: disegna i 4 tipi → pan/zoom restano ancorati →
    pubblica → annotazioni nell'embed; export PNG include marker + forme.)*
-- **O3.5** Tabella dati scaricabile / accessibile + export SVG/PDF + oEmbed WordPress
+- **O3.5** ✅ **Tabella dati scaricabile / accessibile + export SVG/PDF + oEmbed WordPress**
+   (2026-06-23). Tre cose, tutte su moduli puri **testati**. (1) **Tabella dati**: `lib/data-table.ts`
+   (`rowsToCsv` RFC-4180 con BOM UTF-8 + quoting; `accessibleTableHtml` = `<table>` semantica con
+   `<caption>` e `<th scope>`). In editor un bottone **“Scarica i dati (CSV)”** esporta il dataset
+   caricato; nell'embed pubblicato viene inlinata una **tabella nascosta `.sr-only`** (clip) costruita a
+   build-time dai dati dello spec → screen reader leggono i valori di una mappa altrimenti solo-canvas
+   (WebGL). (2) **Export SVG/PDF**: **SVG vero** solo per i **grafici** (serializza il più grande `<svg>`
+   reso da Observable Plot — esclude la legenda); **PDF** per tutto (mappe + grafici + tabella) via
+   `lib/pdf.ts` puro — `html-to-image` → JPEG, poi `buildJpegPdf` lo incapsula in un PDF 1.3 monopagina
+   (`DCTDecode`, xref byte-accurato, niente nuove dipendenze; `parseJpeg` legge dimensioni/componenti dal
+   marker SOF; pagina A4-width con aspect ratio dell'immagine). (3) **oEmbed WordPress**: `lib/oembed.ts`
+   (provider rich JSON/XML + `isAllowedEmbedUrl` come guardia SSRF) + Netlify function **`/api/oembed`**
+   (pubblica, valida l'URL come nostro embed, legge il `<title>` della pagina, CORS `*`); l'embed
+   pubblicato porta i **`<link rel="alternate" …+oembed">`** di discovery → incollando l'URL in WordPress
+   la mappa si incorpora da sola. Tutto l'output utente è **escaped** (HTML/XML/CSV). 304 test verdi
+   (+30), tsc + build OK (chunk `pdf` lazy 1,08 KB gz, main 340 KB gz). *(Smoke-test browser/WP da fare:
+   scarica CSV; PDF di mappa e grafico; SVG di un grafico; pubblica → tabella sr-only nell'embed +
+   auto-embed oEmbed su WordPress.)*
 
 ### Onda 4 — Storytelling & avanzate
 - **O4.1** **Scrollytelling** (Scrollama: passi + transizioni camera/dati)

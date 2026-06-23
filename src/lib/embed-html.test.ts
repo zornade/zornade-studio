@@ -254,3 +254,44 @@ describe("buildEmbedHtml · annotations (O3.4)", () => {
   });
 });
 
+describe("buildEmbedHtml · accessibility & oEmbed (O3.5)", () => {
+  it("inlines a visually-hidden, screen-reader data table", () => {
+    const out = buildEmbedHtml(spec(), { geoBaseUrl: "https://embed.x/geo" });
+    expect(out).toContain('class="sr-only"');
+    expect(out).toContain("<caption>Arrivi 2024</caption>");
+    expect(out).toContain('<th scope="col">Regione</th>');
+    expect(out).toContain('<th scope="row">Lombardia</th>');
+    // The value is IT-formatted (25.794) in the table cell.
+    expect(out).toContain("25.794");
+  });
+
+  it("escapes table cell content (no injection via data keys)", () => {
+    const out = buildEmbedHtml(
+      spec({ data: [{ key: "<img src=x onerror=alert(1)>", value: 1 }] }),
+      { geoBaseUrl: "https://embed.x/geo" },
+    );
+    expect(out).not.toContain("<img src=x onerror=alert(1)>");
+    expect(out).toContain("&lt;img src=x");
+  });
+
+  it("emits oEmbed discovery links when a self URL is given", () => {
+    const out = buildEmbedHtml(spec(), {
+      geoBaseUrl: "https://embed.x/geo",
+      selfUrl: "https://studio.zornade.com/embed/arrivi/abc/",
+    });
+    expect(out).toContain('type="application/json+oembed"');
+    expect(out).toContain('type="text/xml+oembed"');
+    expect(out).toContain(
+      "https://studio.zornade.com/api/oembed?url=" +
+        encodeURIComponent("https://studio.zornade.com/embed/arrivi/abc/") +
+        "&amp;format=json",
+    );
+  });
+
+  it("omits oEmbed links when no self URL is given", () => {
+    const out = buildEmbedHtml(spec(), { geoBaseUrl: "https://embed.x/geo" });
+    expect(out).not.toContain("+oembed");
+  });
+});
+
+

@@ -29,6 +29,7 @@ import {
   markerAnnotations,
   sanitizeAnnotations,
 } from "./annotations";
+import { accessibleTableHtml } from "./data-table";
 
 /** Pinned MapLibre version for embeds (matches the app's maplibre-gl). */
 export const EMBED_MAPLIBRE_VERSION = "4.7.1";
@@ -84,6 +85,22 @@ export function buildEmbedHtml(
   const titleFont = escapeHtml(d.titleFont || "system-ui, sans-serif");
   const geoUrl = `${opts.geoBaseUrl}/${spec.geo.level}.geojson`;
   const canonical = opts.selfUrl ? escapeHtml(opts.selfUrl) : "";
+
+  // oEmbed discovery (O3.5): let WordPress (and other consumers) auto-embed the
+  // pasted snapshot URL. The provider endpoint lives on the same origin as the
+  // published page (`/api/oembed`). `&` is written as `&amp;` for valid HTML.
+  let oembedLinks = "";
+  if (opts.selfUrl) {
+    try {
+      const origin = new URL(opts.selfUrl).origin;
+      const endpoint = `${origin}/api/oembed?url=${encodeURIComponent(opts.selfUrl)}`;
+      oembedLinks =
+        `<link rel="alternate" type="application/json+oembed" href="${endpoint}&amp;format=json" title="${title}">` +
+        `<link rel="alternate" type="text/xml+oembed" href="${endpoint}&amp;format=xml" title="${title}">`;
+    } catch {
+      // Ignore a malformed selfUrl: discovery links are a progressive enhancement.
+    }
+  }
 
   // --- Render config, computed ONCE with the same canonical functions the
   // editor uses, so the published map is faithful to the live preview. The
@@ -143,6 +160,24 @@ export function buildEmbedHtml(
   const annotGeo = annotationsToGeoJson(anns);
   const annotMarkers = markerAnnotations(anns);
 
+  // Accessible data table (O3.5): a visually-hidden <table> so screen readers
+  // can read the underlying data of the canvas-only (WebGL) map. Built from the
+  // minimal spec data (key + value); for a temporal map this is the initial
+  // (most recent) frame, matching the default visible map.
+  const tableFmt = new Intl.NumberFormat("it-IT", { maximumFractionDigits: 2 });
+  const keyHeader = spec.geo.keyColumn || "Area";
+  const valueHeader = valueLabel + (d.valueUnit ? ` (${d.valueUnit})` : "");
+  const dataTableHtml = spec.data.length
+    ? accessibleTableHtml(
+        [keyHeader, valueHeader],
+        spec.data.map((dd) => ({
+          [keyHeader]: dd.key,
+          [valueHeader]: tableFmt.format(dd.value),
+        })),
+        { caption: spec.project.title || "Dati della mappa" },
+      )
+    : "";
+
   const embed = {
     geoUrl,
     fields,
@@ -181,6 +216,7 @@ export function buildEmbedHtml(
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${title}</title>
 ${canonical ? `<link rel="canonical" href="${canonical}">` : ""}
+${oembedLinks}
 <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@${mlVer}/dist/maplibre-gl.css">
 <style>
   html,body{margin:0;height:100%;font-family:system-ui,-apple-system,sans-serif}
@@ -222,6 +258,8 @@ ${canonical ? `<link rel="canonical" href="${canonical}">` : ""}
   .tsl input[type=range]{flex:1;accent-color:#01646f;cursor:pointer}
   .tsl-lbl{flex-shrink:0;width:52px;text-align:right;font-size:12px;
     font-weight:600;color:#334155;font-variant-numeric:tabular-nums}
+  .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;
+    overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
 </style>
 </head>
 <body>
@@ -229,6 +267,7 @@ ${canonical ? `<link rel="canonical" href="${canonical}">` : ""}
 ${spec.design.showTitle && title ? `<div class="ttl"><h1 style="font-family:${titleFont}">${title}</h1>${subtitle ? `<p style="font-family:${titleFont}">${subtitle}</p>` : ""}</div>` : ""}
 ${spec.design.showSource && source ? `<div class="src">${source}</div>` : ""}
 <div class="attr"><a href="https://zornade.com/studio" target="_blank" rel="noopener">Fatto con Zornade Studio</a> · Dati © OpenStreetMap</div>
+${dataTableHtml ? `<div class="sr-only">${dataTableHtml}</div>` : ""}
 <script src="https://unpkg.com/maplibre-gl@${mlVer}/dist/maplibre-gl.js"></script>
 <script>
 const EMBED = ${jsonForScript(embed)};

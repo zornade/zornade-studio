@@ -13,10 +13,12 @@ import {
   TrendingUp,
   Save,
   FolderOpen,
+  Download,
 } from "lucide-react";
 import { useStudio } from "../../studio/StudioContext";
 import { PanelSection, Button, SoonBadge } from "../primitives";
 import { isChartType } from "../../lib/chart-data";
+import { rowsToCsv } from "../../lib/data-table";
 
 export function PublishPanel() {
   const studio = useStudio();
@@ -36,6 +38,9 @@ export function PublishPanel() {
       .replace(/[\u0300-\u036f]/g, "")
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/(^-|-$)/g, "") || "mappa";
+
+  // SVG export is a real vector export only for the Plot charts.
+  const isChart = isChartType(studio.vizType);
 
   /** Build the spec, send it to /api/publish, and keep the immutable URL. */
   const publish = async () => {
@@ -112,6 +117,106 @@ export function PublishPanel() {
     } finally {
       setExporting(false);
     }
+  };
+
+  /** Export a chart as a true vector SVG (the largest Plot-rendered svg). */
+  const exportSvg = async () => {
+    const node = exportNodeRef.current;
+    if (!node) {
+      setExportError("Carica prima i dati (passo Dati).");
+      return;
+    }
+    setExporting(true);
+    setExportError(null);
+    try {
+      // A Plot figure may hold several svgs (a categorical legend + the chart);
+      // pick the largest by rendered area so we export the chart itself.
+      const svgs = Array.from(node.querySelectorAll("svg"));
+      if (svgs.length === 0) {
+        setExportError("Nessun grafico vettoriale da esportare.");
+        return;
+      }
+      const target = svgs.reduce((best, s) => {
+        const a = s.clientWidth * s.clientHeight;
+        const b = best.clientWidth * best.clientHeight;
+        return a > b ? s : best;
+      });
+      const clone = target.cloneNode(true) as SVGSVGElement;
+      clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+      clone.setAttribute("xmlns:xlink", "http://www.w3.org/1999/xlink");
+      const xml = new XMLSerializer().serializeToString(clone);
+      const doc = `<?xml version="1.0" encoding="UTF-8"?>\n${xml}`;
+      const blob = new Blob([doc], { type: "image/svg+xml;charset=utf-8" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${slug}.svg`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      setExportError(
+        e instanceof Error ? `Export SVG fallito: ${e.message}` : "Export SVG fallito.",
+      );
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  /** Export the current view as a single-page PDF (raster JPEG wrapped). */
+  const exportPdf = async () => {
+    const node = exportNodeRef.current;
+    if (!node) {
+      setExportError("Carica prima i dati (passo Dati).");
+      return;
+    }
+    setExporting(true);
+    setExportError(null);
+    try {
+      const { toJpeg } = await import("html-to-image");
+      const dataUrl = await toJpeg(node, {
+        pixelRatio: 2,
+        quality: 0.92,
+        backgroundColor: "#ffffff",
+        cacheBust: true,
+        filter: (el) =>
+          !(el instanceof HTMLElement && el.dataset.exportIgnore === "true"),
+      });
+      const base64 = dataUrl.split(",")[1] ?? "";
+      const bin = atob(base64);
+      const bytes = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+      const { buildJpegPdf } = await import("../../lib/pdf");
+      const pdf = buildJpegPdf(bytes);
+      const blob = new Blob([pdf as BlobPart], { type: "application/pdf" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${slug}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      setExportError(
+        e instanceof Error ? `Export PDF fallito: ${e.message}` : "Export PDF fallito.",
+      );
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  /** Download the loaded dataset as a CSV (accessible, machine-readable). */
+  const downloadCsv = () => {
+    if (!data) {
+      setExportError("Carica prima i dati (passo Dati).");
+      return;
+    }
+    const csv = rowsToCsv(data.columns, data.rows);
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${slug}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   // The embed snippet only makes sense once a real, immutable URL exists.
@@ -273,6 +378,11 @@ export function PublishPanel() {
               richiesta dalle licenze dei dati (ODbL di OpenStreetMap) e dai
               Termini di servizio. Non va rimossa.
             </p>
+            <p className="rounded-lg bg-blue-50 px-3 py-2 text-xs text-blue-700">
+              <strong>WordPress:</strong> incolla direttamente questo URL in un
+              blocco a sé (oEmbed) e la mappa comparirà automaticamente, senza
+              usare lo snippet HTML.
+            </p>
           </>
         )}
         <label className="flex items-center gap-2 text-sm text-slate-600">
@@ -306,10 +416,45 @@ export function PublishPanel() {
             Carica i dati e apri la mappa per esportarla.
           </p>
         )}
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            onClick={exportPdf}
+            disabled={!data || exporting}
+            className={`flex items-center justify-center gap-2 rounded-xl border py-2.5 text-sm font-medium transition-colors ${
+              !data || exporting
+                ? "cursor-not-allowed border-slate-200 bg-slate-50 text-slate-400"
+                : "border-zornade bg-zornade-50 text-zornade-700 hover:bg-zornade-100"
+            }`}
+          >
+            <FileText size={16} />
+            PDF
+          </button>
+          <button
+            onClick={exportSvg}
+            disabled={!data || !isChart || exporting}
+            title={
+              isChart
+                ? "Esporta il grafico come SVG vettoriale"
+                : "SVG vettoriale disponibile solo per i grafici"
+            }
+            className={`flex items-center justify-center gap-2 rounded-xl border py-2.5 text-sm font-medium transition-colors ${
+              !data || !isChart || exporting
+                ? "cursor-not-allowed border-slate-200 bg-slate-50 text-slate-400"
+                : "border-zornade bg-zornade-50 text-zornade-700 hover:bg-zornade-100"
+            }`}
+          >
+            <FileCode2 size={16} />
+            SVG
+          </button>
+        </div>
+        {!isChart && data && (
+          <p className="text-[11px] text-slate-400">
+            L'SVG vettoriale è disponibile per i grafici; le mappe (WebGL) si
+            esportano in PNG o PDF.
+          </p>
+        )}
         <div className="grid grid-cols-3 gap-2">
           {[
-            { label: "SVG", icon: FileCode2 },
-            { label: "PDF", icon: FileText },
             { label: "Social", icon: Share2 },
             { label: "Poster", icon: LayoutTemplate },
             { label: "GIF/MP4", icon: Film },
@@ -329,7 +474,7 @@ export function PublishPanel() {
         </div>
         <div className="flex items-center gap-2 text-xs text-slate-500">
           <SoonBadge />
-          Export SVG, social e animazioni in arrivo.
+          Grafica social, poster e animazioni in arrivo.
         </div>
       </PanelSection>
 
@@ -337,12 +482,23 @@ export function PublishPanel() {
         title="Accessibilità"
         hint="Rendi la mappa fruibile a tutti."
       >
-        <label className="flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-600 opacity-80">
-          <input type="checkbox" disabled defaultChecked className="h-4 w-4 rounded accent-zornade" />
-          <Table2 size={15} />
-          Tabella dati scaricabile / leggibile da screen reader
-          <SoonBadge />
-        </label>
+        <button
+          onClick={downloadCsv}
+          disabled={!data}
+          className={`flex w-full items-center justify-center gap-2 rounded-xl border py-2.5 text-sm font-medium transition-colors ${
+            !data
+              ? "cursor-not-allowed border-slate-200 bg-slate-50 text-slate-400"
+              : "border-zornade bg-zornade-50 text-zornade-700 hover:bg-zornade-100"
+          }`}
+        >
+          <Download size={16} />
+          Scarica i dati (CSV)
+        </button>
+        <p className="flex items-start gap-2 rounded-lg bg-slate-50 px-3 py-2 text-[11px] text-slate-500">
+          <Table2 size={14} className="mt-0.5 flex-shrink-0 text-slate-400" />
+          Le mappe pubblicate includono una tabella dati nascosta, leggibile
+          dagli screen reader, con i valori per area.
+        </p>
         <label className="flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-600 opacity-80">
           <input type="checkbox" disabled defaultChecked className="h-4 w-4 rounded accent-zornade" />
           Testo alternativo + check contrasto/daltonismo
