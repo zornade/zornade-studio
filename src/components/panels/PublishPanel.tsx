@@ -48,6 +48,9 @@ export function PublishPanel() {
     setPublishError(null);
     try {
       const { buildSpec } = await import("../../lib/spec");
+      // Capture the current map camera (center/zoom/pitch/bearing) so the embed
+      // renders at exactly the viewport the user configured.
+      const camera = studio.mapApiRef.current?.getCamera() ?? null;
       const out = buildSpec({
         step: studio.step,
         project: studio.project,
@@ -59,6 +62,7 @@ export function PublishPanel() {
         data: studio.data,
         annotations: studio.annotations,
         storySteps: studio.storySteps,
+        camera,
       });
       if ("error" in out) {
         setPublishError(out.error);

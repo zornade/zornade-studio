@@ -22,7 +22,7 @@ import {
   DEFAULT_NO_DATA_COLOR,
   type ClassBreaks,
 } from "./choropleth";
-import { colorsForScale, basemapStyleUrl } from "../studio/palettes";
+import { colorsForScale, resolveBasemap } from "../studio/palettes";
 import { frameLabel } from "./temporal";
 import {
   annotationsToGeoJson,
@@ -571,7 +571,6 @@ function buildAreaEmbedHtml(
     keyed,
     fill,
     render,
-    pitch: render === "extrusion" ? 50 : 0,
     cartogramKind: spec.cartogramKind ?? "noncontiguous",
     pointColor: d.pointColor || "#01646f",
     pointSize: d.pointSize || 7,
@@ -580,9 +579,11 @@ function buildAreaEmbedHtml(
     bivA,
     bivB,
     bivPalette: BIVARIATE_PALETTE,
-    basemapStyle: basemapStyleUrl(d.basemap),
-    center: [12.5, 42] as [number, number],
-    zoom: 4.4,
+    basemapStyle: resolveBasemap(d.basemap, d.customBasemapUrl ?? ""),
+    center: (spec.camera?.center ?? [12.5, 42]) as [number, number],
+    zoom: spec.camera?.zoom ?? 4.4,
+    pitch: spec.camera?.pitch ?? (render === "extrusion" ? 50 : 0),
+    bearing: spec.camera?.bearing ?? 0,
     interactive: !!d.zoomPan,
     tooltip: !!d.tooltip,
     showLegend: !!d.showLegend,
@@ -700,7 +701,7 @@ var NF=new Intl.NumberFormat("it-IT",{maximumFractionDigits:2});
 function fmt(n){var s=NF.format(n);return E.valueUnit?(s+"\u00a0"+E.valueUnit):s;}
 var map=new maplibregl.Map({container:"map",
   style:E.basemapStyle||{version:8,sources:{},layers:[]},
-  center:E.center,zoom:E.zoom,attributionControl:false,interactive:E.interactive});
+  center:E.center,zoom:E.zoom,pitch:E.pitch,bearing:E.bearing,attributionControl:false,interactive:E.interactive});
 map.addControl(new maplibregl.AttributionControl({compact:true}));
 var GEO=null,ready=false;
 map.on("load",function(){ready=true;if(GEO)build();});
@@ -716,7 +717,6 @@ function build(){
         "fill-extrusion-height":["interpolate",["linear"],
           ["coalesce",["to-number",["get","__value"]],E.min],E.min,0,E.max,120000],
         "fill-extrusion-base":0,"fill-extrusion-opacity":0.9}},before);
-    if(E.pitch)map.easeTo({pitch:E.pitch,duration:0});
   }else if(E.render==="symbol"||E.render==="spike"){
     map.addLayer({id:"d-line",type:"line",source:"d",
       paint:{"line-color":"#cbd5e1","line-width":0.5}},before);
@@ -1166,9 +1166,11 @@ function buildPointEmbedHtml(spec: PointSpec, opts: EmbedOptions): string {
     paint,
     showLabels: spec.render === "locator",
     nameField: "__name",
-    basemapStyle: basemapStyleUrl(d.basemap),
-    center: [12.5, 42] as [number, number],
-    zoom: 5,
+    basemapStyle: resolveBasemap(d.basemap, d.customBasemapUrl ?? ""),
+    center: (spec.camera?.center ?? [12.5, 42]) as [number, number],
+    zoom: spec.camera?.zoom ?? 5,
+    pitch: spec.camera?.pitch ?? 0,
+    bearing: spec.camera?.bearing ?? 0,
     interactive: !!d.zoomPan,
     tooltip: !!d.tooltip && spec.render !== "heatmap",
     showLegend: !!d.showLegend,
@@ -1227,7 +1229,7 @@ var NF=new Intl.NumberFormat("it-IT",{maximumFractionDigits:2});
 function fmt(n){var s=NF.format(n);return E.valueUnit?(s+"\u00a0"+E.valueUnit):s;}
 var map=new maplibregl.Map({container:"map",
   style:E.basemapStyle||{version:8,sources:{},layers:[]},
-  center:E.center,zoom:E.zoom,attributionControl:false,interactive:E.interactive});
+  center:E.center,zoom:E.zoom,pitch:E.pitch,bearing:E.bearing,attributionControl:false,interactive:E.interactive});
 map.addControl(new maplibregl.AttributionControl({compact:true}));
 map.on("load",function(){build();});
 function build(){
@@ -1434,9 +1436,11 @@ function buildGeoEmbedHtml(spec: GeoSpec, opts: EmbedOptions): string {
     circleColor,
     circleRadius: d.pointSize,
     nameField: "__name",
-    basemapStyle: basemapStyleUrl(d.basemap),
-    center: [12.5, 42] as [number, number],
-    zoom: 5,
+    basemapStyle: resolveBasemap(d.basemap, d.customBasemapUrl ?? ""),
+    center: (spec.camera?.center ?? [12.5, 42]) as [number, number],
+    zoom: spec.camera?.zoom ?? 5,
+    pitch: spec.camera?.pitch ?? 0,
+    bearing: spec.camera?.bearing ?? 0,
     interactive: !!d.zoomPan,
     tooltip: !!d.tooltip,
     showLegend: !!d.showLegend,
@@ -1496,7 +1500,7 @@ var NF=new Intl.NumberFormat("it-IT",{maximumFractionDigits:2});
 function fmt(n){var s=NF.format(n);return E.valueUnit?(s+"\u00a0"+E.valueUnit):s;}
 var map=new maplibregl.Map({container:"map",
   style:E.basemapStyle||{version:8,sources:{},layers:[]},
-  center:E.center,zoom:E.zoom,attributionControl:false,interactive:E.interactive});
+  center:E.center,zoom:E.zoom,pitch:E.pitch,bearing:E.bearing,attributionControl:false,interactive:E.interactive});
 map.addControl(new maplibregl.AttributionControl({compact:true}));
 map.on("load",function(){build();});
 function build(){

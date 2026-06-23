@@ -24,7 +24,7 @@ import { sanitizeAnnotations, type Annotation } from "./annotations";
 import { buildPointFeatures } from "./points";
 import { prepareGeoRender } from "./geo-dataset";
 import { buildFlows } from "./flow";
-import { sanitizeStorySteps, type StoryStep } from "./story";
+import { sanitizeStorySteps, type StoryStep, type StoryCamera } from "./story";
 import type { GeometryKind } from "../studio/types";
 import {
   chartColumnRoles,
@@ -100,6 +100,8 @@ export interface SpecDesign {
   pointColor: string;
   /** Base point size for symbol maps. */
   pointSize: number;
+  /** Custom raster basemap tile URL (XYZ/WMS), used when basemap = "custom-raster". */
+  customBasemapUrl?: string;
 }
 
 export interface ChoroplethSpec {
@@ -117,6 +119,8 @@ export interface ChoroplethSpec {
     /** Category column for a category map. */
     categoryColumn?: string;
   };
+  /** Viewport camera snapshot (center/zoom/pitch/bearing) captured at publish time. */
+  camera?: StoryCamera;
   /** Minimal data: one {key, value} per non-empty, numeric row. For a temporal
    * map this is the INITIAL (most recent) frame, so non-temporal viewers still
    * render a valid map. */
@@ -166,6 +170,8 @@ export interface PointSpec {
   fields: { name: string; value: string; category: string };
   /** Custom annotations drawn over the map (O3.4); omitted when none. */
   annotations?: Annotation[];
+  /** Viewport camera snapshot captured at publish time. */
+  camera?: StoryCamera;
   design: SpecDesign;
 }
 
@@ -193,6 +199,8 @@ export interface GeoSpec {
   valueLabel: string;
   /** Custom annotations drawn over the map (O3.4); omitted when none. */
   annotations?: Annotation[];
+  /** Viewport camera snapshot captured at publish time. */
+  camera?: StoryCamera;
   design: SpecDesign;
 }
 
@@ -282,7 +290,7 @@ export type BuildSpecResult =
  * 3D extrusion), every **point** map (points, locator, heatmap, hexbin,
  * dot density), and a **custom-geometry** map; other viz types are rejected.
  */
-export function buildSpec(state: StudioState): BuildSpecResult {
+export function buildSpec(state: StudioState & { camera?: StoryCamera | null }): BuildSpecResult {
   // Scrollytelling: when steps exist over a MAP (not a chart), publish a story
   // that wraps the base map. Charts have no camera, so they ignore steps.
   if (
@@ -407,7 +415,7 @@ export function buildSpec(state: StudioState): BuildSpecResult {
  * every area render kind produces a byte-stable, complete spec.
  */
 function makeAreaSpec(
-  state: StudioState,
+  state: StudioState & { camera?: StoryCamera | null },
   render: AreaRender,
   datums: SpecDatum[],
   opts: {
@@ -462,7 +470,9 @@ function makeAreaSpec(
       readerFilters: design.readerFilters,
       pointColor: design.pointColor,
       pointSize: design.pointSize,
+      customBasemapUrl: design.customBasemapUrl ?? "",
     },
+    ...(state.camera ? { camera: state.camera } : {}),
   };
 }
 
@@ -471,7 +481,7 @@ function makeAreaSpec(
  * inline (capped at {@link MAX_PUBLISH_POINTS}); the embed never fetches any
  * geometry. Returns a human error when there are no usable points or too many.
  */
-function buildPointSpec(state: StudioState, render: PointRender): BuildSpecResult {
+function buildPointSpec(state: StudioState & { camera?: StoryCamera | null }, render: PointRender): BuildSpecResult {
   const { data, design, project } = state;
   if (!data) return { error: "Nessun dato caricato." };
   if (data.kind !== "point") {
@@ -543,7 +553,9 @@ function buildPointSpec(state: StudioState, render: PointRender): BuildSpecResul
       readerFilters: design.readerFilters,
       pointColor: design.pointColor,
       pointSize: design.pointSize,
+      customBasemapUrl: design.customBasemapUrl ?? "",
     },
+    ...(state.camera ? { camera: state.camera } : {}),
   };
   return { spec };
 }
@@ -634,7 +646,7 @@ function buildFlowSpec(state: StudioState): BuildSpecResult {
  * inlined; capped at {@link MAX_PUBLISH_FEATURES}. Returns a human error when
  * empty or too large.
  */
-function buildGeoSpec(state: StudioState): BuildSpecResult {
+function buildGeoSpec(state: StudioState & { camera?: StoryCamera | null }): BuildSpecResult {
   const { data, design, project } = state;
   if (!data || data.kind !== "geo") {
     return { error: "Questa pubblicazione richiede una geometria caricata." };
@@ -689,7 +701,9 @@ function buildGeoSpec(state: StudioState): BuildSpecResult {
       readerFilters: design.readerFilters,
       pointColor: design.pointColor,
       pointSize: design.pointSize,
+      customBasemapUrl: design.customBasemapUrl ?? "",
     },
+    ...(state.camera ? { camera: state.camera } : {}),
   };
   return { spec };
 }
