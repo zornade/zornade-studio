@@ -88,3 +88,33 @@ export const VIZ_DESIGN_CAPS: Record<string, DesignCapability[]> = {
 export function designCaps(vizType: string): Set<DesignCapability> {
   return new Set(VIZ_DESIGN_CAPS[vizType] ?? []);
 }
+
+/**
+ * Visualisations that render on a MapLibre map and therefore support the 3D
+ * globe projection toggle (every map type; charts and the table do not).
+ */
+export const MAP_VIZ_TYPES = new Set<string>([
+  "choropleth",
+  "points",
+  "locator",
+  "symbol",
+  "category",
+  "bivariate",
+  "dotdensity",
+  "heatmap",
+  "hexbin",
+  "spike",
+  "cartogram",
+  "flow",
+  "extrusion",
+  "raster",
+]);
+
+/**
+ * Whether the active visualisation can be rendered on the 3D globe. True for
+ * any map viz type, and for custom-geometry datasets (which always publish as a
+ * map regardless of the chosen catalog id).
+ */
+export function supportsGlobe(vizType: string, dataKind?: string): boolean {
+  return MAP_VIZ_TYPES.has(vizType) || dataKind === "geo";
+}

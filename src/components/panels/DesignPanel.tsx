@@ -14,6 +14,7 @@ import {
   ChevronDown,
   Camera,
   Navigation,
+  Globe2,
 } from "lucide-react";
 import { useStudio } from "../../studio/StudioContext";
 import {
@@ -33,7 +34,7 @@ import {
   type Annotation,
   type DrawTool,
 } from "../../lib/annotations";
-import { designCaps } from "../../studio/design-caps";
+import { designCaps, supportsGlobe } from "../../studio/design-caps";
 
 const PRESET_OPTIONS: { id: PresetChoice; label: string }[] = [
   ...NEWSROOM_KIT_LIST.map((k) => ({ id: k.id as PresetChoice, label: k.label })),
@@ -74,6 +75,8 @@ export function DesignPanel() {
   // when its capability is declared (lib/design-caps). Column bindings (geo
   // level/key, axes, value column) now live in the Struttura step.
   const caps = designCaps(vizType);
+  // The globe projection applies to any map visualisation (not charts/table).
+  const showGlobe = !!data && supportsGlobe(vizType, data.kind);
   const fontId =
     FONT_OPTIONS.find((f) => f.stack === design.titleFont)?.id ??
     "space-grotesk";
@@ -258,6 +261,49 @@ export function DesignPanel() {
           </p>
         )}
       </PanelSection>
+
+      {/* ---- Proiezione (globo 3D) ---- */}
+      {showGlobe && (
+        <PanelSection
+          title="Proiezione"
+          hint="Disegna la mappa su un globo sferico anziché in piano."
+        >
+          <button
+            type="button"
+            onClick={() => updateDesign({ globe: !design.globe })}
+            aria-pressed={design.globe}
+            className={`flex w-full items-center gap-3 rounded-lg border px-3 py-2.5 text-left transition-colors ${
+              design.globe
+                ? "border-zornade bg-zornade-50"
+                : "border-slate-200 hover:border-slate-300"
+            }`}
+          >
+            <Globe2
+              size={18}
+              className={design.globe ? "text-zornade-700" : "text-slate-500"}
+            />
+            <span className="flex-1">
+              <span className="block text-sm font-medium text-slate-800">
+                Globo 3D
+              </span>
+              <span className="block text-[11px] text-slate-500">
+                Proiezione sferica interattiva
+              </span>
+            </span>
+            <span
+              className={`relative h-5 w-9 shrink-0 rounded-full transition-colors ${
+                design.globe ? "bg-zornade" : "bg-slate-300"
+              }`}
+            >
+              <span
+                className={`absolute top-0.5 left-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${
+                  design.globe ? "translate-x-4" : "translate-x-0"
+                }`}
+              />
+            </span>
+          </button>
+        </PanelSection>
+      )}
 
       {/* ---- Tipo di cartogramma ---- */}
       {caps.has("cartogramKind") && (

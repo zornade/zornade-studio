@@ -28,10 +28,9 @@ export interface DataLayer {
   /**
    * "area" → fill+line choropleth (default); "point" → circle layer;
    * "geo" → the user's own geometry (polygons/lines/points drawn together);
-   * "heatmap" → density surface from points; "extrusion" → 3D fill-extrusion;
-   * "globe" → spherical globe projection (choropleth on a sphere).
+   * "heatmap" → density surface from points; "extrusion" → 3D fill-extrusion.
    */
-  kind?: "area" | "point" | "geo" | "heatmap" | "extrusion" | "globe";
+  kind?: "area" | "point" | "geo" | "heatmap" | "extrusion";
   /** MapLibre paint expression for `fill-color` (area / geo polygons). */
   fillColor?: unknown;
   /** Outline colour for the polygons (area). */

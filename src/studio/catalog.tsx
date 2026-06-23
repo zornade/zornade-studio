@@ -66,7 +66,6 @@ import {
   Funnel,
   ChartCandlestick,
   SlidersHorizontal,
-  Globe,
   MapPinned,
   Sparkles,
 } from "lucide-react";
@@ -112,9 +111,7 @@ export const VIZ_GROUPS: CatalogGroup[] = [
       { id: "cartogram", label: "Cartogramma", desc: "Aree deformate per valore", icon: Grip, status: "ready" },
       { id: "flow", label: "Flussi", desc: "Origine → destinazione", icon: Spline, status: "ready" },
       { id: "raster", label: "Raster / satellite", desc: "GeoTIFF, WMS, tile", icon: Layers, status: "soon" },
-      { id: "extrusion", label: "Estrusione 3D", desc: "Altezza per valore", icon: Box, status: "ready" },
-      { id: "globe", label: "Globo 3D", desc: "Proiezione sferica", icon: Globe, status: "soon" },
-    ],
+      { id: "extrusion", label: "Estrusione 3D", desc: "Altezza per valore", icon: Box, status: "ready" }    ],
   },
   {
     id: "charts",

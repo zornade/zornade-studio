@@ -174,6 +174,8 @@ export interface PointSpec {
   annotations?: Annotation[];
   /** Viewport camera snapshot captured at publish time. */
   camera?: StoryCamera;
+  /** Render on a 3D globe (spherical projection). Absent = false (back-compat). */
+  globe?: boolean;
   design: SpecDesign;
 }
 
@@ -203,6 +205,8 @@ export interface GeoSpec {
   annotations?: Annotation[];
   /** Viewport camera snapshot captured at publish time. */
   camera?: StoryCamera;
+  /** Render on a 3D globe (spherical projection). Absent = false (back-compat). */
+  globe?: boolean;
   design: SpecDesign;
 }
 
@@ -536,6 +540,7 @@ function buildPointSpec(state: StudioState & { camera?: StoryCamera | null }, re
     ...(state.annotations.length > 0
       ? { annotations: sanitizeAnnotations(state.annotations) }
       : {}),
+    ...(design.globe ? { globe: true } : {}),
     design: {
       basemap: design.basemap,
       colorScale: design.colorScale,
@@ -684,6 +689,7 @@ function buildGeoSpec(state: StudioState & { camera?: StoryCamera | null }): Bui
     ...(state.annotations.length > 0
       ? { annotations: sanitizeAnnotations(state.annotations) }
       : {}),
+    ...(design.globe ? { globe: true } : {}),
     design: {
       basemap: design.basemap,
       colorScale: design.colorScale,

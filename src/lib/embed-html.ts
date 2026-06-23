@@ -704,10 +704,9 @@ function fmt(n){var s=NF.format(n);return E.valueUnit?(s+"\u00a0"+E.valueUnit):s
 var map=new maplibregl.Map({container:"map",
   style:E.basemapStyle||{version:8,sources:{},layers:[]},
   center:E.center,zoom:E.zoom,pitch:E.pitch,bearing:E.bearing,attributionControl:false,interactive:E.interactive});
-if(E.globe)map.setProjection({type:"globe"});
 map.addControl(new maplibregl.AttributionControl({compact:true}));
 var GEO=null,ready=false;
-map.on("load",function(){ready=true;if(GEO)build();});
+map.on("load",function(){ready=true;if(E.globe)map.setProjection({type:"globe"});if(GEO)build();});
 fetch(E.geoUrl).then(function(r){return r.json();}).then(function(g){GEO=g;if(ready)build();});
 function build(){
   var noData=paint(E.keyed);
@@ -747,7 +746,7 @@ function build(){
     map.addLayer({id:"d-line",type:"line",source:"d",
       paint:{"line-color":"#fff","line-width":0.6}},before);
   }
-  if(!E.hasCamera){fit();}else if(E.bounds){map.fitBounds(E.bounds,{pitch:E.pitch,bearing:E.bearing,duration:0,padding:0});}
+  if(!E.hasCamera&&!E.globe){fit();}else if(E.bounds){map.fitBounds(E.bounds,{pitch:E.pitch,bearing:E.bearing,duration:0,padding:0});}
   if(E.showLegend)legend(noData);
   if(E.tooltip)tooltip();
   if(E.frames&&E.frames.length>1)timeUI();
@@ -1170,12 +1169,13 @@ function buildPointEmbedHtml(spec: PointSpec, opts: EmbedOptions): string {
     showLabels: spec.render === "locator",
     nameField: "__name",
     basemapStyle: resolveBasemap(d.basemap, d.customBasemapUrl ?? ""),
-    center: (spec.camera?.center ?? [12.5, 42]) as [number, number],
-    zoom: spec.camera?.zoom ?? 5,
+    center: (spec.camera?.center ?? (spec.globe ? [0, 20] : [12.5, 42])) as [number, number],
+    zoom: spec.camera?.zoom ?? (spec.globe ? 1.5 : 5),
     pitch: spec.camera?.pitch ?? 0,
     bearing: spec.camera?.bearing ?? 0,
     hasCamera: !!spec.camera,
     bounds: spec.camera?.bounds ?? null,
+    globe: spec.globe ?? false,
     interactive: !!d.zoomPan,
     tooltip: !!d.tooltip && spec.render !== "heatmap",
     showLegend: !!d.showLegend,
@@ -1236,7 +1236,7 @@ var map=new maplibregl.Map({container:"map",
   style:E.basemapStyle||{version:8,sources:{},layers:[]},
   center:E.center,zoom:E.zoom,pitch:E.pitch,bearing:E.bearing,attributionControl:false,interactive:E.interactive});
 map.addControl(new maplibregl.AttributionControl({compact:true}));
-map.on("load",function(){build();});
+map.on("load",function(){if(E.globe)map.setProjection({type:"globe"});build();});
 function build(){
   map.addSource("d",{type:"geojson",data:E.geojson});
   map.addLayer({id:"d-fill",type:E.layerType,source:"d",paint:E.paint});
@@ -1249,7 +1249,7 @@ function build(){
         "text-anchor":"top","text-offset":[0,0.8],"text-max-width":10},
       paint:{"text-color":"#0f172a","text-halo-color":"#fff","text-halo-width":1.4}});
   }
-  if(!E.hasCamera){fit();}else if(E.bounds){map.fitBounds(E.bounds,{pitch:E.pitch,bearing:E.bearing,duration:0,padding:0});}
+  if(!E.hasCamera&&!E.globe){fit();}else if(E.bounds){map.fitBounds(E.bounds,{pitch:E.pitch,bearing:E.bearing,duration:0,padding:0});}
   if(E.showLegend)legend();
   if(E.tooltip)tooltip();
   annotations();
@@ -1442,12 +1442,13 @@ function buildGeoEmbedHtml(spec: GeoSpec, opts: EmbedOptions): string {
     circleRadius: d.pointSize,
     nameField: "__name",
     basemapStyle: resolveBasemap(d.basemap, d.customBasemapUrl ?? ""),
-    center: (spec.camera?.center ?? [12.5, 42]) as [number, number],
-    zoom: spec.camera?.zoom ?? 5,
+    center: (spec.camera?.center ?? (spec.globe ? [0, 20] : [12.5, 42])) as [number, number],
+    zoom: spec.camera?.zoom ?? (spec.globe ? 1.5 : 5),
     pitch: spec.camera?.pitch ?? 0,
     bearing: spec.camera?.bearing ?? 0,
     hasCamera: !!spec.camera,
     bounds: spec.camera?.bounds ?? null,
+    globe: spec.globe ?? false,
     interactive: !!d.zoomPan,
     tooltip: !!d.tooltip,
     showLegend: !!d.showLegend,
@@ -1509,7 +1510,7 @@ var map=new maplibregl.Map({container:"map",
   style:E.basemapStyle||{version:8,sources:{},layers:[]},
   center:E.center,zoom:E.zoom,pitch:E.pitch,bearing:E.bearing,attributionControl:false,interactive:E.interactive});
 map.addControl(new maplibregl.AttributionControl({compact:true}));
-map.on("load",function(){build();});
+map.on("load",function(){if(E.globe)map.setProjection({type:"globe"});build();});
 function build(){
   map.addSource("d",{type:"geojson",data:E.geojson});
   var firstSym=(map.getStyle().layers||[]).filter(function(l){return l.type==="symbol";})[0];
@@ -1521,7 +1522,7 @@ function build(){
   map.addLayer({id:"d-point",type:"circle",source:"d",
     paint:{"circle-color":E.circleColor,"circle-radius":E.circleRadius||5,
       "circle-stroke-color":"#fff","circle-stroke-width":1,"circle-opacity":0.9}},before);
-  if(!E.hasCamera){fit();}else if(E.bounds){map.fitBounds(E.bounds,{pitch:E.pitch,bearing:E.bearing,duration:0,padding:0});}
+  if(!E.hasCamera&&!E.globe){fit();}else if(E.bounds){map.fitBounds(E.bounds,{pitch:E.pitch,bearing:E.bearing,duration:0,padding:0});}
   if(E.showLegend)legend();
   if(E.tooltip)tooltip();
   annotations();
