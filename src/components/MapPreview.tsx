@@ -499,12 +499,14 @@ export function MapPreview({
     | string
     | maplibregl.StyleSpecification => {
     if (basemapUrl) return basemapUrl;
-    return buildStyle({
+    const style = buildStyle({
       tilesUrl,
       flavor,
       lang,
       basemap,
     }) as maplibregl.StyleSpecification;
+    if (globe) style.projection = { type: "globe" } as maplibregl.StyleSpecification["projection"];
+    return style;
   };
 
   // Initialise the map once.
@@ -520,7 +522,8 @@ export function MapPreview({
       zoom: INITIAL_ZOOM,
       attributionControl: false,
       // Required so the WebGL canvas can be read back for PNG export (O1.5).
-      preserveDrawingBuffer: true,
+      // In MapLibre 5 this moved into canvasContextAttributes.
+      canvasContextAttributes: { preserveDrawingBuffer: true },
     });
     const nav = new maplibregl.NavigationControl({ showCompass: false });
     navControlRef.current = nav;
@@ -731,7 +734,7 @@ export function MapPreview({
       }
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tilesUrl, flavor, lang, basemap, basemapUrl]);
+  }, [tilesUrl, flavor, lang, basemap, basemapUrl, globe]);
 
   // Re-sync the overlay whenever the data layer changes.
   useEffect(() => {
@@ -753,11 +756,7 @@ export function MapPreview({
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
-    // setProjection is available in MapLibre GL JS ≥4 but not yet reflected in
-    // the community type definitions; cast through unknown to suppress the error.
-    (map as unknown as { setProjection: (p: { type: string }) => void }).setProjection(
-      globe ? { type: "globe" } : { type: "mercator" },
-    );
+    map.setProjection(globe ? { type: "globe" } : { type: "mercator" });
     if (globe) {
       // Zoom out to show the full globe; fit the data from there.
       map.easeTo({ zoom: 1.5, center: [0, 20], duration: 400 });
