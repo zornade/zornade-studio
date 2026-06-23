@@ -21,6 +21,7 @@ const IMPLEMENTED = new Set<string>([
   "dotdensity",
   "cartogram",
   "flow",
+  "globe",
   "bar",
   "line",
   "area",

@@ -413,6 +413,19 @@ export function MapCanvas() {
         tooltipTemplate: design.tooltipTemplate,
       };
     }
+    // Globe: choropleth rendered on a spherical projection.
+    if (vizType === "globe" && choro) {
+      const fillColor = buildFillColorExpression(choro.classes, scaleColors, NO_DATA_COLOR);
+      return {
+        kind: "globe" as const,
+        geojson: choro.geojson,
+        fillColor,
+        nameField: data?.kind === "area" ? GEO_LEVELS[data.geoLevel].nameField : undefined,
+        valueLabel,
+        valueUnit: design.valueUnit || undefined,
+        tooltipTemplate: design.tooltipTemplate,
+      };
+    }
     // Heatmap: density surface from the point cloud.
     if (vizType === "heatmap" && points && data?.kind === "point") {
       return {
@@ -633,7 +646,7 @@ export function MapCanvas() {
   const pitch = vizType === "extrusion" ? 50 : 0;
 
   // The class breaks the value legend should display, by map type. Choropleth,
-  // hexbin and 3D extrusion all colour areas by graduated classes, so they
+  // hexbin, 3D extrusion and globe all colour areas by graduated classes, so they
   // share the same steps/gradient legend; the others use their own legend
   // (bivariate matrix, heatmap density, spike range) or none.
   const legendClasses =
@@ -641,18 +654,22 @@ export function MapCanvas() {
       ? choro?.classes ?? null
       : vizType === "extrusion"
         ? joined?.classes ?? null
-        : vizType === "cartogram"
-          ? joined?.classes ?? null
-          : vizType === "hexbin"
-            ? hexbinClasses
-            : null;
+        : vizType === "globe"
+          ? choro?.classes ?? null
+          : vizType === "cartogram"
+            ? joined?.classes ?? null
+            : vizType === "hexbin"
+              ? hexbinClasses
+              : null;
   // Count of "no data" areas to note under the legend (graduated area maps).
   const legendNoData =
     vizType === "choropleth"
       ? choro?.noDataFeatures ?? 0
       : vizType === "extrusion"
         ? joined?.noDataFeatures ?? 0
-        : 0;
+        : vizType === "globe"
+          ? choro?.noDataFeatures ?? 0
+          : 0;
   const showLegend = design.showLegend && legendClasses != null;
 
   // Reader class filter (clickable legend). Only meaningful for the choropleth.
@@ -725,6 +742,7 @@ export function MapCanvas() {
         basemapUrl={basemapStyle}
         dataFilter={dataFilter}
         pitch={pitch}
+        globe={vizType === "globe"}
         onMapReady={(api) => {
           mapApiRef.current = api;
         }}

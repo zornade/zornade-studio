@@ -28,9 +28,10 @@ export interface DataLayer {
   /**
    * "area" → fill+line choropleth (default); "point" → circle layer;
    * "geo" → the user's own geometry (polygons/lines/points drawn together);
-   * "heatmap" → density surface from points; "extrusion" → 3D fill-extrusion.
+   * "heatmap" → density surface from points; "extrusion" → 3D fill-extrusion;
+   * "globe" → spherical globe projection (choropleth on a sphere).
    */
-  kind?: "area" | "point" | "geo" | "heatmap" | "extrusion";
+  kind?: "area" | "point" | "geo" | "heatmap" | "extrusion" | "globe";
   /** MapLibre paint expression for `fill-color` (area / geo polygons). */
   fillColor?: unknown;
   /** Outline colour for the polygons (area). */
@@ -101,6 +102,8 @@ interface MapPreviewProps {
   onExitTool?: () => void;
   /** Map pitch in degrees (e.g. for 3D extrusion). Default 0. */
   pitch?: number;
+  /** Switch to spherical globe projection. Default false. */
+  globe?: boolean;
   /** Receives the imperative camera API (for scrollytelling authoring). */
   onMapReady?: (api: {
     getCamera: () => StoryCamera;
@@ -152,6 +155,7 @@ export function MapPreview({
   onPlaceAnnotation,
   onExitTool,
   pitch = 0,
+  globe = false,
   onMapReady,
 }: MapPreviewProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -744,6 +748,21 @@ export function MapPreview({
       map.easeTo({ pitch, duration: 500 });
     }
   }, [pitch]);
+
+  // Switch between mercator and globe projection.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    // setProjection is available in MapLibre GL JS ≥4 but not yet reflected in
+    // the community type definitions; cast through unknown to suppress the error.
+    (map as unknown as { setProjection: (p: { type: string }) => void }).setProjection(
+      globe ? { type: "globe" } : { type: "mercator" },
+    );
+    if (globe) {
+      // Zoom out to show the full globe; fit the data from there.
+      map.easeTo({ zoom: 1.5, center: [0, 20], duration: 400 });
+    }
+  }, [globe]);
 
   // Re-apply the reader class filter when it changes (without rebuilding data).
   useEffect(() => {

@@ -70,7 +70,8 @@ export type AreaRender =
   | "bivariate"
   | "spike"
   | "extrusion"
-  | "cartogram";
+  | "cartogram"
+  | "globe";
 
 /** One time frame of a temporal choropleth: a period label + its data (O3.3). */
 export interface SpecFrame {
@@ -277,6 +278,7 @@ const AREA_RENDERS = new Set<AreaRender>([
   "spike",
   "extrusion",
   "cartogram",
+  "globe",
 ]);
 
 /** Result of {@link buildSpec}: the spec, or a human reason it can't be built. */
