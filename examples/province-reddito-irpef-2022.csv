@@ -1,0 +1,108 @@
+sigla,provincia,regione,reddito_medio_eur
+TO,Torino,Piemonte,24100
+VC,Vercelli,Piemonte,22100
+BI,Biella,Piemonte,22600
+NO,Novara,Piemonte,23100
+CN,Cuneo,Piemonte,22900
+AT,Asti,Piemonte,21800
+AL,Alessandria,Piemonte,22000
+VB,Verbano-Cusio-Ossola,Piemonte,21500
+AO,Aosta,Valle d'Aosta,22400
+IM,Imperia,Liguria,21200
+SV,Savona,Liguria,21800
+GE,Genova,Liguria,24200
+SP,La Spezia,Liguria,22400
+VA,Varese,Lombardia,24800
+CO,Como,Lombardia,25500
+SO,Sondrio,Lombardia,22800
+MI,Milano,Lombardia,28400
+BG,Bergamo,Lombardia,25400
+BS,Brescia,Lombardia,24500
+PV,Pavia,Lombardia,23200
+CR,Cremona,Lombardia,23500
+MN,Mantova,Lombardia,23800
+LC,Lecco,Lombardia,25800
+LO,Lodi,Lombardia,23300
+MB,Monza e della Brianza,Lombardia,26500
+TN,Trento,Trentino-Alto Adige,24600
+BZ,Bolzano/Bozen,Trentino-Alto Adige,27200
+VR,Verona,Veneto,24600
+VI,Vicenza,Veneto,24700
+BL,Belluno,Veneto,22600
+TV,Treviso,Veneto,24500
+VE,Venezia,Veneto,23700
+PD,Padova,Veneto,24800
+RO,Rovigo,Veneto,21500
+UD,Udine,Friuli-Venezia Giulia,22800
+GO,Gorizia,Friuli-Venezia Giulia,23000
+TS,Trieste,Friuli-Venezia Giulia,24900
+PN,Pordenone,Friuli-Venezia Giulia,23200
+PC,Piacenza,Emilia-Romagna,23500
+PR,Parma,Emilia-Romagna,25100
+RE,Reggio nell'Emilia,Emilia-Romagna,25200
+MO,Modena,Emilia-Romagna,25000
+BO,Bologna,Emilia-Romagna,26100
+FE,Ferrara,Emilia-Romagna,22500
+RA,Ravenna,Emilia-Romagna,23600
+FC,Forlì-Cesena,Emilia-Romagna,23400
+RN,Rimini,Emilia-Romagna,23800
+MS,Massa-Carrara,Toscana,20800
+LU,Lucca,Toscana,21800
+PT,Pistoia,Toscana,21600
+FI,Firenze,Toscana,24500
+LI,Livorno,Toscana,21900
+PI,Pisa,Toscana,22200
+AR,Arezzo,Toscana,21500
+SI,Siena,Toscana,22400
+GR,Grosseto,Toscana,20500
+PO,Prato,Toscana,22100
+PG,Perugia,Umbria,20800
+TR,Terni,Umbria,20300
+PU,Pesaro e Urbino,Marche,21200
+AN,Ancona,Marche,21800
+MC,Macerata,Marche,20800
+AP,Ascoli Piceno,Marche,20200
+FM,Fermo,Marche,20000
+VT,Viterbo,Lazio,19500
+RI,Rieti,Lazio,19200
+RM,Roma,Lazio,23900
+LT,Latina,Lazio,19800
+FR,Frosinone,Lazio,18600
+AQ,L'Aquila,Abruzzo,19200
+TE,Teramo,Abruzzo,19500
+PE,Pescara,Abruzzo,19800
+CH,Chieti,Abruzzo,19100
+CB,Campobasso,Molise,18200
+IS,Isernia,Molise,17500
+CE,Caserta,Campania,15800
+BN,Benevento,Campania,16200
+NA,Napoli,Campania,15200
+AV,Avellino,Campania,16500
+SA,Salerno,Campania,15800
+FG,Foggia,Puglia,14600
+BT,Barletta-Andria-Trani,Puglia,14800
+BA,Bari,Puglia,16200
+TA,Taranto,Puglia,15400
+BR,Brindisi,Puglia,15200
+LE,Lecce,Puglia,15000
+PZ,Potenza,Basilicata,17200
+MT,Matera,Basilicata,17500
+CS,Cosenza,Calabria,14200
+CZ,Catanzaro,Calabria,14500
+RC,Reggio Calabria,Calabria,13800
+KR,Crotone,Calabria,13200
+VV,Vibo Valentia,Calabria,12900
+TP,Trapani,Sicilia,14500
+PA,Palermo,Sicilia,15000
+ME,Messina,Sicilia,15200
+AG,Agrigento,Sicilia,14000
+CL,Caltanissetta,Sicilia,13800
+EN,Enna,Sicilia,13500
+CT,Catania,Sicilia,15400
+RG,Ragusa,Sicilia,15100
+SR,Siracusa,Sicilia,14700
+SS,Sassari,Sardegna,17200
+NU,Nuoro,Sardegna,16800
+CA,Cagliari,Sardegna,18500
+OR,Oristano,Sardegna,16200
+SU,Sud Sardegna,Sardegna,16500

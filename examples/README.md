@@ -107,6 +107,23 @@ al 100% con le geometrie incluse (20/20 regioni, 23/23 paesi).
 
 ---
 
+# Dataset verificati per la landing page
+
+Dataset con dati reali da fonti ufficiali — adatti a produrre mappe visivamente
+forti da usare come demo su zornade.com/studio.
+
+| File | Livello | Fonte | Storia visiva |
+|------|---------|-------|---------------|
+| `province-reddito-irpef-2022.csv` | Provincia (107) | MEF — Dichiarazioni dei redditi, anno d'imposta 2021 | Gradiente nord-sud molto marcato (€12.9k–€28.4k). Mappa coropletica per provincia, palette sequenziale. |
+| `europa-pil-pps-2022.csv` | Paese europeo (40) | Eurostat — `nama_10_pc`, 2022 (EU27=100) | Forte divario est-ovest e outlier Lussemburgo (256) e Irlanda (208). Mappa coropletica europea. |
+| `mondo-aspettativa-vita-2023.csv` | Paese mondiale (107) | WHO/World Bank — Global Health Observatory 2023 | Contrasto netto Africa sub-sahariana (53–68 anni) vs Asia orientale/Europa (81–84). Mappa mondiale. |
+
+Queste mappe si creano in Studio caricando il CSV e usando il join automatico
+su `sigla` (province), `codice_iso` ISO-A3 (paesi). La classificazione e la
+palette si impostano nel passo Design.
+
+---
+
 # Dataset di esempio — Mappe tematiche avanzate (O4.x)
 
 Sei nuove mappe tematiche, tutte native (nessun plugin esterno). Le mappe a
