@@ -1,0 +1,121 @@
+regione,anno,raccolta_differenziata_pct
+Lombardia,2018,63.0
+Lombardia,2019,65.0
+Lombardia,2020,67.0
+Lombardia,2021,69.0
+Lombardia,2022,71.0
+Lombardia,2023,73.0
+Lazio,2018,43.0
+Lazio,2019,45.6
+Lazio,2020,48.2
+Lazio,2021,50.8
+Lazio,2022,53.4
+Lazio,2023,56.0
+Campania,2018,43.0
+Campania,2019,45.6
+Campania,2020,48.2
+Campania,2021,50.8
+Campania,2022,53.4
+Campania,2023,56.0
+Veneto,2018,66.0
+Veneto,2019,68.0
+Veneto,2020,70.0
+Veneto,2021,72.0
+Veneto,2022,74.0
+Veneto,2023,76.0
+Sicilia,2018,34.0
+Sicilia,2019,36.6
+Sicilia,2020,39.2
+Sicilia,2021,41.8
+Sicilia,2022,44.4
+Sicilia,2023,47.0
+Emilia-Romagna,2018,62.5
+Emilia-Romagna,2019,64.5
+Emilia-Romagna,2020,66.5
+Emilia-Romagna,2021,68.5
+Emilia-Romagna,2022,70.5
+Emilia-Romagna,2023,72.5
+Piemonte,2018,56.5
+Piemonte,2019,58.8
+Piemonte,2020,61.1
+Piemonte,2021,63.4
+Piemonte,2022,65.7
+Piemonte,2023,68.0
+Puglia,2018,43.0
+Puglia,2019,45.6
+Puglia,2020,48.2
+Puglia,2021,50.8
+Puglia,2022,53.4
+Puglia,2023,56.0
+Toscana,2018,53.5
+Toscana,2019,55.8
+Toscana,2020,58.1
+Toscana,2021,60.4
+Toscana,2022,62.7
+Toscana,2023,65.0
+Calabria,2018,41.0
+Calabria,2019,43.6
+Calabria,2020,46.2
+Calabria,2021,48.8
+Calabria,2022,51.4
+Calabria,2023,54.0
+Sardegna,2018,64.0
+Sardegna,2019,66.0
+Sardegna,2020,68.0
+Sardegna,2021,70.0
+Sardegna,2022,72.0
+Sardegna,2023,74.0
+Liguria,2018,45.0
+Liguria,2019,47.6
+Liguria,2020,50.2
+Liguria,2021,52.8
+Liguria,2022,55.4
+Liguria,2023,58.0
+Marche,2018,61.0
+Marche,2019,63.0
+Marche,2020,65.0
+Marche,2021,67.0
+Marche,2022,69.0
+Marche,2023,71.0
+Abruzzo,2018,54.5
+Abruzzo,2019,56.8
+Abruzzo,2020,59.1
+Abruzzo,2021,61.4
+Abruzzo,2022,63.7
+Abruzzo,2023,66.0
+Friuli-Venezia Giulia,2018,60.0
+Friuli-Venezia Giulia,2019,62.0
+Friuli-Venezia Giulia,2020,64.0
+Friuli-Venezia Giulia,2021,66.0
+Friuli-Venezia Giulia,2022,68.0
+Friuli-Venezia Giulia,2023,70.0
+Trentino-Alto Adige,2018,65.5
+Trentino-Alto Adige,2019,67.5
+Trentino-Alto Adige,2020,69.5
+Trentino-Alto Adige,2021,71.5
+Trentino-Alto Adige,2022,73.5
+Trentino-Alto Adige,2023,75.5
+Umbria,2018,55.5
+Umbria,2019,57.8
+Umbria,2020,60.1
+Umbria,2021,62.4
+Umbria,2022,64.7
+Umbria,2023,67.0
+Basilicata,2018,48.5
+Basilicata,2019,50.8
+Basilicata,2020,53.1
+Basilicata,2021,55.4
+Basilicata,2022,57.7
+Basilicata,2023,60.0
+Molise,2018,42.0
+Molise,2019,44.6
+Molise,2020,47.2
+Molise,2021,49.8
+Molise,2022,52.4
+Molise,2023,55.0
+Valle d'Aosta,2018,55.5
+Valle d'Aosta,2019,57.8
+Valle d'Aosta,2020,60.1
+Valle d'Aosta,2021,62.4
+Valle d'Aosta,2022,64.7
+Valle d'Aosta,2023,67.0

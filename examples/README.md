@@ -43,8 +43,8 @@ CSV pronti per testare i **grafici** (barre, linee, aree, dispersione) e la
 dimostrativo** — valori plausibili ma **non ufficiali**: servono solo a provare
 le funzioni, non come fonte.
 
-| File | Grafico consigliato | Assi suggeriti (passo Design) |
-|------|---------------------|-------------------------------|
+| File | Grafico consigliato | Assi suggeriti (passo Struttura) |
+|------|---------------------|----------------------------------|
 | `grafico-barre-rinnovabili-regioni.csv` | **Barre** | X = `regione`, Y = `produzione_rinnovabile_gwh`; prova "Ordina per valore" |
 | `grafico-linee-rinnovabili-anni.csv` | **Linee** (multi-serie) | X = `anno`, Y = `produzione_twh`, **Serie = `fonte`** |
 | `grafico-aree-emissioni-trasporti.csv` | **Aree** | X = `anno`, Y = `emissioni_co2_trasporti_mt` |
@@ -58,7 +58,49 @@ Note:
 - I file con solo `anno`/`fonte`/`settore` (linee, aree, tabella) **non** hanno
   una dimensione geografica: si caricano comunque come **tabella** e si
   visualizzano come grafico.
-- Per le **linee multi-serie** imposta `Serie = fonte` nel passo Design: senza,
-  le tre fonti vengono sommate in un'unica linea (totale annuo).
+- Per le **linee multi-serie** imposta `Serie = fonte` nel passo Struttura:
+  senza, le tre fonti vengono sommate in un'unica linea (totale annuo).
 - L'unità di misura (`GWh`, `TWh`, `Mt`, `%`) si imposta nel passo Design e
   appare nel tooltip, come nelle mappe.
+
+---
+
+# Dataset di esempio — Mappe complete (O3.6)
+
+Dataset pensati per provare **ogni tipo di mappa** e il nuovo passo
+**“Struttura”** (tra “Dati” e “Visualizza”), dove confermi o correggi come usare
+ogni colonna (livello geografico, chiave, coordinate, valore, categoria, tempo).
+L'anteprima a destra colora ogni colonna con il suo ruolo. I valori numerici sono
+**illustrativi** (plausibili ma non ufficiali): servono a provare le funzioni.
+
+| File | Livello / Tipo | Mappe che abilita | Note |
+|------|----------------|-------------------|------|
+| `regioni-completo.csv` | Regione (area) | **Coropletica**, **Simboli proporzionali**, **Categorie**, + Barre/Dispersione/Tabella | Il “tuttofare”: 3 colonne numeriche da mappare + `macroarea` per le categorie |
+| `regioni-differenziata-temporale.csv` | Regione (area, temporale) | **Coropletica con linea del tempo**, + Linee | Forma lunga `regione, anno, valore` (2018–2023): scrub + play |
+| `paesi-europa.csv` | Paese (area, mondo) | **Coropletica**, **Categorie** | Join su `codice_iso` (ISO-A3); `gruppo` per la mappa a categorie |
+| `citta-italiane-punti.csv` | Punti (lat/lon) | **Punti**, **Localizzatore** | `categoria` colora i punti; `popolazione` li dimensiona; `citta` è l'etichetta |
+
+Come usarli, passo per passo:
+1. **Dati** → carica il file.
+2. **Struttura** → controlla i badge di ruolo. Per `regioni-completo.csv`:
+   `regione` = geografia, `macroarea` = categoria, gli altri = valore/numero.
+   Per `citta-italiane-punti.csv`, se serve, imposta `lat`/`lon` come coordinate
+   e `citta` come etichetta.
+3. **Visualizza** → si accendono solo le mappe compatibili con i dati: scegli.
+4. **Design** → personalizza colore, classi, etichette del valore (la **colonna**
+   del dato si sceglie in “Struttura”, non qui).
+
+Dettaglio per tipo di mappa:
+- **Coropletica** — `regioni-completo.csv` (scegli quale colonna numerica nel
+  passo Struttura), `paesi-europa.csv`, o i file consumo-suolo qui sopra.
+- **Simboli proporzionali** — `regioni-completo.csv`: bolle dimensionate al
+  valore sui centroidi regionali.
+- **Categorie** — `regioni-completo.csv` (`macroarea`) o `paesi-europa.csv`
+  (`gruppo`): un colore per categoria.
+- **Punti** e **Localizzatore** — `citta-italiane-punti.csv`: il Localizzatore
+  aggiunge le etichette sempre visibili (dal nome città).
+- **Linea del tempo** — `regioni-differenziata-temporale.csv`: lo slider scorre
+  i semestri/anni con la scala colore condivisa.
+
+Tutti i nomi/codici geografici di questi file sono stati verificati: combaciano
+al 100% con le geometrie incluse (20/20 regioni, 23/23 paesi).

@@ -1,0 +1,24 @@
+paese,codice_iso,pil_procapite_keur,gruppo
+Italia,ITA,30,Eurozona
+Francia,FRA,37,Eurozona
+Germania,DEU,43,Eurozona
+Spagna,ESP,28,Eurozona
+Portogallo,PRT,22,Eurozona
+Austria,AUT,45,Eurozona
+Paesi Bassi,NLD,48,Eurozona
+Belgio,BEL,42,Eurozona
+Irlanda,IRL,85,Eurozona
+Grecia,GRC,19,Eurozona
+Finlandia,FIN,42,Eurozona
+Slovenia,SVN,25,Eurozona
+Slovacchia,SVK,18,Eurozona
+Croazia,HRV,16,Eurozona
+Svizzera,CHE,80,Extra-UE
+Norvegia,NOR,78,Extra-UE
+Regno Unito,GBR,40,Extra-UE
+Svezia,SWE,47,UE non-euro
+Danimarca,DNK,55,UE non-euro
+Polonia,POL,16,UE non-euro
+Romania,ROU,13,UE non-euro
+Ungheria,HUN,16,UE non-euro
+Cechia,CZE,22,UE non-euro
