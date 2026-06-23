@@ -594,7 +594,7 @@ function LiveDatasetCard({ dataset }: { dataset: CkanDataset }) {
       // A ready catalogue source carries its own title/description: use them as
       // the default project title/subtitle (still editable in the Design step).
       applyDatasetMeta(updateProject, dataset);
-      setStep("visualize");
+      setStep("structure");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Caricamento fallito.");
     } finally {
@@ -910,9 +910,9 @@ function UploadSource() {
       const t = titleFromFileName(file.name);
       if (t) updateProject({ title: t });
     }
-    // Don't pre-pick a viz: the next step is the visualization choice, where
-    // only compatible options are enabled.
-    setStep("visualize");
+    // Don't pre-pick a viz: the next step is “Struttura”, where the operator
+    // reviews/overrides how each column is used before choosing a chart.
+    setStep("structure");
   };
 
   if (data) {
@@ -1077,7 +1077,7 @@ function OsmSource() {
           (table.dropped > 0 ? ` (${table.dropped} senza coordinate)` : "") +
           ".",
       );
-      setStep("visualize");
+      setStep("structure");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Errore nella ricerca OSM.");
     } finally {
@@ -1249,7 +1249,7 @@ function ZornadeDbSource() {
         source: "Fonte: dati Zornade · Fatto con Zornade Studio",
       });
       setInfo(`${rows.length} comuni caricati.`);
-      setStep("visualize");
+      setStep("structure");
     } catch (e) {
       setError(e instanceof Error ? e.message : "Errore di interrogazione.");
     } finally {
