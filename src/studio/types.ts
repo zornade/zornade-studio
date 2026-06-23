@@ -2,6 +2,7 @@ import type { NewsroomBrand } from "../basemap";
 import type { PresetChoice } from "./catalog";
 import type { GeoLevel } from "../lib/choropleth";
 import type { Annotation } from "../lib/annotations";
+import type { StoryStep } from "../lib/story";
 
 export type StepId = "data" | "structure" | "visualize" | "design" | "publish";
 
@@ -66,6 +67,16 @@ export interface DesignSettings {
   chartSortByValue: boolean;
   /** Bivariate map: the SECOND value column (the first is the dataset value). */
   bivariateColumn2: string;
+  /** Cartogram variant: scale areas in place, or Dorling circles. */
+  cartogramKind: "noncontiguous" | "dorling";
+  /** Flow map: origin/destination coordinate columns + optional magnitude. */
+  flowFromLat: string;
+  flowFromLon: string;
+  flowToLat: string;
+  flowToLon: string;
+  flowValue: string;
+  /** Custom raster basemap tile URL (XYZ/WMS), used when basemap = "custom-raster". */
+  customBasemapUrl: string;
 }
 
 /**
@@ -174,4 +185,6 @@ export interface StudioState {
   data: DatasetState | null;
   /** Custom map annotations drawn over the map (O3.4). */
   annotations: Annotation[];
+  /** Scrollytelling steps layered over the map (O4.1); empty = no story. */
+  storySteps: StoryStep[];
 }

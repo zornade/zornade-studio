@@ -762,7 +762,45 @@ L'utente incolla **host / utente / password** (credenziali read-only generate a 
    reali: punti (487 eventi), geometria, e un grafico a barre dal CSV rinnovabili → buildSpec→
    buildEmbedHtml produce HTML completo. *(Render runtime degli embed — MapLibre/Plot da CDN — da
    verificare sul browser dell'utente. Limite noto: tooltip bivariata senza etichetta colonna B.)*
-- **O4.1** **Scrollytelling** (Scrollama: passi + transizioni camera/dati)
+- **O4.0g** ✅ **3 dei 4 tipi rinviati: cartogramma, flussi, raster/satellite** (2026-06-23). Aggiunti
+   con moduli puri **testati** e zero nuove dipendenze; il **globo 3D** resta rinviato (richiede l'upgrade
+   a MapLibre v5 = O4.3). **Cartogramma** (`lib/cartogram.ts`, 7 test) in **due varianti**:
+   *non-contiguo* (scala ogni area attorno al centroide per √(valore/max) → area ∝ valore) e *Dorling*
+   (cerchi dimensionati per √valore, **rilassati** per non sovrapporsi, O(n²) con cap a 1200 aree).
+   AreaRender `cartogram` + `cartogramKind`; editor via memo (riusa il join area + centroidi), embed via
+   **transform inline** (come spike: la geometria fetchata viene deformata nel renderer). **Flussi**
+   (`lib/flow.ts`, 7 test): archi Bézier quadratici (bombati, cos-lat corretti) tra coppie di coordinate
+   origine→destinazione; nuovo binding in Design (4 colonne + intensità opzionale); editor disegna linee
+   colorate per valore; **pubblica come GeoSpec** (linee) — `buildFlowSpec` calcola gli archi dai dati
+   (niente geometria bundled). **Raster/satellite** (`lib/raster.ts`, 6 test): `buildRasterStyle`
+   costruisce uno stile MapLibre raster da un template XYZ/WMS; nuova preset **Satellite (Esri)** +
+   opzione **Raster/WMS personalizzato** con campo URL nel Design; `resolveBasemap` ritorna URL stile
+   (vettoriale) o oggetto-stile (raster); `MapPreview.basemapUrl` ora accetta `string |
+   StyleSpecification`. Disponibile per **ogni** mappa (è uno sfondo, non una viz). `design-caps` esteso
+   (`cartogramKind`, `flowBinding`); compat flusso = 4 numeriche. 415 test verdi (+24: cartogram 7,
+   flow 7, raster 6, spec/embed +4), tsc + build OK. **Verificato dal vivo** (DOM, no WebGL): cartogramma
+   selezionabile su aree con i 2 varianti nel Design; flussi selezionabile su 4 colonne numeriche con il
+   blocco origine→destinazione; basemap satellite + campo URL raster custom presenti. Nuovo dato
+   `flussi-migrazioni-italia.csv` (15 archi, coordinate reali). *(Render WebGL da verificare sul browser
+   utente. Globo 3D = step O4.3 con upgrade MapLibre v5.)*
+- **O4.1** ✅ **Scrollytelling** (Scrollama: passi + transizioni camera) (2026-06-23). Una **storia** è
+   una sequenza di **passi** (testo) sovrapposti a una mappa: scorrendo, la camera vola al passo. Modulo
+   puro `lib/story.ts` (**testato**, 9 test): `StoryCamera` (center/zoom/pitch/bearing), `StoryStep`
+   (id/title/body/camera), `sanitizeStorySteps` (valida input non fidato: scarta camere invalide, clampa
+   zoom/pitch/bearing, range lng/lat), `roundCamera` (spec stabile). `StudioState.storySteps` (serializzato
+   in autosave/progetto). `StudioContext`: CRUD passi + `mapApiRef` (MapPreview espone `getCamera`/`flyTo`
+   via `onMapReady`); `addStoryStep`/`recaptureStoryStep` **catturano la vista live** della mappa (no-op
+   senza mappa), `goToStep` vola; tutto safe. `DesignPanel`: sezione **Storia** (Aggiungi passo = cattura
+   vista, titolo/testo editabili, riordina su/giù, vai-al-passo, elimina). **Pubblicazione** (`StorySpec`,
+   union `VizSpec`): `buildStorySpec` ricostruisce la **mappa base** (riusa `buildSpec` con `storySteps:[]`)
+   e la avvolge con i passi sanificati; i passi su un **grafico** sono ignorati (i grafici non hanno
+   camera). `buildStoryEmbedHtml`: la mappa base è renderizzata col suo embed normale (forzato
+   **non-interattivo**) dentro un **`<iframe srcdoc>`** a tutto schermo + un'espone-globale `window.__zmap`;
+   una colonna narrativa scorre sopra e, a ogni passo, **Scrollama** (CDN pinnato `3.2.0`) fa `flyTo` la
+   camera dell'iframe. Tutto il testo dei passi è **escaped**; embed self-contained (nessuna pubblicazione
+   separata della base). `PublishPanel` pubblica la storia automaticamente quando ci sono passi su una
+   mappa. 432 test verdi (+17: story 9, spec 4, embed 4), tsc + build OK. *(Render runtime — MapLibre +
+   Scrollama da CDN, cattura camera = WebGL — da verificare sul browser dell'utente.)*
 - **O4.2** Heatmap, hexbin, flussi, estrusione 3D aggregata (deck.gl) + layer raster/satellite/WMS/GeoTIFF
 - **O4.3** Inset/minimappa isole + scale bar + freccia nord + proiezioni + **globo 3D (MapLibre v5)**
 - **O4.4** Grafici avanzati (ECharts: sankey, chord, treemap, bar chart race, radar, calendar heatmap)

@@ -9,6 +9,11 @@ import {
   Square,
   Circle,
   Trash2,
+  Plus,
+  ChevronUp,
+  ChevronDown,
+  Camera,
+  Navigation,
 } from "lucide-react";
 import { useStudio } from "../../studio/StudioContext";
 import {
@@ -52,6 +57,13 @@ export function DesignPanel() {
     setAnnotationTool,
     updateAnnotation,
     removeAnnotation,
+    storySteps,
+    addStoryStep,
+    updateStoryStep,
+    recaptureStoryStep,
+    removeStoryStep,
+    moveStoryStep,
+    goToStep,
   } = useStudio();
 
   const [noData, setNoData] = useState("#e5e7eb");
@@ -226,7 +238,128 @@ export function DesignPanel() {
             );
           })}
         </div>
+        {design.basemap === "custom-raster" && (
+          <Field
+            label="URL tile raster (XYZ o WMS)"
+            hint="Template XYZ con {z}/{x}/{y}, oppure WMS con {bbox-epsg-3857}."
+          >
+            <input
+              value={design.customBasemapUrl}
+              onChange={(e) => updateDesign({ customBasemapUrl: e.target.value })}
+              placeholder="https://…/{z}/{x}/{y}.png"
+              className={inputCls}
+            />
+          </Field>
+        )}
+        {design.basemap === "sat-esri" && (
+          <p className="text-[11px] text-slate-400">
+            Immagini satellitari © Esri, Maxar, Earthstar Geographics. L'attribuzione
+            resta nell'embed.
+          </p>
+        )}
       </PanelSection>
+
+      {/* ---- Tipo di cartogramma ---- */}
+      {caps.has("cartogramKind") && (
+        <PanelSection
+          title="Tipo di cartogramma"
+          hint="Come deformare le aree in base al valore."
+        >
+          <div className="grid grid-cols-2 gap-2">
+            {[
+              { id: "noncontiguous", label: "Non-contiguo", desc: "Aree ridotte sul posto" },
+              { id: "dorling", label: "Dorling", desc: "Cerchi dimensionati" },
+            ].map((o) => {
+              const active = design.cartogramKind === o.id;
+              return (
+                <button
+                  key={o.id}
+                  onClick={() => updateDesign({ cartogramKind: o.id as "noncontiguous" | "dorling" })}
+                  className={`flex flex-col items-start gap-0.5 rounded-xl border px-3 py-2 text-left transition-colors ${
+                    active
+                      ? "border-zornade bg-zornade-50 text-zornade-700"
+                      : "border-slate-200 text-slate-600 hover:border-slate-300"
+                  }`}
+                >
+                  <span className="text-sm font-medium">{o.label}</span>
+                  <span className="text-[11px] text-slate-500">{o.desc}</span>
+                </button>
+              );
+            })}
+          </div>
+        </PanelSection>
+      )}
+
+      {/* ---- Flussi: origine e destinazione ---- */}
+      {caps.has("flowBinding") && data && (
+        <PanelSection
+          title="Origine e destinazione"
+          hint="Le colonne con le coordinate di partenza e arrivo."
+        >
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Lat. origine">
+              <select
+                value={design.flowFromLat}
+                onChange={(e) => updateDesign({ flowFromLat: e.target.value })}
+                className={inputCls}
+              >
+                <option value="">—</option>
+                {data.numericColumns.map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Lon. origine">
+              <select
+                value={design.flowFromLon}
+                onChange={(e) => updateDesign({ flowFromLon: e.target.value })}
+                className={inputCls}
+              >
+                <option value="">—</option>
+                {data.numericColumns.map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Lat. destinazione">
+              <select
+                value={design.flowToLat}
+                onChange={(e) => updateDesign({ flowToLat: e.target.value })}
+                className={inputCls}
+              >
+                <option value="">—</option>
+                {data.numericColumns.map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Lon. destinazione">
+              <select
+                value={design.flowToLon}
+                onChange={(e) => updateDesign({ flowToLon: e.target.value })}
+                className={inputCls}
+              >
+                <option value="">—</option>
+                {data.numericColumns.map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+            </Field>
+          </div>
+          <Field label="Intensità (opzionale)" hint="Colora/dimensiona i flussi.">
+            <select
+              value={design.flowValue}
+              onChange={(e) => updateDesign({ flowValue: e.target.value })}
+              className={inputCls}
+            >
+              <option value="">— nessuna —</option>
+              {data.numericColumns.map((c) => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
+          </Field>
+        </PanelSection>
+      )}
 
       {/* ---- Grafico: etichette (gli assi sono nel passo Struttura) ---- */}
       {caps.has("chartAxes") && (
@@ -551,6 +684,78 @@ export function DesignPanel() {
           <p className="text-xs text-slate-400">Nessuna annotazione.</p>
         )}
       </PanelSection>
+
+      {/* ---- Scrollytelling (O4.1) ---- */}
+      {data && !caps.has("chartAxes") && vizType !== "table" && (
+        <PanelSection
+          title="Storia (scrollytelling)"
+          hint="Passi narrativi: scorrendo, la mappa si sposta sulla vista salvata."
+        >
+          <button
+            onClick={addStoryStep}
+            className="flex w-full items-center justify-center gap-2 rounded-lg border border-zornade bg-zornade-50 px-3 py-2 text-sm font-medium text-zornade-700 transition-colors hover:bg-zornade-100"
+          >
+            <Plus size={15} />
+            Aggiungi passo (cattura vista attuale)
+          </button>
+          {storySteps.length > 0 ? (
+            <ol className="space-y-2">
+              {storySteps.map((s, i) => (
+                <li key={s.id} className="rounded-lg border border-slate-200 p-2.5">
+                  <div className="mb-1.5 flex items-center gap-1">
+                    <span className="grid h-5 w-5 flex-shrink-0 place-items-center rounded-full bg-zornade text-[11px] font-semibold text-white">
+                      {i + 1}
+                    </span>
+                    <input
+                      value={s.title}
+                      onChange={(e) => updateStoryStep(s.id, { title: e.target.value })}
+                      placeholder="Titolo del passo"
+                      className="min-w-0 flex-1 rounded border border-slate-200 px-2 py-1 text-sm focus:border-zornade focus:outline-none"
+                    />
+                    <button onClick={() => moveStoryStep(s.id, -1)} disabled={i === 0} title="Su" className="rounded p-1 text-slate-400 hover:bg-slate-100 disabled:opacity-30">
+                      <ChevronUp size={14} />
+                    </button>
+                    <button onClick={() => moveStoryStep(s.id, 1)} disabled={i === storySteps.length - 1} title="Giù" className="rounded p-1 text-slate-400 hover:bg-slate-100 disabled:opacity-30">
+                      <ChevronDown size={14} />
+                    </button>
+                    <button onClick={() => removeStoryStep(s.id)} title="Elimina" className="rounded p-1 text-slate-400 hover:bg-red-50 hover:text-red-600">
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                  <textarea
+                    value={s.body}
+                    onChange={(e) => updateStoryStep(s.id, { body: e.target.value })}
+                    placeholder="Testo del passo…"
+                    rows={2}
+                    className="w-full resize-y rounded border border-slate-200 px-2 py-1 text-xs focus:border-zornade focus:outline-none"
+                  />
+                  <div className="mt-1.5 flex gap-2">
+                    <button
+                      onClick={() => goToStep(s.id)}
+                      className="flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] text-slate-500 hover:bg-slate-100"
+                      title="Vai a questa vista"
+                    >
+                      <Navigation size={12} /> Vai
+                    </button>
+                    <button
+                      onClick={() => recaptureStoryStep(s.id)}
+                      className="flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] text-slate-500 hover:bg-slate-100"
+                      title="Aggiorna con la vista attuale"
+                    >
+                      <Camera size={12} /> Aggiorna vista
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ol>
+          ) : (
+            <p className="text-xs text-slate-400">
+              Nessun passo. Sposta la mappa sulla vista che vuoi e premi “Aggiungi
+              passo”.
+            </p>
+          )}
+        </PanelSection>
+      )}
     </div>
   );
 }

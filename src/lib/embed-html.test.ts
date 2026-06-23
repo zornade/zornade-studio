@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { buildEmbedHtml, escapeHtml, EMBED_MAPLIBRE_VERSION, EMBED_PLOT_VERSION } from "./embed-html";
+import { buildEmbedHtml, escapeHtml, EMBED_MAPLIBRE_VERSION, EMBED_PLOT_VERSION, EMBED_SCROLLAMA_VERSION } from "./embed-html";
 import { computeBreaks } from "./choropleth";
-import type { ChoroplethSpec, PointSpec, GeoSpec, ChartSpec } from "./spec";
+import type { ChoroplethSpec, PointSpec, GeoSpec, ChartSpec, StorySpec } from "./spec";
 
 function spec(over: Partial<ChoroplethSpec> = {}): ChoroplethSpec {
   return {
@@ -364,6 +364,19 @@ describe("buildEmbedHtml · area map variants (O4 publish)", () => {
     );
     expect(out).not.toContain("<img src=x onerror=alert(1)>");
   });
+
+  it("cartogram ships the inline transform + the chosen variant", () => {
+    const nc = buildEmbedHtml(spec({ render: "cartogram", cartogramKind: "noncontiguous" }), {
+      geoBaseUrl: base,
+    });
+    expect(nc).toContain('"render":"cartogram"');
+    expect(nc).toContain('"cartogramKind":"noncontiguous"');
+    expect(nc).toContain("function cartogram(");
+    const dor = buildEmbedHtml(spec({ render: "cartogram", cartogramKind: "dorling" }), {
+      geoBaseUrl: base,
+    });
+    expect(dor).toContain('"cartogramKind":"dorling"');
+  });
 });
 
 describe("buildEmbedHtml · point maps (O4 publish, phase 2)", () => {
@@ -607,3 +620,56 @@ describe("buildEmbedHtml · charts (O4 publish, phase 4)", () => {
 });
 
 
+
+describe("buildEmbedHtml · scrollytelling story (O4.1)", () => {
+  const base = "https://embed.x/geo";
+
+  function storySpec(over: Partial<StorySpec> = {}): StorySpec {
+    const baseMap = spec();
+    return {
+      schemaVersion: 1,
+      type: "story",
+      project: { title: "La storia", subtitle: "scroll", source: "Test" },
+      base: baseMap,
+      steps: [
+        { id: "a", title: "Primo", body: "Testo uno", camera: { center: [12, 42], zoom: 5, pitch: 0, bearing: 0 } },
+        { id: "b", title: "Secondo", body: "Testo due", camera: { center: [9, 45], zoom: 7, pitch: 30, bearing: 10 } },
+      ],
+      design: baseMap.design,
+      ...over,
+    };
+  }
+
+  it("loads Scrollama from the pinned CDN and inlines the cameras", () => {
+    const out = buildEmbedHtml(storySpec(), { geoBaseUrl: base });
+    expect(out.startsWith("<!doctype html>")).toBe(true);
+    expect(out).toContain(`scrollama@${EMBED_SCROLLAMA_VERSION}`);
+    expect(out).toContain('"cameras"');
+    expect(out).toContain('id="mapframe"');
+  });
+
+  it("hosts the base map inside an iframe srcdoc and exposes its map", () => {
+    const out = buildEmbedHtml(storySpec(), { geoBaseUrl: base });
+    expect(out).toContain("srcdoc=");
+    // the base map's renderer is escaped into the srcdoc, with the global hook.
+    expect(out).toContain("window.__zmap");
+  });
+
+  it("renders the step text (escaped)", () => {
+    const out = buildEmbedHtml(storySpec(), { geoBaseUrl: base });
+    expect(out).toContain("Primo");
+    expect(out).toContain("Testo due");
+  });
+
+  it("escapes a malicious step title", () => {
+    const out = buildEmbedHtml(
+      storySpec({
+        steps: [
+          { id: "x", title: "<img src=x onerror=alert(1)>", body: "", camera: { center: [12, 42], zoom: 5, pitch: 0, bearing: 0 } },
+        ],
+      }),
+      { geoBaseUrl: base },
+    );
+    expect(out).not.toContain("<img src=x onerror=alert(1)>");
+  });
+});

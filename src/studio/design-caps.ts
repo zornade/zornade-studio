@@ -33,7 +33,11 @@ export type DesignCapability =
   /** Chart axes: x/y/series column pickers + value label. */
   | "chartAxes"
   /** Bivariate map: pick the second value column. */
-  | "bivariateBinding";
+  | "bivariateBinding"
+  /** Cartogram: pick the variant (non-contiguous / Dorling). */
+  | "cartogramKind"
+  /** Flow map: pick the origin/destination coordinate columns. */
+  | "flowBinding";
 
 /** Capabilities per visualisation type (catalog id → blocks). */
 export const VIZ_DESIGN_CAPS: Record<string, DesignCapability[]> = {
@@ -44,6 +48,10 @@ export const VIZ_DESIGN_CAPS: Record<string, DesignCapability[]> = {
   // Category map: areas coloured by a categorical column.
   category: ["geoBinding", "categoryBinding", "colorScale", "tooltipTemplate"],
   locator: ["pointStyle"],
+  // Cartogram: areas resized by value (non-contiguous) or Dorling circles.
+  cartogram: ["cartogramKind", "valueLabel", "colorScale", "classification", "tooltipTemplate"],
+  // Flow map: arcs between origin/destination coordinate pairs.
+  flow: ["flowBinding", "valueLabel", "colorScale", "pointStyle", "tooltipTemplate"],
   // Bivariate map: two variables → a fixed 3×3 colour matrix (no colour ramp).
   bivariate: ["valueLabel", "bivariateBinding", "tooltipTemplate"],
   // Spike map: triangles at centroids, uniform colour + width (pointStyle).

@@ -130,7 +130,9 @@ describe("area-map publish · real data end-to-end (O4 Fase 1)", () => {
         pointColor: "#01646f", pointSize: 7, showTitle: true, showLegend: true,
         showSource: true, tooltip: true, tooltipTemplate: "", zoomPan: true,
         readerFilters: false, chartX: "", chartY: "", chartSeries: "",
-        chartSortByValue: false, bivariateColumn2: "", ...over,
+        chartSortByValue: false, bivariateColumn2: "",
+        cartogramKind: "noncontiguous", flowFromLat: "", flowFromLon: "",
+        flowToLat: "", flowToLon: "", flowValue: "", customBasemapUrl: "", ...over,
       },
       data: {
         kind: "area", fileName: "regioni-completo.csv", columns, rows,
@@ -139,6 +141,7 @@ describe("area-map publish · real data end-to-end (O4 Fase 1)", () => {
         categoryColumn: "macroarea",
       },
       annotations: [],
+      storySteps: [],
     };
   }
 
@@ -195,12 +198,15 @@ describe("area-map publish · real data end-to-end (O4 Fase 1)", () => {
         showSource: true, tooltip: true, tooltipTemplate: "", zoomPan: true,
         readerFilters: false, chartX: "regione", chartY: "produzione_rinnovabile_gwh",
         chartSeries: "", chartSortByValue: true, bivariateColumn2: "",
+        cartogramKind: "noncontiguous", flowFromLat: "", flowFromLon: "",
+        flowToLat: "", flowToLon: "", flowValue: "", customBasemapUrl: "",
       },
       data: {
         kind: "table", fileName: "rinnovabili.csv", columns, rows,
         numericColumns: ["produzione_rinnovabile_gwh"], labelColumns: ["regione"],
       },
       annotations: [],
+      storySteps: [],
     };
     const out = buildSpec(state);
     if (!("spec" in out) || out.spec.type !== "chart") throw new Error("expected chart spec");

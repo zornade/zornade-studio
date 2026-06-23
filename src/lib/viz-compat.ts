@@ -174,9 +174,9 @@ const RULES: Record<string, Rule> = {
   heatmap: NEED_GEO_POINT,
   hexbin: NEED_GEO_POINT,
   flow: (s) =>
-    s.hasGeoPoint && s.nQuant >= 1
-      ? { ok: true, score: 0.5 }
-      : { ok: false, reason: "servono coordinate di origine e destinazione" },
+    s.nQuant >= 4
+      ? { ok: true, score: 0.6 }
+      : { ok: false, reason: "servono 4 colonne numeriche: coordinate di origine e destinazione" },
   raster: NOT_DATA_DRIVEN,
   globe: NEED_GEO_AREA_VALUE,
   // Charts.

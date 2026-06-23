@@ -8,6 +8,9 @@
  * publish function never pulls the UI bundle.
  */
 
+import type { StyleSpecification } from "maplibre-gl";
+import { buildRasterStyle } from "../lib/raster";
+
 /** Data color scales for choropleth/symbol layers. */
 export interface ColorScale {
   id: string;
@@ -48,8 +51,12 @@ export const COLOR_SCALES: ColorScale[] = [
 export interface MapBasemap {
   id: string;
   label: string;
-  /** External MapLibre style URL, or null for "no basemap" / "soon". */
+  /** External MapLibre style URL, or null for "no basemap" / "soon" / raster. */
   styleUrl: string | null;
+  /** Raster tile URL template (XYZ/WMS) when this basemap is a raster layer. */
+  rasterUrl?: string;
+  /** Attribution for a raster basemap. */
+  attribution?: string;
   status?: "ready" | "soon";
 }
 
@@ -60,6 +67,20 @@ export const MAP_BASEMAPS: MapBasemap[] = [
   { id: "ofm-bright", label: "Standard (Bright)", styleUrl: `${OFM}/bright` },
   { id: "ofm-liberty", label: "Dettagliato (Liberty)", styleUrl: `${OFM}/liberty` },
   { id: "ofm-dark", label: "Scuro (Dark)", styleUrl: `${OFM}/dark` },
+  {
+    id: "sat-esri",
+    label: "Satellite (Esri)",
+    styleUrl: null,
+    rasterUrl:
+      "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+    attribution: "Tiles © Esri — Source: Esri, Maxar, Earthstar Geographics, and the GIS User Community",
+  },
+  {
+    id: "custom-raster",
+    label: "Raster / WMS personalizzato",
+    styleUrl: null,
+    rasterUrl: "",
+  },
   { id: "none", label: "Nessuna (sfondo trasparente)", styleUrl: null },
   { id: "custom", label: "Custom", styleUrl: null, status: "soon" },
 ];
@@ -74,4 +95,25 @@ export function colorsForScale(id: string, reverse = false): string[] {
 /** MapLibre style URL for a basemap id, or null for "none"/"custom"/unknown. */
 export function basemapStyleUrl(id: string): string | null {
   return MAP_BASEMAPS.find((b) => b.id === id)?.styleUrl ?? null;
+}
+
+/**
+ * Resolve a basemap id to what MapLibre's `setStyle` needs: a vector style URL
+ * (string), a raster style object (satellite/WMS), or null for "none". For a
+ * raster basemap, `customUrl` overrides the preset's URL (the "custom-raster"
+ * option supplies it). Returns null when a raster URL is missing/invalid.
+ */
+export function resolveBasemap(
+  id: string,
+  customUrl = "",
+): string | StyleSpecification | null {
+  const def = MAP_BASEMAPS.find((b) => b.id === id);
+  if (!def) return null;
+  if (def.styleUrl) return def.styleUrl;
+  if (def.rasterUrl !== undefined) {
+    const url = (def.id === "custom-raster" ? customUrl : def.rasterUrl).trim();
+    if (!url) return null;
+    return buildRasterStyle(url, { attribution: def.attribution });
+  }
+  return null;
 }

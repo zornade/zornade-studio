@@ -22,6 +22,19 @@ import { NEWSROOM_KITS } from "./catalog";
 import { isChartType } from "../lib/chart-data";
 import type { SavableProject } from "../lib/project";
 import type { Annotation, DrawTool } from "../lib/annotations";
+import {
+  newStoryStepId,
+  makeStoryStep,
+  roundCamera,
+  type StoryStep,
+  type StoryCamera,
+} from "../lib/story";
+
+/** Imperative map API exposed by MapPreview for story authoring. */
+export interface MapApi {
+  getCamera: () => StoryCamera | null;
+  flyTo: (camera: StoryCamera) => void;
+}
 
 interface StudioContextValue extends StudioState {
   setStep: (step: StepId) => void;
@@ -53,6 +66,18 @@ interface StudioContextValue extends StudioState {
    */
   annotationTool: DrawTool | null;
   setAnnotationTool: (t: DrawTool | null) => void;
+  /**
+   * Scrollytelling steps (O4.1). `addStoryStep` captures the live map camera
+   * via {@link mapApiRef}; `goToStep` flies the map to a step's camera.
+   */
+  addStoryStep: () => void;
+  updateStoryStep: (id: string, patch: Partial<Pick<StoryStep, "title" | "body">>) => void;
+  recaptureStoryStep: (id: string) => void;
+  removeStoryStep: (id: string) => void;
+  moveStoryStep: (id: string, dir: -1 | 1) => void;
+  goToStep: (id: string) => void;
+  /** Imperative map API (camera capture/flyTo), set by MapPreview on load. */
+  mapApiRef: MutableRefObject<MapApi | null>;
   /** Ref to the map container node, for PNG export (set by MapCanvas). */
   exportNodeRef: MutableRefObject<HTMLElement | null>;
 }
@@ -86,6 +111,13 @@ const INITIAL_DESIGN: DesignSettings = {
   chartSeries: "",
   chartSortByValue: false,
   bivariateColumn2: "",
+  cartogramKind: "noncontiguous",
+  flowFromLat: "",
+  flowFromLon: "",
+  flowToLat: "",
+  flowToLon: "",
+  flowValue: "",
+  customBasemapUrl: "",
 };
 
 /** localStorage key for the best-effort session autosave. */
@@ -149,6 +181,10 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     restored?.annotations ?? [],
   );
   const [annotationTool, setAnnotationTool] = useState<DrawTool | null>(null);
+  const [storySteps, setStorySteps] = useState<StoryStep[]>(
+    restored?.storySteps ?? [],
+  );
+  const mapApiRef = useRef<MapApi | null>(null);
   // Time-slider frame index. View state only (never serialised): defaults to
   // the most recent frame when a temporal dataset loads.
   const [timeIndex, setTimeIndex] = useState<number>(() =>
@@ -167,6 +203,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       design,
       data,
       annotations,
+      storySteps,
       setStep,
       updateProject: (patch) => setProject((p) => ({ ...p, ...patch })),
       setDataSource,
@@ -214,6 +251,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
         setDesign(s.design);
         setData(s.data);
         setAnnotations(s.annotations ?? []);
+        setStorySteps(s.storySteps ?? []);
         setAnnotationTool(null);
         setTimeIndex(initialTimeIndex(s.data));
       },
@@ -226,19 +264,55 @@ export function StudioProvider({ children }: { children: ReactNode }) {
         setAnnotations((list) => list.filter((a) => a.id !== id)),
       annotationTool,
       setAnnotationTool,
+      // --- Scrollytelling (O4.1) ---
+      addStoryStep: () => {
+        const cam = mapApiRef.current?.getCamera();
+        if (!cam) return;
+        setStorySteps((list) => [
+          ...list,
+          makeStoryStep(newStoryStepId(), roundCamera(cam), `Passo ${list.length + 1}`, ""),
+        ]);
+      },
+      updateStoryStep: (id, patch) =>
+        setStorySteps((list) =>
+          list.map((s) => (s.id === id ? { ...s, ...patch } : s)),
+        ),
+      recaptureStoryStep: (id) => {
+        const cam = mapApiRef.current?.getCamera();
+        if (!cam) return;
+        setStorySteps((list) =>
+          list.map((s) => (s.id === id ? { ...s, camera: roundCamera(cam) } : s)),
+        );
+      },
+      removeStoryStep: (id) =>
+        setStorySteps((list) => list.filter((s) => s.id !== id)),
+      moveStoryStep: (id, dir) =>
+        setStorySteps((list) => {
+          const i = list.findIndex((s) => s.id === id);
+          const j = i + dir;
+          if (i === -1 || j < 0 || j >= list.length) return list;
+          const next = [...list];
+          [next[i], next[j]] = [next[j], next[i]];
+          return next;
+        }),
+      goToStep: (id) => {
+        const step = storySteps.find((s) => s.id === id);
+        if (step) mapApiRef.current?.flyTo(step.camera);
+      },
+      mapApiRef,
       timeIndex,
       setTimeIndex,
       exportNodeRef,
     }),
-    [step, project, dataSource, vizType, preset, brand, design, data, annotations, annotationTool, timeIndex],
+    [step, project, dataSource, vizType, preset, brand, design, data, annotations, storySteps, annotationTool, timeIndex],
   );
 
   // Best-effort autosave of the current session to localStorage. Wrapped so a
   // quota error (e.g. a very large dataset) degrades gracefully instead of
   // throwing — the explicit "Salva progetto" file is the reliable path.
   useEffect(() => {
-    writeAutosave({ step, project, dataSource, vizType, preset, brand, design, data, annotations });
-  }, [step, project, dataSource, vizType, preset, brand, design, data, annotations]);
+    writeAutosave({ step, project, dataSource, vizType, preset, brand, design, data, annotations, storySteps });
+  }, [step, project, dataSource, vizType, preset, brand, design, data, annotations, storySteps]);
 
   return (
     <StudioContext.Provider value={value}>{children}</StudioContext.Provider>

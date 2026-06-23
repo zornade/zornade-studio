@@ -21,6 +21,8 @@ function state(title: string, value: string): StudioState {
       zoomPan: true, readerFilters: false,
       chartX: "", chartY: "", chartSeries: "", chartSortByValue: false,
       bivariateColumn2: "",
+      cartogramKind: "noncontiguous", flowFromLat: "", flowFromLon: "",
+      flowToLat: "", flowToLon: "", flowValue: "", customBasemapUrl: "",
     },
     data: {
       kind: "area",
@@ -30,6 +32,7 @@ function state(title: string, value: string): StudioState {
       numericColumns: ["V"],
     },
     annotations: [],
+    storySteps: [],
   };
 }
 

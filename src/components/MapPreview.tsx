@@ -20,6 +20,7 @@ import {
   type LngLat,
   type MarkerDescriptor,
 } from "../lib/annotations";
+import type { StoryCamera } from "../lib/story";
 
 /** A choropleth data layer to overlay on the basemap. */
 export interface DataLayer {
@@ -74,11 +75,11 @@ interface MapPreviewProps {
   /** Render the basemap. When false, the background is transparent. Default true. */
   basemap?: boolean;
   /**
-   * External MapLibre style URL to use as the basemap (e.g. OpenFreeMap).
-   * When set, it takes priority over the bundled Protomaps/PMTiles style and
-   * the choropleth is overlaid on top of it.
+   * External MapLibre basemap: a style URL (e.g. OpenFreeMap) or a raster style
+   * object (satellite/WMS). When set, it takes priority over the bundled
+   * Protomaps/PMTiles style and the data is overlaid on top of it.
    */
-  basemapUrl?: string | null;
+  basemapUrl?: string | maplibregl.StyleSpecification | null;
   /**
    * Changing this string triggers an auto fit-bounds to the data extent.
    * Keep it stable across basemap/style changes so the camera is only refit
@@ -100,6 +101,11 @@ interface MapPreviewProps {
   onExitTool?: () => void;
   /** Map pitch in degrees (e.g. for 3D extrusion). Default 0. */
   pitch?: number;
+  /** Receives the imperative camera API (for scrollytelling authoring). */
+  onMapReady?: (api: {
+    getCamera: () => StoryCamera;
+    flyTo: (c: StoryCamera) => void;
+  }) => void;
 }
 
 // Centred on the Italian peninsula.
@@ -146,6 +152,7 @@ export function MapPreview({
   onPlaceAnnotation,
   onExitTool,
   pitch = 0,
+  onMapReady,
 }: MapPreviewProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
@@ -168,6 +175,8 @@ export function MapPreview({
   onPlaceRef.current = onPlaceAnnotation;
   const onExitRef = useRef(onExitTool);
   onExitRef.current = onExitTool;
+  const onMapRef = useRef(onMapReady);
+  onMapRef.current = onMapReady;
   /** DOM markers currently on the map (marker + text annotations). */
   const markerObjsRef = useRef<maplibregl.Marker[]>([]);
   /** First click of a two-step (line/area) placement, or null. */
@@ -664,6 +673,28 @@ export function MapPreview({
       syncAnnotations(map);
     });
     mapRef.current = map;
+
+    // Expose the imperative camera API for scrollytelling authoring (capture
+    // the current view as a step, fly to a step's camera).
+    onMapRef.current?.({
+      getCamera: () => {
+        const c = map.getCenter();
+        return {
+          center: [c.lng, c.lat],
+          zoom: map.getZoom(),
+          pitch: map.getPitch(),
+          bearing: map.getBearing(),
+        };
+      },
+      flyTo: (cam) =>
+        map.flyTo({
+          center: cam.center,
+          zoom: cam.zoom,
+          pitch: cam.pitch,
+          bearing: cam.bearing,
+          duration: 1200,
+        }),
+    });
 
     return () => {
       map.remove();

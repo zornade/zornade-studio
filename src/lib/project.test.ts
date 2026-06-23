@@ -26,6 +26,7 @@ function sampleState(): StudioState {
       numericColumns: ["V"],
     },
     annotations: [],
+    storySteps: [],
   };
 }
 

@@ -2,7 +2,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Play, Pause } from "lucide-react";
 import { makeFlavor } from "../basemap";
 import { useStudio } from "../studio/StudioContext";
-import { COLOR_SCALES, MAP_BASEMAPS } from "../studio/catalog";
+import { COLOR_SCALES } from "../studio/catalog";
+import { resolveBasemap } from "../studio/palettes";
 import { MapPreview, type DataLayer } from "./MapPreview";
 import { TILES_URL } from "../lib/tiles";
 import {
@@ -25,6 +26,8 @@ import { joinBivariate, buildBivariateColorExpression, BIVARIATE_PALETTE } from 
 import { spikeTriangles } from "../lib/spike";
 import { hexbin } from "../lib/hexbin";
 import { buildHeatmapPaint } from "../lib/heatmap";
+import { nonContiguousCartogram, dorlingCartogram } from "../lib/cartogram";
+import { buildFlows } from "../lib/flow";
 import { featureCentroid } from "../lib/centroid";
 import { templateColumns } from "../lib/tooltip";
 import { buildClassVisibilityFilter, classLabel } from "../lib/class-filter";
@@ -49,6 +52,7 @@ export function MapCanvas() {
     annotationTool,
     addAnnotation,
     setAnnotationTool,
+    mapApiRef,
   } = useStudio();
   const flavor = useMemo(() => makeFlavor(brand), [brand]);
 
@@ -103,7 +107,8 @@ export function MapCanvas() {
       vizType !== "choropleth" &&
       vizType !== "symbol" &&
       vizType !== "spike" &&
-      vizType !== "extrusion"
+      vizType !== "extrusion" &&
+      vizType !== "cartogram"
     )
       return null;
     return joinChoropleth({
@@ -312,6 +317,40 @@ export function MapCanvas() {
     );
   }, [vizType, hexbinResult, design.classification, design.nClasses, design.manualBreaks]);
 
+  // Cartogram (O4): deform the area geometry by value. Non-contiguous scales
+  // each area around its centroid; Dorling replaces areas with sized circles.
+  const cartogram = useMemo(() => {
+    if (vizType !== "cartogram" || !joined || data?.kind !== "area") return null;
+    if (design.cartogramKind === "dorling") {
+      const nameField = GEO_LEVELS[data.geoLevel].nameField;
+      const inputs: { lng: number; lat: number; value: number; name?: string }[] = [];
+      for (const f of joined.geojson.features) {
+        const v = (f.properties as Record<string, unknown>)?.__value;
+        if (typeof v !== "number") continue;
+        const c = featureCentroid(f.geometry);
+        if (!c) continue;
+        const nm = (f.properties as Record<string, unknown>)?.[nameField];
+        inputs.push({ lng: c[0], lat: c[1], value: v, name: nm ? String(nm) : undefined });
+      }
+      return dorlingCartogram(inputs);
+    }
+    return nonContiguousCartogram(joined.geojson.features);
+  }, [vizType, joined, data, design.cartogramKind]);
+
+  // Flow map (O4): arcs between origin/destination coordinate columns.
+  const flow = useMemo(() => {
+    if (vizType !== "flow" || !data) return null;
+    const { flowFromLat, flowFromLon, flowToLat, flowToLon, flowValue } = design;
+    if (!flowFromLat || !flowFromLon || !flowToLat || !flowToLon) return null;
+    return buildFlows(data.rows, {
+      fromLat: flowFromLat,
+      fromLon: flowFromLon,
+      toLat: flowToLat,
+      toLon: flowToLon,
+      value: flowValue || undefined,
+    });
+  }, [vizType, data, design.flowFromLat, design.flowFromLon, design.flowToLat, design.flowToLon, design.flowValue]);
+
   const valueLabel =
     (design.valueLabel ||
       (data && data.kind !== "table" ? data.valueColumn : "")) ??
@@ -393,6 +432,53 @@ export function MapCanvas() {
         geojson: hexbinResult.geojson,
         fillColor: buildFillColorExpression(hexbinClasses, scaleColors, NO_DATA_COLOR),
         valueLabel: valueLabel || "Conteggio",
+        valueUnit: design.valueUnit || undefined,
+        tooltipTemplate: design.tooltipTemplate,
+      };
+    }
+    // Cartogram: deformed areas (non-contiguous) or Dorling circles, both
+    // coloured by value with the choropleth classes.
+    if (vizType === "cartogram" && cartogram && joined) {
+      const fillColor = buildFillColorExpression(joined.classes, scaleColors, NO_DATA_COLOR);
+      return {
+        kind: "area",
+        geojson: cartogram,
+        fillColor,
+        nameField:
+          design.cartogramKind === "dorling"
+            ? "__name"
+            : data?.kind === "area"
+              ? GEO_LEVELS[data.geoLevel].nameField
+              : undefined,
+        valueLabel,
+        valueUnit: design.valueUnit || undefined,
+        tooltipTemplate: design.tooltipTemplate,
+      };
+    }
+    // Flow map: arcs drawn as lines, coloured/sized by value.
+    if (vizType === "flow" && flow) {
+      const expr = flow.valueRange
+        ? buildFillColorExpression(
+            computeBreaks(
+              flow.geojson.features
+                .map((f) => (f.properties as Record<string, unknown>).__value)
+                .filter((v): v is number => typeof v === "number"),
+              design.classification,
+              design.nClasses,
+              design.manualBreaks,
+            ),
+            scaleColors,
+            NO_DATA_COLOR,
+          )
+        : design.pointColor;
+      return {
+        kind: "geo",
+        geojson: flow.geojson,
+        lineColorExpr: expr,
+        circleColor: design.pointColor,
+        circleRadius: 0,
+        nameField: "__name",
+        valueLabel,
         valueUnit: design.valueUnit || undefined,
         tooltipTemplate: design.tooltipTemplate,
       };
@@ -541,7 +627,7 @@ export function MapCanvas() {
       };
     }
     return null;
-  }, [vizType, joined, choro, symbolPoints, categoryJoin, points, geoRender, bivariate, spike, hexbinResult, hexbinClasses, scaleColors, data, valueLabel, design.valueUnit, design.pointColor, design.pointSize, design.tooltipTemplate, design.classification, design.nClasses, design.manualBreaks]);
+  }, [vizType, joined, choro, symbolPoints, categoryJoin, points, geoRender, bivariate, spike, hexbinResult, hexbinClasses, cartogram, flow, scaleColors, data, valueLabel, design.valueUnit, design.pointColor, design.pointSize, design.tooltipTemplate, design.classification, design.nClasses, design.manualBreaks, design.cartogramKind]);
 
   // Tilt the camera for the 3D extrusion; flat for every other map.
   const pitch = vizType === "extrusion" ? 50 : 0;
@@ -555,9 +641,11 @@ export function MapCanvas() {
       ? choro?.classes ?? null
       : vizType === "extrusion"
         ? joined?.classes ?? null
-        : vizType === "hexbin"
-          ? hexbinClasses
-          : null;
+        : vizType === "cartogram"
+          ? joined?.classes ?? null
+          : vizType === "hexbin"
+            ? hexbinClasses
+            : null;
   // Count of "no data" areas to note under the legend (graduated area maps).
   const legendNoData =
     vizType === "choropleth"
@@ -608,10 +696,10 @@ export function MapCanvas() {
   }, [playing, frames, setTimeIndex]);
 
   // Resolve the chosen basemap. OpenFreeMap styles load by URL (no hosting/key);
-  // "none"/"custom" → no basemap (transparent background).
-  const basemapDef = MAP_BASEMAPS.find((b) => b.id === design.basemap);
-  const basemapUrl = basemapDef?.styleUrl ?? null;
-  const hasBasemap = Boolean(basemapUrl);
+  // a satellite/WMS basemap resolves to a raster style object; "none"/"custom"
+  // → no basemap (transparent background).
+  const basemapStyle = resolveBasemap(design.basemap, design.customBasemapUrl);
+  const hasBasemap = Boolean(basemapStyle);
 
   const legendColors = legendClasses
     ? sampleColors(scaleColors, legendClasses.breaks.length + 1)
@@ -634,9 +722,12 @@ export function MapCanvas() {
         tooltip={design.tooltip}
         zoomPan={design.zoomPan}
         basemap={false}
-        basemapUrl={basemapUrl}
+        basemapUrl={basemapStyle}
         dataFilter={dataFilter}
         pitch={pitch}
+        onMapReady={(api) => {
+          mapApiRef.current = api;
+        }}
         annotations={annotations}
         annotationTool={annotationTool}
         onPlaceAnnotation={addAnnotation}

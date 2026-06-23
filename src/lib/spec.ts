@@ -23,6 +23,8 @@ import { colorsForScale } from "../studio/palettes";
 import { sanitizeAnnotations, type Annotation } from "./annotations";
 import { buildPointFeatures } from "./points";
 import { prepareGeoRender } from "./geo-dataset";
+import { buildFlows } from "./flow";
+import { sanitizeStorySteps, type StoryStep } from "./story";
 import type { GeometryKind } from "../studio/types";
 import {
   chartColumnRoles,
@@ -67,7 +69,8 @@ export type AreaRender =
   | "category"
   | "bivariate"
   | "spike"
-  | "extrusion";
+  | "extrusion"
+  | "cartogram";
 
 /** One time frame of a temporal choropleth: a period label + its data (O3.3). */
 export interface SpecFrame {
@@ -104,6 +107,8 @@ export interface ChoroplethSpec {
   type: "choropleth";
   /** How the area data is painted; absent = "choropleth" (back-compat). */
   render?: AreaRender;
+  /** Cartogram variant, present only when render === "cartogram". */
+  cartogramKind?: "noncontiguous" | "dorling";
   project: SpecProject;
   geo: {
     level: GeoLevel;
@@ -191,8 +196,27 @@ export interface GeoSpec {
   design: SpecDesign;
 }
 
-/** Any publishable spec: area map, point map, or custom geometry. */
-export type VizSpec = ChoroplethSpec | PointSpec | GeoSpec | ChartSpec;
+/** Any publishable spec: area map, point map, custom geometry, chart, story. */
+export type VizSpec = ChoroplethSpec | PointSpec | GeoSpec | ChartSpec | StorySpec;
+
+/** A map spec a story can wrap (charts have no camera, so they're excluded). */
+export type StoryBaseSpec = ChoroplethSpec | PointSpec | GeoSpec;
+
+/**
+ * Snapshot of a **scrollytelling story** (O4.1). Wraps a base map spec + an
+ * ordered list of steps; the embed hosts the base map and flies the camera as
+ * each step scrolls into view.
+ */
+export interface StorySpec {
+  schemaVersion: typeof SPEC_SCHEMA_VERSION;
+  type: "story";
+  project: SpecProject;
+  /** The map rendered beneath the story (area/point/geo). */
+  base: StoryBaseSpec;
+  /** Ordered narrative steps (text + camera). */
+  steps: StoryStep[];
+  design: SpecDesign;
+}
 
 /** Chart render kinds (no geography). */
 export type ChartRender = "bar" | "line" | "area" | "scatter" | "table";
@@ -244,6 +268,7 @@ const AREA_RENDERS = new Set<AreaRender>([
   "bivariate",
   "spike",
   "extrusion",
+  "cartogram",
 ]);
 
 /** Result of {@link buildSpec}: the spec, or a human reason it can't be built. */
@@ -258,6 +283,15 @@ export type BuildSpecResult =
  * dot density), and a **custom-geometry** map; other viz types are rejected.
  */
 export function buildSpec(state: StudioState): BuildSpecResult {
+  // Scrollytelling: when steps exist over a MAP (not a chart), publish a story
+  // that wraps the base map. Charts have no camera, so they ignore steps.
+  if (
+    state.storySteps.length > 0 &&
+    !isChartType(state.vizType) &&
+    state.vizType !== "table"
+  ) {
+    return buildStorySpec(state);
+  }
   // Charts work on ANY data (they ignore geography), so an explicit chart/table
   // viz takes priority over the dataset kind.
   if (isChartType(state.vizType) || state.vizType === "table") {
@@ -271,6 +305,11 @@ export function buildSpec(state: StudioState): BuildSpecResult {
   // Point maps publish through a separate, geometry-inline pipeline.
   if (POINT_RENDERS.has(state.vizType as PointRender)) {
     return buildPointSpec(state, state.vizType as PointRender);
+  }
+  // Flow maps build arcs from origin/destination columns → a custom-geometry
+  // (line) spec; no bundled geometry needed.
+  if (state.vizType === "flow") {
+    return buildFlowSpec(state);
   }
   const render = state.vizType as AreaRender;
   if (!AREA_RENDERS.has(render)) {
@@ -386,6 +425,7 @@ function makeAreaSpec(
     // Keep the field absent for a plain choropleth so existing specs/tests and
     // already-published embeds stay byte-identical.
     ...(render !== "choropleth" ? { render } : {}),
+    ...(render === "cartogram" ? { cartogramKind: design.cartogramKind } : {}),
     project: {
       title: project.title,
       subtitle: project.subtitle,
@@ -504,6 +544,54 @@ function buildPointSpec(state: StudioState, render: PointRender): BuildSpecResul
       pointColor: design.pointColor,
       pointSize: design.pointSize,
     },
+  };
+  return { spec };
+}
+
+/**
+ * Build a flow-map spec: arcs between origin/destination coordinate columns,
+ * emitted as a custom-geometry (line) spec. No bundled geometry needed — the
+ * arcs are computed from the data rows. Capped at {@link MAX_PUBLISH_FEATURES}.
+ */
+function buildFlowSpec(state: StudioState): BuildSpecResult {
+  const { data, design, project } = state;
+  if (!data) return { error: "Nessun dato caricato." };
+  const { flowFromLat, flowFromLon, flowToLat, flowToLon, flowValue } = design;
+  if (!flowFromLat || !flowFromLon || !flowToLat || !flowToLon) {
+    return {
+      error: "Scegli le colonne di origine e destinazione nel passo “Design”.",
+    };
+  }
+  const built = buildFlows(data.rows, {
+    fromLat: flowFromLat,
+    fromLon: flowFromLon,
+    toLat: flowToLat,
+    toLon: flowToLon,
+    value: flowValue || undefined,
+  });
+  const feats = built.geojson.features;
+  if (feats.length === 0) {
+    return { error: "Nessun flusso con coordinate valide da pubblicare." };
+  }
+  if (feats.length > MAX_PUBLISH_FEATURES) {
+    return {
+      error: `Troppi flussi da incorporare (${feats.length}; max ${MAX_PUBLISH_FEATURES}).`,
+    };
+  }
+  const spec: GeoSpec = {
+    schemaVersion: SPEC_SCHEMA_VERSION,
+    type: "geo",
+    project: { title: project.title, subtitle: project.subtitle, source: project.source },
+    geojson: built.geojson,
+    geometryKinds: ["line"],
+    hasValue: !!flowValue && !!built.valueRange,
+    hasCategory: false,
+    categories: [],
+    valueLabel: design.valueLabel || flowValue || "Flusso",
+    ...(state.annotations.length > 0
+      ? { annotations: sanitizeAnnotations(state.annotations) }
+      : {}),
+    design: chartDesign(design),
   };
   return { spec };
 }

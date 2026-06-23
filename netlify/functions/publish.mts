@@ -88,7 +88,7 @@ export default async (req: Request): Promise<Response> => {
   // their own colours, so both skip classification.
   const numericAreaRender =
     spec.type === "choropleth" &&
-    (!spec.render || ["choropleth", "symbol", "spike", "extrusion"].includes(spec.render));
+    (!spec.render || ["choropleth", "symbol", "spike", "extrusion", "cartogram"].includes(spec.render));
   const classes = numericAreaRender
     ? await classifyAgainstGeometry(spec as ChoroplethSpec, geoBase)
     : undefined;

@@ -19,6 +19,8 @@ const IMPLEMENTED = new Set<string>([
   "heatmap",
   "hexbin",
   "dotdensity",
+  "cartogram",
+  "flow",
   "bar",
   "line",
   "area",

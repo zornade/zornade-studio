@@ -49,6 +49,13 @@ function baseState(overrides: Partial<StudioState> = {}): StudioState {
       chartSeries: "",
       chartSortByValue: false,
       bivariateColumn2: "",
+      cartogramKind: "noncontiguous",
+      flowFromLat: "",
+      flowFromLon: "",
+      flowToLat: "",
+      flowToLon: "",
+      flowValue: "",
+      customBasemapUrl: "",
     },
     data: {
       kind: "area",
@@ -65,6 +72,7 @@ function baseState(overrides: Partial<StudioState> = {}): StudioState {
       numericColumns: ["Arrivi"],
     },
     annotations: [],
+    storySteps: [],
     ...overrides,
   };
 }
@@ -244,6 +252,15 @@ describe("buildSpec · area maps (O4 publish)", () => {
     expect("error" in out).toBe(true);
   });
 
+  it("cartogram carries render + cartogramKind", () => {
+    const nc = area(buildSpec(baseState({ vizType: "cartogram" })));
+    expect(nc.render).toBe("cartogram");
+    expect(nc.cartogramKind).toBe("noncontiguous");
+    const s = baseState({ vizType: "cartogram" });
+    s.design.cartogramKind = "dorling";
+    expect(area(buildSpec(s)).cartogramKind).toBe("dorling");
+  });
+
   it("now publishes charts; rejects point maps on an area dataset", () => {
     // Charts work on any data (O4 phase 4): bar on an area dataset → a chart.
     const bar = buildSpec(baseState({ vizType: "bar" }));
@@ -305,6 +322,44 @@ describe("buildSpec · point maps (O4 publish, phase 2)", () => {
 
   it("rejects a point viz on a non-point dataset", () => {
     const s = baseState({ vizType: "heatmap" }); // area dataset
+    expect("error" in buildSpec(s)).toBe(true);
+  });
+});
+
+describe("buildSpec · flow map (O4 deferred)", () => {
+  function flowState(): StudioState {
+    const s = baseState({ vizType: "flow" });
+    s.data = {
+      kind: "table",
+      fileName: "flussi.csv",
+      columns: ["oLat", "oLon", "dLat", "dLon", "peso"],
+      rows: [
+        { oLat: "41.9", oLon: "12.5", dLat: "45.5", dLon: "9.2", peso: "100" },
+        { oLat: "40.8", oLon: "14.3", dLat: "45.4", dLon: "12.3", peso: "50" },
+      ],
+      numericColumns: ["oLat", "oLon", "dLat", "dLon", "peso"],
+      labelColumns: [],
+    };
+    s.design.flowFromLat = "oLat";
+    s.design.flowFromLon = "oLon";
+    s.design.flowToLat = "dLat";
+    s.design.flowToLon = "dLon";
+    s.design.flowValue = "peso";
+    return s;
+  }
+
+  it("emits a geo (line) spec with one arc per flow", () => {
+    const out = buildSpec(flowState());
+    if (!("spec" in out) || out.spec.type !== "geo") throw new Error("expected geo spec");
+    expect(out.spec.geometryKinds).toEqual(["line"]);
+    expect(out.spec.geojson.features).toHaveLength(2);
+    expect(out.spec.geojson.features[0].geometry.type).toBe("LineString");
+    expect(out.spec.hasValue).toBe(true);
+  });
+
+  it("errors when the origin/destination columns are unset", () => {
+    const s = flowState();
+    s.design.flowToLon = "";
     expect("error" in buildSpec(s)).toBe(true);
   });
 });
@@ -493,5 +548,42 @@ describe("isChoroplethSpec", () => {
     expect(isChoroplethSpec({})).toBe(false);
     expect(isChoroplethSpec(null)).toBe(false);
     expect(isChoroplethSpec({ schemaVersion: 999, type: "choropleth" })).toBe(false);
+  });
+});
+
+describe("buildSpec · scrollytelling story (O4.1)", () => {
+  const steps = [
+    { id: "a", title: "Intro", body: "Testo", camera: { center: [12, 42] as [number, number], zoom: 5, pitch: 0, bearing: 0 } },
+    { id: "b", title: "Nord", body: "Su", camera: { center: [9, 45] as [number, number], zoom: 7, pitch: 30, bearing: 10 } },
+  ];
+
+  it("wraps a base map spec with the ordered steps", () => {
+    const out = buildSpec(baseState({ storySteps: steps }));
+    if (!("spec" in out) || out.spec.type !== "story") throw new Error("expected story spec");
+    expect(out.spec.base.type).toBe("choropleth");
+    expect(out.spec.steps).toHaveLength(2);
+    expect(out.spec.steps[1].camera.zoom).toBe(7);
+  });
+
+  it("ignores steps over a chart (charts have no camera) → publishes the chart", () => {
+    const s = baseState({ vizType: "bar", storySteps: steps });
+    s.data = {
+      kind: "table", fileName: "t.csv", columns: ["a", "b"],
+      rows: [{ a: "x", b: "1" }], numericColumns: ["b"], labelColumns: ["a"],
+    };
+    s.design.chartX = "a";
+    s.design.chartY = "b";
+    const out = buildSpec(s);
+    expect("spec" in out && out.spec.type).toBe("chart");
+  });
+
+  it("errors when every step has an invalid camera", () => {
+    const bad = [{ id: "x", title: "", body: "", camera: { center: [999, 999] as [number, number], zoom: 5, pitch: 0, bearing: 0 } }];
+    expect("error" in buildSpec(baseState({ storySteps: bad }))).toBe(true);
+  });
+
+  it("a state with no steps publishes the plain map (not a story)", () => {
+    const out = buildSpec(baseState());
+    expect("spec" in out && out.spec.type).toBe("choropleth");
   });
 });

@@ -12,7 +12,7 @@
  *    to prevent injection in the published artefact.
  */
 
-import type { ChoroplethSpec, PointSpec, GeoSpec, ChartSpec, VizSpec } from "./spec";
+import type { ChoroplethSpec, PointSpec, GeoSpec, ChartSpec, StorySpec, StoryBaseSpec, VizSpec } from "./spec";
 import {
   computeBreaks,
   geoJoinFields,
@@ -82,11 +82,148 @@ export function buildEmbedHtml(spec: VizSpec, opts: EmbedOptions): string {
   if (spec.type === "point") return buildPointEmbedHtml(spec, opts);
   if (spec.type === "geo") return buildGeoEmbedHtml(spec, opts);
   if (spec.type === "chart") return buildChartEmbedHtml(spec, opts);
+  if (spec.type === "story") return buildStoryEmbedHtml(spec, opts);
   return buildAreaEmbedHtml(spec, opts);
 }
 
 /** Pinned Observable Plot version for chart embeds (matches the app's plot). */
 export const EMBED_PLOT_VERSION = "0.6.17";
+
+/** Pinned Scrollama version for scrollytelling story embeds. */
+export const EMBED_SCROLLAMA_VERSION = "3.2.0";
+
+/**
+ * Build the full embed HTML for a **scrollytelling story** (O4.1). The base map
+ * is rendered with its normal embed (forced non-interactive) inside a fixed
+ * full-screen `<iframe srcdoc>`; a narrative column scrolls over it and, on each
+ * step, flies the iframe's map to that step's camera (via Scrollama from a
+ * pinned CDN). All step text is escaped. Self-contained — no separate publish.
+ */
+function buildStoryEmbedHtml(spec: StorySpec, opts: EmbedOptions): string {
+  const mlVer = EMBED_MAPLIBRE_VERSION;
+  const scrollamaVer = EMBED_SCROLLAMA_VERSION;
+  const title = escapeHtml(spec.project.title || "Storia Zornade");
+  const subtitle = escapeHtml(spec.project.subtitle || "");
+  const titleFont = escapeHtml(spec.design.titleFont || "system-ui, sans-serif");
+  const canonical = opts.selfUrl ? escapeHtml(opts.selfUrl) : "";
+
+  let oembedLinks = "";
+  if (opts.selfUrl) {
+    try {
+      const origin = new URL(opts.selfUrl).origin;
+      const endpoint = `${origin}/api/oembed?url=${encodeURIComponent(opts.selfUrl)}`;
+      oembedLinks =
+        `<link rel="alternate" type="application/json+oembed" href="${endpoint}&amp;format=json" title="${title}">` +
+        `<link rel="alternate" type="text/xml+oembed" href="${endpoint}&amp;format=xml" title="${title}">`;
+    } catch {
+      /* malformed selfUrl: discovery links are optional */
+    }
+  }
+
+  // Render the base map embed, forced non-interactive (the scroll drives it),
+  // and expose its map instance as a global so the story layer can fly it.
+  const baseSpec = {
+    ...spec.base,
+    design: { ...spec.base.design, zoomPan: false },
+  } as StoryBaseSpec;
+  const rawBase = buildEmbedHtml(baseSpec, opts).replace(
+    "map.addControl(new maplibregl.AttributionControl({compact:true}));",
+    'map.addControl(new maplibregl.AttributionControl({compact:true}));try{window.__zmap=map;}catch(e){}',
+  );
+  // srcdoc lives in a double-quoted attribute → escape & and " only.
+  const srcdoc = rawBase.replace(/&/g, "&amp;").replace(/"/g, "&quot;");
+
+  const stepsHtml = spec.steps
+    .map(
+      (s, i) =>
+        `<section class="step" data-i="${i}"><div class="card">` +
+        (s.title ? `<h2>${escapeHtml(s.title)}</h2>` : "") +
+        (s.body ? `<p>${escapeHtml(s.body)}</p>` : "") +
+        `</div></section>`,
+    )
+    .join("");
+
+  const embed = { cameras: spec.steps.map((s) => s.camera) };
+
+  const css = `
+  html,body{margin:0;font-family:system-ui,-apple-system,sans-serif;color:#0f172a}
+  #sticky{position:fixed;inset:0;z-index:0;background:#eef2f5}
+  #sticky iframe{width:100%;height:100%;border:0;display:block}
+  .story{position:relative;z-index:1;pointer-events:none;max-width:780px;margin:0 auto;padding:0 16px}
+  .intro{min-height:62vh;display:flex;flex-direction:column;justify-content:flex-end;padding-bottom:8vh}
+  .intro h1{font-size:30px;line-height:1.2;margin:0;align-self:flex-start;background:rgba(255,255,255,.92);
+    padding:6px 12px;border-radius:10px;box-shadow:0 1px 8px rgba(0,0,0,.14)}
+  .intro p{font-size:15px;color:#334155;align-self:flex-start;background:rgba(255,255,255,.92);
+    margin:8px 0 0;padding:4px 10px;border-radius:8px}
+  .step{min-height:92vh;display:flex;align-items:center}
+  .card{pointer-events:auto;background:rgba(255,255,255,.95);border-radius:14px;padding:16px 18px;
+    box-shadow:0 4px 18px rgba(15,23,42,.18);max-width:380px;opacity:.5;transform:translateY(8px);
+    transition:opacity .35s,transform .35s}
+  .card.active{opacity:1;transform:none}
+  .card h2{margin:0 0 6px;font-size:18px}
+  .card p{margin:0;font-size:14px;line-height:1.5;color:#334155}
+  .end{min-height:40vh}
+  .attr{position:fixed;right:8px;bottom:6px;z-index:2;font-size:11px;background:rgba(255,255,255,.85);
+    padding:2px 6px;border-radius:6px}
+  .attr a{color:#01646f;text-decoration:none}`;
+
+  return `<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${title}</title>
+${canonical ? `<link rel="canonical" href="${canonical}">` : ""}
+${oembedLinks}
+<style>${css}</style>
+</head>
+<body>
+<div id="sticky"><iframe id="mapframe" srcdoc="${srcdoc}" title="${title}" referrerpolicy="no-referrer"></iframe></div>
+<div class="story">
+  <div class="intro"><h1 style="font-family:${titleFont}">${title}</h1>${subtitle ? `<p>${subtitle}</p>` : ""}</div>
+  ${stepsHtml}
+  <div class="end"></div>
+</div>
+<div class="attr"><a href="https://zornade.com/studio" target="_blank" rel="noopener">Fatto con Zornade Studio</a></div>
+<script src="https://cdn.jsdelivr.net/npm/scrollama@${scrollamaVer}/build/scrollama.min.js"></script>
+<script>
+const EMBED = ${jsonForScript(embed)};
+${STORY_RENDERER}
+</script>
+</body>
+</html>`;
+  void mlVer;
+}
+
+/**
+ * Inline story renderer: wires Scrollama to fly the iframe's map to each step's
+ * camera. Re-applies the latest camera once the iframe map is ready.
+ */
+const STORY_RENDERER = String.raw`
+(function(){
+var C=(EMBED.cameras)||[];
+var frame=document.getElementById("mapframe");
+var last=0;
+function fly(i){
+  if(C[i])last=i;
+  var w=frame&&frame.contentWindow;
+  if(w&&w.__zmap&&C[i]){
+    w.__zmap.flyTo({center:C[i].center,zoom:C[i].zoom,pitch:C[i].pitch,
+      bearing:C[i].bearing,duration:1400,essential:true});
+  }
+}
+if(frame)frame.addEventListener("load",function(){setTimeout(function(){fly(last);},120);});
+if(typeof scrollama!=="undefined"){
+  var sc=scrollama();
+  sc.setup({step:".step",offset:0.6}).onStepEnter(function(r){
+    fly(+r.element.getAttribute("data-i"));
+    var card=r.element.querySelector(".card");if(card)card.classList.add("active");
+  }).onStepExit(function(r){
+    var card=r.element.querySelector(".card");if(card)card.classList.remove("active");
+  });
+  window.addEventListener("resize",sc.resize);
+}
+})();`;
 
 /**
  * Build the full embed HTML for a **chart** (O4 publish, phase 4). Not a map:
@@ -285,7 +422,8 @@ function buildAreaEmbedHtml(
     render === "choropleth" ||
     render === "symbol" ||
     render === "spike" ||
-    render === "extrusion";
+    render === "extrusion" ||
+    render === "cartogram";
   const scaleColors = colorsForScale(d.colorScale, d.reverseScale);
   const noData = DEFAULT_NO_DATA_COLOR;
   const { fields, nameField } = geoJoinFields(spec.geo.level);
@@ -434,6 +572,7 @@ function buildAreaEmbedHtml(
     fill,
     render,
     pitch: render === "extrusion" ? 50 : 0,
+    cartogramKind: spec.cartogramKind ?? "noncontiguous",
     pointColor: d.pointColor || "#01646f",
     pointSize: d.pointSize || 7,
     valueRange: { min: classes.min, max: classes.max },
@@ -592,6 +731,13 @@ function build(){
       map.addLayer({id:"d-fill",type:"fill",source:"dm",
         paint:{"fill-color":E.pointColor,"fill-opacity":0.85}});
     }
+  }else if(E.render==="cartogram"){
+    var carto=cartogram();
+    map.addSource("dm",{type:"geojson",data:carto});
+    map.addLayer({id:"d-fill",type:"fill",source:"dm",
+      paint:{"fill-color":E.fill,"fill-opacity":0.85}},before);
+    map.addLayer({id:"d-line",type:"line",source:"dm",
+      paint:{"line-color":"#fff","line-width":0.5}},before);
   }else{
     map.addLayer({id:"d-fill",type:"fill",source:"d",
       paint:{"fill-color":E.fill,"fill-opacity":0.82}},before);
@@ -603,6 +749,43 @@ function build(){
   if(E.tooltip)tooltip();
   if(E.frames&&E.frames.length>1)timeUI();
   annotations();
+}
+// Build the cartogram geometry from the painted GEO (non-contiguous scaling or
+// Dorling circles), mirroring lib/cartogram. Tooltip reads __value/__name.
+function cartogram(){
+  var mx=E.max||1;var KM=110.574,D2R=Math.PI/180;
+  function ring(lng,lat,rkm){var out=[];var kx=KM*Math.cos(lat*D2R)||KM;
+    for(var i=0;i<=40;i++){var a=i/40*2*Math.PI;
+      out.push([lng+rkm*Math.cos(a)/kx,lat+rkm*Math.sin(a)/KM]);}return out;}
+  if(E.cartogramKind==="dorling"){
+    var lat0=0,nn=0;GEO.features.forEach(function(f){var p=f.properties||{};if(p.__value==null)return;
+      var c=centroid(f.geometry);if(c){lat0+=c[1];nn++;}});lat0=nn?lat0/nn:42;
+    var kx=KM*Math.cos(lat0*D2R)||KM;
+    var nodes=[];GEO.features.forEach(function(f){var p=f.properties||{};if(typeof p.__value!=="number"||p.__value<=0)return;
+      var c=centroid(f.geometry);if(!c)return;
+      var r=Math.max(2,Math.sqrt(p.__value/mx)*45);
+      var nm=E.nameField&&p[E.nameField]!=null?p[E.nameField]:undefined;
+      nodes.push({x:c[0]*kx,y:c[1]*KM,hx:c[0]*kx,hy:c[1]*KM,r:r,v:p.__value,name:nm});});
+    if(nodes.length<=1200){for(var it=0;it<60;it++){
+      for(var i=0;i<nodes.length;i++)for(var j=i+1;j<nodes.length;j++){
+        var a=nodes[i],b=nodes[j];var dx=b.x-a.x,dy=b.y-a.y;var dist=Math.hypot(dx,dy);var md=a.r+b.r;
+        if(dist===0){dx=(i-j)||1;dy=1;dist=Math.hypot(dx,dy);}
+        if(dist<md){var push=(md-dist)/2,ux=dx/dist,uy=dy/dist;a.x-=ux*push;a.y-=uy*push;b.x+=ux*push;b.y+=uy*push;}}
+      for(var k2=0;k2<nodes.length;k2++){var n=nodes[k2];n.x+=(n.hx-n.x)*0.02;n.y+=(n.hy-n.y)*0.02;}}}
+    var df=nodes.map(function(n){var lng=n.x/kx,lat=n.y/KM;var props={__value:n.v};if(n.name!=null)props.__name=n.name;
+      return {type:"Feature",properties:props,geometry:{type:"Polygon",coordinates:[ring(lng,lat,n.r)]}};});
+    return {type:"FeatureCollection",features:df};
+  }
+  // non-contiguous: scale each polygon around its centroid by sqrt(value/max).
+  function scalePt(pt,cx,cy,fa){return [cx+(pt[0]-cx)*fa,cy+(pt[1]-cy)*fa];}
+  var feats=GEO.features.map(function(f){var p=f.properties||{};var g=f.geometry;
+    if(typeof p.__value!=="number"||!g||(g.type!=="Polygon"&&g.type!=="MultiPolygon"))return f;
+    var c=centroid(g);if(!c)return f;var fa=Math.max(0.08,Math.sqrt(p.__value/mx));
+    var ng=g.type==="Polygon"
+      ?{type:"Polygon",coordinates:g.coordinates.map(function(r){return r.map(function(pt){return scalePt(pt,c[0],c[1],fa);});})}
+      :{type:"MultiPolygon",coordinates:g.coordinates.map(function(po){return po.map(function(r){return r.map(function(pt){return scalePt(pt,c[0],c[1],fa);});});})};
+    return {type:"Feature",properties:p,geometry:ng};});
+  return {type:"FeatureCollection",features:feats};
 }
 // Area-weighted centroid of a polygon's largest ring (mirrors lib/centroid).
 function centroid(g){if(!g)return null;
