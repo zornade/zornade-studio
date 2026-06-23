@@ -575,6 +575,8 @@ function buildAreaEmbedHtml(
     pointColor: d.pointColor || "#01646f",
     pointSize: d.pointSize || 7,
     valueRange: { min: classes.min, max: classes.max },
+    legendColors,
+    breaks: classes.breaks,
     categoryLegend,
     bivA,
     bivB,
@@ -584,12 +586,11 @@ function buildAreaEmbedHtml(
     zoom: spec.camera?.zoom ?? 4.4,
     pitch: spec.camera?.pitch ?? (render === "extrusion" ? 50 : 0),
     bearing: spec.camera?.bearing ?? 0,
+    hasCamera: !!spec.camera,
     interactive: !!d.zoomPan,
     tooltip: !!d.tooltip,
     showLegend: !!d.showLegend,
     legendType: d.legendType,
-    legendColors,
-    breaks: classes.breaks,
     readerFilters: !!d.readerFilters,
     scaleColors,
     min: classes.min,
@@ -744,7 +745,7 @@ function build(){
     map.addLayer({id:"d-line",type:"line",source:"d",
       paint:{"line-color":"#fff","line-width":0.6}},before);
   }
-  fit();
+  if(!E.hasCamera)fit();
   if(E.showLegend)legend(noData);
   if(E.tooltip)tooltip();
   if(E.frames&&E.frames.length>1)timeUI();
@@ -1171,6 +1172,7 @@ function buildPointEmbedHtml(spec: PointSpec, opts: EmbedOptions): string {
     zoom: spec.camera?.zoom ?? 5,
     pitch: spec.camera?.pitch ?? 0,
     bearing: spec.camera?.bearing ?? 0,
+    hasCamera: !!spec.camera,
     interactive: !!d.zoomPan,
     tooltip: !!d.tooltip && spec.render !== "heatmap",
     showLegend: !!d.showLegend,
@@ -1244,7 +1246,7 @@ function build(){
         "text-anchor":"top","text-offset":[0,0.8],"text-max-width":10},
       paint:{"text-color":"#0f172a","text-halo-color":"#fff","text-halo-width":1.4}});
   }
-  fit();
+  if(!E.hasCamera)fit();
   if(E.showLegend)legend();
   if(E.tooltip)tooltip();
   annotations();
@@ -1441,6 +1443,7 @@ function buildGeoEmbedHtml(spec: GeoSpec, opts: EmbedOptions): string {
     zoom: spec.camera?.zoom ?? 5,
     pitch: spec.camera?.pitch ?? 0,
     bearing: spec.camera?.bearing ?? 0,
+    hasCamera: !!spec.camera,
     interactive: !!d.zoomPan,
     tooltip: !!d.tooltip,
     showLegend: !!d.showLegend,
@@ -1514,7 +1517,7 @@ function build(){
   map.addLayer({id:"d-point",type:"circle",source:"d",
     paint:{"circle-color":E.circleColor,"circle-radius":E.circleRadius||5,
       "circle-stroke-color":"#fff","circle-stroke-width":1,"circle-opacity":0.9}},before);
-  fit();
+  if(!E.hasCamera)fit();
   if(E.showLegend)legend();
   if(E.tooltip)tooltip();
   annotations();
