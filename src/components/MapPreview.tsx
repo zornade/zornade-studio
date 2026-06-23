@@ -756,10 +756,17 @@ export function MapPreview({
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
-    map.setProjection(globe ? { type: "globe" } : { type: "mercator" });
-    if (globe) {
-      // Zoom out to show the full globe; fit the data from there.
-      map.easeTo({ zoom: 1.5, center: [0, 20], duration: 400 });
+    const apply = () => {
+      map.setProjection(globe ? { type: "globe" } : { type: "mercator" });
+      if (globe) {
+        map.easeTo({ zoom: 1.5, center: [0, 20], duration: 400 });
+      }
+    };
+    // setProjection requires the style to be fully loaded.
+    if (map.isStyleLoaded()) {
+      apply();
+    } else {
+      map.once("style.load", apply);
     }
   }, [globe]);
 
