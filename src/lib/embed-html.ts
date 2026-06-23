@@ -587,6 +587,7 @@ function buildAreaEmbedHtml(
     pitch: spec.camera?.pitch ?? (render === "extrusion" ? 50 : 0),
     bearing: spec.camera?.bearing ?? 0,
     hasCamera: !!spec.camera,
+    bounds: spec.camera?.bounds ?? null,
     interactive: !!d.zoomPan,
     tooltip: !!d.tooltip,
     showLegend: !!d.showLegend,
@@ -745,7 +746,7 @@ function build(){
     map.addLayer({id:"d-line",type:"line",source:"d",
       paint:{"line-color":"#fff","line-width":0.6}},before);
   }
-  if(!E.hasCamera)fit();
+  if(!E.hasCamera){fit();}else if(E.bounds){map.fitBounds(E.bounds,{pitch:E.pitch,bearing:E.bearing,duration:0,padding:0});}
   if(E.showLegend)legend(noData);
   if(E.tooltip)tooltip();
   if(E.frames&&E.frames.length>1)timeUI();
@@ -1173,6 +1174,7 @@ function buildPointEmbedHtml(spec: PointSpec, opts: EmbedOptions): string {
     pitch: spec.camera?.pitch ?? 0,
     bearing: spec.camera?.bearing ?? 0,
     hasCamera: !!spec.camera,
+    bounds: spec.camera?.bounds ?? null,
     interactive: !!d.zoomPan,
     tooltip: !!d.tooltip && spec.render !== "heatmap",
     showLegend: !!d.showLegend,
@@ -1246,7 +1248,7 @@ function build(){
         "text-anchor":"top","text-offset":[0,0.8],"text-max-width":10},
       paint:{"text-color":"#0f172a","text-halo-color":"#fff","text-halo-width":1.4}});
   }
-  if(!E.hasCamera)fit();
+  if(!E.hasCamera){fit();}else if(E.bounds){map.fitBounds(E.bounds,{pitch:E.pitch,bearing:E.bearing,duration:0,padding:0});}
   if(E.showLegend)legend();
   if(E.tooltip)tooltip();
   annotations();
@@ -1444,6 +1446,7 @@ function buildGeoEmbedHtml(spec: GeoSpec, opts: EmbedOptions): string {
     pitch: spec.camera?.pitch ?? 0,
     bearing: spec.camera?.bearing ?? 0,
     hasCamera: !!spec.camera,
+    bounds: spec.camera?.bounds ?? null,
     interactive: !!d.zoomPan,
     tooltip: !!d.tooltip,
     showLegend: !!d.showLegend,
@@ -1517,7 +1520,7 @@ function build(){
   map.addLayer({id:"d-point",type:"circle",source:"d",
     paint:{"circle-color":E.circleColor,"circle-radius":E.circleRadius||5,
       "circle-stroke-color":"#fff","circle-stroke-width":1,"circle-opacity":0.9}},before);
-  if(!E.hasCamera)fit();
+  if(!E.hasCamera){fit();}else if(E.bounds){map.fitBounds(E.bounds,{pitch:E.pitch,bearing:E.bearing,duration:0,padding:0});}
   if(E.showLegend)legend();
   if(E.tooltip)tooltip();
   annotations();

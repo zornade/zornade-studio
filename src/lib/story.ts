@@ -17,6 +17,10 @@ export interface StoryCamera {
   zoom: number;
   pitch: number;
   bearing: number;
+  /** Visible geographic bounds [west, south, east, north] captured at publish time.
+   * When present the embed uses fitBounds so the same area is shown at any
+   * iframe aspect ratio. */
+  bounds?: [number, number, number, number];
 }
 
 export interface StoryStep {
@@ -58,11 +62,17 @@ export function sanitizeCamera(value: unknown): StoryCamera | null {
   const lat = Number(c[1]);
   if (!Number.isFinite(lng) || !Number.isFinite(lat)) return null;
   if (lng < -180 || lng > 180 || lat < -90 || lat > 90) return null;
+  let bounds: [number, number, number, number] | undefined;
+  if (Array.isArray(v.bounds) && v.bounds.length === 4) {
+    const [w, s, e, n] = v.bounds.map(Number);
+    if ([w, s, e, n].every(Number.isFinite)) bounds = [w, s, e, n];
+  }
   return {
     center: [lng, lat],
     zoom: clampNum(v.zoom, 0, 24, 5),
     pitch: clampNum(v.pitch, 0, 85, 0),
     bearing: clampNum(v.bearing, -360, 360, 0),
+    ...(bounds ? { bounds } : {}),
   };
 }
 
@@ -96,5 +106,8 @@ export function roundCamera(c: StoryCamera): StoryCamera {
     zoom: Number(c.zoom.toFixed(2)),
     pitch: Number(c.pitch.toFixed(1)),
     bearing: Number(c.bearing.toFixed(1)),
+    ...(c.bounds
+      ? { bounds: c.bounds.map((v) => Number(v.toFixed(5))) as [number, number, number, number] }
+      : {}),
   };
 }

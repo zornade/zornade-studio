@@ -679,11 +679,13 @@ export function MapPreview({
     onMapRef.current?.({
       getCamera: () => {
         const c = map.getCenter();
+        const b = map.getBounds();
         return {
-          center: [c.lng, c.lat],
+          center: [c.lng, c.lat] as [number, number],
           zoom: map.getZoom(),
           pitch: map.getPitch(),
           bearing: map.getBearing(),
+          bounds: [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()] as [number, number, number, number],
         };
       },
       flyTo: (cam) =>
