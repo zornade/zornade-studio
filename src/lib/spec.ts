@@ -549,6 +549,38 @@ function buildPointSpec(state: StudioState, render: PointRender): BuildSpecResul
 }
 
 /**
+ * Build a scrollytelling story spec (O4.1). Rebuilds the BASE map spec (reusing
+ * buildSpec with no steps) and wraps it with the sanitised steps. Charts have no
+ * camera, so steps over a chart are rejected here (the caller only routes MAP
+ * viz here). Returns a human error when the base can't build or no step is valid.
+ */
+function buildStorySpec(state: StudioState): BuildSpecResult {
+  const base = buildSpec({ ...state, storySteps: [] });
+  if ("error" in base) return base;
+  if (base.spec.type === "chart" || base.spec.type === "story") {
+    return { error: "La storia funziona solo sopra una mappa." };
+  }
+  const steps = sanitizeStorySteps(state.storySteps);
+  if (steps.length === 0) {
+    return { error: "Aggiungi almeno un passo con una vista salvata." };
+  }
+  return {
+    spec: {
+      schemaVersion: SPEC_SCHEMA_VERSION,
+      type: "story",
+      project: {
+        title: state.project.title,
+        subtitle: state.project.subtitle,
+        source: state.project.source,
+      },
+      base: base.spec,
+      steps,
+      design: chartDesign(state.design),
+    },
+  };
+}
+
+/**
  * Build a flow-map spec: arcs between origin/destination coordinate columns,
  * emitted as a custom-geometry (line) spec. No bundled geometry needed — the
  * arcs are computed from the data rows. Capped at {@link MAX_PUBLISH_FEATURES}.
@@ -932,12 +964,27 @@ export function isChartSpec(value: unknown): value is ChartSpec {
   );
 }
 
+/** Type guard for a scrollytelling story spec (O4.1). */
+export function isStorySpec(value: unknown): value is StorySpec {
+  if (typeof value !== "object" || value === null) return false;
+  const v = value as Record<string, unknown>;
+  return (
+    v.schemaVersion === SPEC_SCHEMA_VERSION &&
+    v.type === "story" &&
+    typeof v.project === "object" &&
+    typeof v.base === "object" &&
+    Array.isArray(v.steps) &&
+    typeof v.design === "object"
+  );
+}
+
 /** Type guard for any publishable spec (area, point, geometry, or chart). */
 export function isVizSpec(value: unknown): value is VizSpec {
   return (
     isChoroplethSpec(value) ||
     isPointSpec(value) ||
     isGeoSpec(value) ||
-    isChartSpec(value)
+    isChartSpec(value) ||
+    isStorySpec(value)
   );
 }
