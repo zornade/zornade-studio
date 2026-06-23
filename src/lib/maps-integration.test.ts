@@ -16,6 +16,10 @@ import { spikeTriangles } from "./spike";
 import { hexbin } from "./hexbin";
 import { buildHeatmapPaint } from "./heatmap";
 import { featureCentroid } from "./centroid";
+import { buildSpec } from "./spec";
+import { buildEmbedHtml } from "./embed-html";
+import { isChoroplethSpec } from "./spec";
+import type { StudioState } from "../studio/types";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, "../..");
@@ -105,5 +109,105 @@ describe("thematic maps · real data integration", () => {
     const paint = buildHeatmapPaint({ valueRange: range, colors: ["#aaa", "#000"] });
     expect(paint["heatmap-color"]).toBeTruthy();
     expect(paint["heatmap-weight"]).not.toBe(1); // a real range → value-driven
+  });
+});
+
+describe("area-map publish · real data end-to-end (O4 Fase 1)", () => {
+  // A minimal area StudioState from the real regioni-completo.csv.
+  function areaState(vizType: string, over: Partial<StudioState["design"]> = {}): StudioState {
+    const { columns, rows } = parseCsv(readText("examples/regioni-completo.csv"));
+    return {
+      step: "publish",
+      project: { title: "Regioni", subtitle: "", source: "Test" },
+      dataSource: "upload",
+      vizType,
+      preset: "zornade",
+      brand: {} as StudioState["brand"],
+      design: {
+        titleFont: "Inter", basemap: "ofm-positron", colorScale: "teal-seq",
+        reverseScale: false, classification: "quantile", manualBreaks: [],
+        legendType: "steps", nClasses: 5, valueLabel: "", valueUnit: "",
+        pointColor: "#01646f", pointSize: 7, showTitle: true, showLegend: true,
+        showSource: true, tooltip: true, tooltipTemplate: "", zoomPan: true,
+        readerFilters: false, chartX: "", chartY: "", chartSeries: "",
+        chartSortByValue: false, bivariateColumn2: "", ...over,
+      },
+      data: {
+        kind: "area", fileName: "regioni-completo.csv", columns, rows,
+        geoLevel: "regioni", keyColumn: "regione", valueColumn: "popolazione",
+        numericColumns: ["popolazione", "pil_procapite_eur", "tasso_occupazione_pct", "raccolta_differenziata_pct"],
+        categoryColumn: "macroarea",
+      },
+      annotations: [],
+    };
+  }
+
+  it("publishes symbol / spike / extrusion as valid, render-tagged embeds", () => {
+    for (const vizType of ["symbol", "spike", "extrusion"]) {
+      const out = buildSpec(areaState(vizType));
+      expect("spec" in out).toBe(true);
+      if (!("spec" in out)) continue;
+      expect(isChoroplethSpec(out.spec)).toBe(true); // still validates
+      const html = buildEmbedHtml(out.spec, { geoBaseUrl: "https://embed.x/geo" });
+      expect(html.startsWith("<!doctype html>")).toBe(true);
+      expect(html).toContain(`"render":"${vizType}"`);
+      // 20 regions carried into the embed config.
+      expect(html).toContain("lombardia");
+    }
+  });
+
+  it("publishes a category map with all macro-areas in the legend", () => {
+    const out = buildSpec(areaState("category"));
+    if (!("spec" in out) || out.spec.type !== "choropleth") throw new Error("expected choropleth spec");
+    expect(out.spec.render).toBe("category");
+    const html = buildEmbedHtml(out.spec, { geoBaseUrl: "https://embed.x/geo" });
+    expect(html).toContain('"categoryLegend"');
+    for (const macro of ["Nord-Ovest", "Centro", "Sud", "Isole", "Nord-Est"]) {
+      expect(html).toContain(macro);
+    }
+  });
+
+  it("publishes a bivariate map carrying both real value series", () => {
+    const out = buildSpec(areaState("bivariate", { bivariateColumn2: "pil_procapite_eur" }));
+    if (!("spec" in out) || out.spec.type !== "choropleth") throw new Error("expected choropleth spec");
+    expect(out.spec.render).toBe("bivariate");
+    // Every datum has both values.
+    expect(out.spec.data.every((d) => d.value != null && d.value2 != null)).toBe(true);
+    const html = buildEmbedHtml(out.spec, { geoBaseUrl: "https://embed.x/geo" });
+    expect(html).toContain('"render":"bivariate"');
+    expect(html).toContain('"bivPalette"');
+  });
+
+  it("publishes a chart from the real renewables CSV (Observable Plot)", () => {
+    const { columns, rows } = parseCsv(readText("examples/grafico-barre-rinnovabili-regioni.csv"));
+    const state: StudioState = {
+      step: "publish",
+      project: { title: "Rinnovabili", subtitle: "", source: "Test" },
+      dataSource: "upload",
+      vizType: "bar",
+      preset: "zornade",
+      brand: {} as StudioState["brand"],
+      design: {
+        titleFont: "Inter", basemap: "ofm-positron", colorScale: "teal-seq",
+        reverseScale: false, classification: "quantile", manualBreaks: [],
+        legendType: "steps", nClasses: 5, valueLabel: "", valueUnit: "GWh",
+        pointColor: "#01646f", pointSize: 7, showTitle: true, showLegend: true,
+        showSource: true, tooltip: true, tooltipTemplate: "", zoomPan: true,
+        readerFilters: false, chartX: "regione", chartY: "produzione_rinnovabile_gwh",
+        chartSeries: "", chartSortByValue: true, bivariateColumn2: "",
+      },
+      data: {
+        kind: "table", fileName: "rinnovabili.csv", columns, rows,
+        numericColumns: ["produzione_rinnovabile_gwh"], labelColumns: ["regione"],
+      },
+      annotations: [],
+    };
+    const out = buildSpec(state);
+    if (!("spec" in out) || out.spec.type !== "chart") throw new Error("expected chart spec");
+    expect(out.spec.points!.length).toBeGreaterThan(0);
+    const html = buildEmbedHtml(out.spec, { geoBaseUrl: "https://embed.x/geo" });
+    expect(html.startsWith("<!doctype html>")).toBe(true);
+    expect(html).toContain("@observablehq/plot@");
+    expect(html).toContain('"render":"bar"');
   });
 });

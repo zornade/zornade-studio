@@ -716,6 +716,52 @@ L'utente incolla **host / utente / password** (credenziali read-only generate a 
    spike genera 20 triangoli con centroidi dentro l'Italia, hexbin aggrega tutti i 487 punti senza
    perdite. 348 test verdi (+3), tsc + build OK. *(WebGL assente nell'ambiente di test confermato:
    render reale delle mappe da verificare sul browser dell'utente.)*
+- **O4.0c** ✅ **Pubblicazione embed — Fase 1: mappe ad aree** (2026-06-23). Finora solo la coropletica
+   era incorporabile; ora si pubblicano come **embed interattivo** anche **simboli, categorie, bivariata,
+   spike ed estrusione 3D**. Architettura retrocompatibile: lo spec resta `type:"choropleth"` (famiglia
+   “mappe ad aree”) + nuovo campo opzionale **`render`** (assente = coropletica, così gli embed già
+   pubblicati e i test restano byte-identici); `SpecDatum` porta ora `value?`/`value2?`/`category?`,
+   `SpecDesign` porta `pointColor`/`pointSize`, `geo` porta `categoryColumn?`. `buildSpec` esteso con
+   `makeAreaSpec` + `reduceCategoryDatums`/`reduceBivariateDatums` (category = {key,category};
+   bivariata = {key,value,value2}). **Renderer embed** (`embed-html`) esteso: precalcola a build-time
+   la color-expression giusta per tipo (step numerico / match categoria / matrice bivariata 3×3) e il
+   renderer inline dispatcha per `render` — **estrusione** = layer `fill-extrusion` + pitch 50°,
+   **simboli/spike** = centroidi calcolati **runtime** (funzione `centroid()` inline, area-pesata del
+   ring maggiore) → cerchi dimensionati / triangoli, **categoria** = legenda a pastiglie, **bivariata** =
+   legenda 3×3 + tooltip con i due valori. Ogni testo utente (categorie incluse) è **escaped**.
+   `publish.mts` salta la classificazione numerica per categoria/bivariata (derivano i propri colori).
+   `isChoroplethSpec` invariato (type stabile) → la function valida tutte le mappe ad aree. 364 test
+   verdi (+16: spec +7, embed +6, integrazione +3), tsc + build OK. **Verificato end-to-end** su dati
+   reali (`maps-integration.test.ts`): buildSpec→buildEmbedHtml per symbol/spike/extrusion/category/
+   bivariata sui 20 comuni/regioni reali produce un HTML completo e render-tagged. *(Prossime fasi:
+   O4.0d Punti [coordinate inline, limite ~5.000], O4.0e Geometria propria, O4.0f Grafici [Observable
+   Plot da CDN]. Render WebGL dell'embed da verificare sul browser dell'utente.)*
+- **O4.0d/e/f** ✅ **Pubblicazione embed — Fasi 2-4: punti, geometria, grafici** (2026-06-23). Ora
+   **tutte le visualizzazioni si pubblicano** come embed interattivo. Lo spec è diventato una **union
+   discriminata** `VizSpec = ChoroplethSpec | PointSpec | GeoSpec | ChartSpec` (su `type`), con
+   `isVizSpec` (= `isChoroplethSpec | isPointSpec | isGeoSpec | isChartSpec`) usato dalla function;
+   `buildEmbedHtml` dispatcha sul `type`. **Fase 2 — Punti** (`PointSpec`): coordinate **inline** nello
+   spec (niente fetch geometria), limite **5.000 punti** (`MAX_PUBLISH_POINTS`, oltre → errore che
+   suggerisce calore/esagoni). `buildPointEmbedHtml` precalcola per render: **punti/localizzatore**
+   (cerchi, colore per categoria, dimensione per valore; localizzatore = etichette sempre visibili),
+   **densità** (cerchi translucidi), **calore** (`buildHeatmapPaint`, no tooltip), **esagoni**
+   (`hexbin` a build-time → poligoni + classi). **Fase 3 — Geometria propria** (`GeoSpec`): la geometria
+   utente, **preparata** (`prepareGeoRender` → `__value`/`__cat`/`__name`) e inlinata (limite **5.000**
+   feature); `buildGeoEmbedHtml` = layer fill+line+circle, colore graduato (valore) o categorico, legenda
+   coerente; pubblica per *kind* dataset a prescindere dal vizType. **Fase 4 — Grafici** (`ChartSpec`):
+   **non è una mappa** — carica **Observable Plot** da CDN **pinnato** (`@observablehq/plot@0.6.17`),
+   inlina i **punti già aggregati** (stesso pipeline puro `chart-data` dell'editor) per bar/line/area/
+   scatter (con `tip` nativo di Plot + legenda serie) o le colonne/righe per la **tabella**; i grafici
+   hanno priorità sul *kind* (funzionano su qualsiasi dato). `publish.mts` usa `isVizSpec` e salta la
+   classificazione geometrica per point/geo/chart. `embed-html` ha estratto `EMBED_CSS` condiviso e
+   aggiunto i renderer `POINT_RENDERER`/`GEO_RENDERER`/`CHART_RENDERER` (inline, self-contained). Ogni
+   testo utente è **escaped** in tutti i renderer; ogni embed porta la **tabella dati accessibile**
+   (sr-only) e i **link oEmbed**. `PublishPanel`: rimosso il banner “embed solo mappe”, bottone
+   “Pubblica grafico/mappa” secondo la viz. **Coropletica byte-identica** (back-compat totale). 391 test
+   verdi (+27: spec +11, embed +15, integrazione +1), tsc + build OK. **Verificato end-to-end** su dati
+   reali: punti (487 eventi), geometria, e un grafico a barre dal CSV rinnovabili → buildSpec→
+   buildEmbedHtml produce HTML completo. *(Render runtime degli embed — MapLibre/Plot da CDN — da
+   verificare sul browser dell'utente. Limite noto: tooltip bivariata senza etichetta colonna B.)*
 - **O4.1** **Scrollytelling** (Scrollama: passi + transizioni camera/dati)
 - **O4.2** Heatmap, hexbin, flussi, estrusione 3D aggregata (deck.gl) + layer raster/satellite/WMS/GeoTIFF
 - **O4.3** Inset/minimappa isole + scale bar + freccia nord + proiezioni + **globo 3D (MapLibre v5)**

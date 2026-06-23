@@ -326,16 +326,6 @@ export function PublishPanel() {
         title="Pubblica & incorpora"
         hint="Genera uno snapshot immutabile e ottieni il codice da incollare."
       >
-        {data &&
-          (isChartType(studio.vizType) ||
-            studio.vizType === "table" ||
-            data.kind === "table") && (
-          <p className="mb-3 rounded-lg bg-blue-50 px-3 py-2 text-xs text-blue-700">
-            L'incorporamento (embed) è disponibile per ora solo per le mappe. I
-            grafici e le tabelle puoi comunque scaricarli come immagine PNG qui
-            sotto.
-          </p>
-        )}
         <button
           onClick={publish}
           disabled={!data || publishing}
@@ -345,7 +335,13 @@ export function PublishPanel() {
               : "border-zornade bg-zornade text-white hover:opacity-90"
           }`}
         >
-          {publishing ? "Pubblico…" : publishedUrl ? "Ripubblica" : "Pubblica mappa"}
+          {publishing
+            ? "Pubblico…"
+            : publishedUrl
+              ? "Ripubblica"
+              : isChartType(studio.vizType) || studio.vizType === "table"
+                ? "Pubblica grafico"
+                : "Pubblica mappa"}
         </button>
         {publishError && (
           <p className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700">

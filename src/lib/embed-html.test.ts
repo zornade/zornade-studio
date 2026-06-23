@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
-import { buildEmbedHtml, escapeHtml, EMBED_MAPLIBRE_VERSION } from "./embed-html";
+import { buildEmbedHtml, escapeHtml, EMBED_MAPLIBRE_VERSION, EMBED_PLOT_VERSION } from "./embed-html";
 import { computeBreaks } from "./choropleth";
-import type { ChoroplethSpec } from "./spec";
+import type { ChoroplethSpec, PointSpec, GeoSpec, ChartSpec } from "./spec";
 
 function spec(over: Partial<ChoroplethSpec> = {}): ChoroplethSpec {
   return {
@@ -19,7 +19,7 @@ function spec(over: Partial<ChoroplethSpec> = {}): ChoroplethSpec {
       manualBreaks: [], legendType: "steps", nClasses: 5, valueLabel: "",
       valueUnit: "", titleFont: "Inter", showTitle: true, showLegend: true,
       showSource: true, tooltip: true, tooltipTemplate: "", zoomPan: true,
-      readerFilters: false,
+      readerFilters: false, pointColor: "#01646f", pointSize: 7,
     },
     ...over,
   };
@@ -291,6 +291,318 @@ describe("buildEmbedHtml · accessibility & oEmbed (O3.5)", () => {
   it("omits oEmbed links when no self URL is given", () => {
     const out = buildEmbedHtml(spec(), { geoBaseUrl: "https://embed.x/geo" });
     expect(out).not.toContain("+oembed");
+  });
+});
+
+describe("buildEmbedHtml · area map variants (O4 publish)", () => {
+  const base = "https://embed.x/geo";
+
+  it("defaults the render to choropleth in the embed config", () => {
+    const out = buildEmbedHtml(spec(), { geoBaseUrl: base });
+    expect(out).toContain('"render":"choropleth"');
+  });
+
+  it("extrusion ships a fill-extrusion renderer with a pitch", () => {
+    const out = buildEmbedHtml(spec({ render: "extrusion" }), { geoBaseUrl: base });
+    expect(out).toContain('"render":"extrusion"');
+    expect(out).toContain('"pitch":50');
+    expect(out).toContain("fill-extrusion");
+  });
+
+  it("symbol/spike ship the centroid + marks renderer", () => {
+    const out = buildEmbedHtml(spec({ render: "symbol" }), { geoBaseUrl: base });
+    expect(out).toContain('"render":"symbol"');
+    expect(out).toContain("function centroid(");
+    expect(out).toContain("function marks(");
+  });
+
+  it("category map carries a category legend + match colours", () => {
+    const out = buildEmbedHtml(
+      spec({
+        render: "category",
+        geo: { level: "regioni", keyColumn: "Regione", valueColumn: "", categoryColumn: "Macro" },
+        data: [
+          { key: "Lombardia", category: "Nord" },
+          { key: "Veneto", category: "Nord" },
+          { key: "Lazio", category: "Centro" },
+        ],
+      }),
+      { geoBaseUrl: base },
+    );
+    expect(out).toContain('"render":"category"');
+    expect(out).toContain('"categoryLegend"');
+    expect(out).toContain("Nord");
+    expect(out).toContain("Centro");
+  });
+
+  it("bivariate map carries the 3×3 palette and the two raw values", () => {
+    const out = buildEmbedHtml(
+      spec({
+        render: "bivariate",
+        data: [
+          { key: "Lombardia", value: 10, value2: 100 },
+          { key: "Veneto", value: 20, value2: 200 },
+          { key: "Lazio", value: 30, value2: 300 },
+        ],
+      }),
+      { geoBaseUrl: base },
+    );
+    expect(out).toContain('"render":"bivariate"');
+    expect(out).toContain('"bivPalette"');
+    expect(out).toContain('"bivA"');
+    expect(out).toContain('"bivB"');
+  });
+
+  it("escapes a malicious category label", () => {
+    const out = buildEmbedHtml(
+      spec({
+        render: "category",
+        geo: { level: "regioni", keyColumn: "Regione", valueColumn: "", categoryColumn: "Macro" },
+        data: [{ key: "Lombardia", category: "<img src=x onerror=alert(1)>" }],
+      }),
+      { geoBaseUrl: base },
+    );
+    expect(out).not.toContain("<img src=x onerror=alert(1)>");
+  });
+});
+
+describe("buildEmbedHtml · point maps (O4 publish, phase 2)", () => {
+  const base = "https://embed.x/geo";
+
+  function pointSpec(over: Partial<PointSpec> = {}): PointSpec {
+    return {
+      schemaVersion: 1,
+      type: "point",
+      render: "points",
+      project: { title: "Eventi", subtitle: "", source: "Test" },
+      points: [
+        { lng: 12.5, lat: 41.9, value: 10, category: "A", name: "Roma" },
+        { lng: 9.2, lat: 45.5, value: 20, category: "B", name: "Milano" },
+        { lng: 14.3, lat: 40.8, value: 30, category: "A", name: "Napoli" },
+      ],
+      fields: { name: "citta", value: "intensita", category: "categoria" },
+      design: {
+        basemap: "ofm-positron", colorScale: "teal-seq", reverseScale: false,
+        classification: "quantile", manualBreaks: [], legendType: "steps",
+        nClasses: 5, valueLabel: "", valueUnit: "", titleFont: "Inter",
+        showTitle: true, showLegend: true, showSource: true, tooltip: true,
+        tooltipTemplate: "", zoomPan: true, readerFilters: false,
+        pointColor: "#01646f", pointSize: 7,
+      },
+      ...over,
+    };
+  }
+
+  it("inlines the coordinates and ships a circle layer (no geometry fetch)", () => {
+    const out = buildEmbedHtml(pointSpec(), { geoBaseUrl: base });
+    expect(out.startsWith("<!doctype html>")).toBe(true);
+    expect(out).toContain('"render":"points"');
+    expect(out).toContain('"layerType":"circle"');
+    expect(out).toContain("[12.5,41.9]"); // inline coords
+    expect(out).not.toContain("fetch("); // never fetches geometry
+  });
+
+  it("locator ships always-on labels", () => {
+    const out = buildEmbedHtml(pointSpec({ render: "locator" }), { geoBaseUrl: base });
+    expect(out).toContain('"showLabels":true');
+    expect(out).toContain('"render":"locator"');
+  });
+
+  it("heatmap ships a heatmap layer + no tooltip", () => {
+    const out = buildEmbedHtml(pointSpec({ render: "heatmap" }), { geoBaseUrl: base });
+    expect(out).toContain('"layerType":"heatmap"');
+    expect(out).toContain('"tooltip":false');
+  });
+
+  it("hexbin precomputes hexagons + step classes (not raw points)", () => {
+    const many: PointSpec["points"] = Array.from({ length: 60 }, (_, i) => ({
+      lng: 12.4 + (i % 8) * 0.02,
+      lat: 41.8 + Math.floor(i / 8) * 0.02,
+    }));
+    const out = buildEmbedHtml(pointSpec({ render: "hexbin", points: many }), { geoBaseUrl: base });
+    expect(out).toContain('"layerType":"fill"');
+    expect(out).toContain('"legendKind":"steps"');
+    expect(out).toContain("Polygon"); // hexagons, not just points
+  });
+
+  it("category points carry a category legend", () => {
+    const out = buildEmbedHtml(pointSpec(), { geoBaseUrl: base });
+    expect(out).toContain('"legendKind":"category"');
+    expect(out).toContain('"categoryLegend"');
+  });
+
+  it("escapes a malicious point name", () => {
+    const out = buildEmbedHtml(
+      pointSpec({
+        points: [{ lng: 12, lat: 42, name: "<img src=x onerror=alert(1)>" }],
+      }),
+      { geoBaseUrl: base },
+    );
+    expect(out).not.toContain("<img src=x onerror=alert(1)>");
+  });
+
+  it("includes an accessible data table of the points", () => {
+    const out = buildEmbedHtml(pointSpec(), { geoBaseUrl: base });
+    expect(out).toContain('class="sr-only"');
+    expect(out).toContain("Roma");
+  });
+});
+
+describe("buildEmbedHtml · custom geometry (O4 publish, phase 3)", () => {
+  const base = "https://embed.x/geo";
+
+  function geoSpec(over: Partial<GeoSpec> = {}): GeoSpec {
+    return {
+      schemaVersion: 1,
+      type: "geo",
+      project: { title: "Zone", subtitle: "", source: "Test" },
+      geojson: {
+        type: "FeatureCollection",
+        features: [
+          {
+            type: "Feature",
+            properties: { __value: 100, __name: "Zona A" },
+            geometry: { type: "Polygon", coordinates: [[[12, 41], [13, 41], [13, 42], [12, 41]]] },
+          },
+          {
+            type: "Feature",
+            properties: { __value: 200, __name: "Zona B" },
+            geometry: { type: "Polygon", coordinates: [[[9, 45], [10, 45], [10, 46], [9, 45]]] },
+          },
+        ],
+      },
+      geometryKinds: ["polygon"],
+      hasValue: true,
+      hasCategory: false,
+      categories: [],
+      valueLabel: "Popolazione",
+      design: {
+        basemap: "ofm-positron", colorScale: "teal-seq", reverseScale: false,
+        classification: "quantile", manualBreaks: [], legendType: "steps",
+        nClasses: 5, valueLabel: "Popolazione", valueUnit: "", titleFont: "Inter",
+        showTitle: true, showLegend: true, showSource: true, tooltip: true,
+        tooltipTemplate: "", zoomPan: true, readerFilters: false,
+        pointColor: "#01646f", pointSize: 7,
+      },
+      ...over,
+    };
+  }
+
+  it("inlines the user's geometry and draws fill/line/point layers (no fetch)", () => {
+    const out = buildEmbedHtml(geoSpec(), { geoBaseUrl: base });
+    expect(out.startsWith("<!doctype html>")).toBe(true);
+    expect(out).toContain('"geometryKinds":["polygon"]');
+    expect(out).toContain("d-fill");
+    expect(out).toContain("d-point");
+    expect(out).not.toContain("fetch(");
+  });
+
+  it("uses a graduated step legend when features carry a value", () => {
+    const out = buildEmbedHtml(geoSpec(), { geoBaseUrl: base });
+    expect(out).toContain('"legendKind":"steps"');
+  });
+
+  it("uses a category legend when there is no value", () => {
+    const out = buildEmbedHtml(
+      geoSpec({
+        hasValue: false,
+        hasCategory: true,
+        categories: ["residenziale", "industriale"],
+      }),
+      { geoBaseUrl: base },
+    );
+    expect(out).toContain('"legendKind":"category"');
+    expect(out).toContain("residenziale");
+  });
+
+  it("escapes a malicious feature name in the accessible table", () => {
+    const out = buildEmbedHtml(
+      geoSpec({
+        geojson: {
+          type: "FeatureCollection",
+          features: [
+            {
+              type: "Feature",
+              properties: { __value: 1, __name: "<img src=x onerror=alert(1)>" },
+              geometry: { type: "Polygon", coordinates: [[[0, 0], [1, 0], [1, 1], [0, 0]]] },
+            },
+          ],
+        },
+      }),
+      { geoBaseUrl: base },
+    );
+    expect(out).not.toContain("<img src=x onerror=alert(1)>");
+  });
+});
+
+describe("buildEmbedHtml · charts (O4 publish, phase 4)", () => {
+  const base = "https://embed.x/geo";
+
+  function chartSpec(over: Partial<ChartSpec> = {}): ChartSpec {
+    return {
+      schemaVersion: 1,
+      type: "chart",
+      render: "bar",
+      project: { title: "Serie", subtitle: "", source: "Test" },
+      points: [
+        { x: "2020", y: 10 },
+        { x: "2021", y: 20 },
+      ],
+      hasSeries: false,
+      axisX: "anno",
+      axisY: "valore",
+      colors: ["#aee", "#0a7", "#016"],
+      design: {
+        basemap: "ofm-positron", colorScale: "teal-seq", reverseScale: false,
+        classification: "quantile", manualBreaks: [], legendType: "steps",
+        nClasses: 5, valueLabel: "", valueUnit: "", titleFont: "Inter",
+        showTitle: true, showLegend: true, showSource: true, tooltip: true,
+        tooltipTemplate: "", zoomPan: true, readerFilters: false,
+        pointColor: "#01646f", pointSize: 7,
+      },
+      ...over,
+    };
+  }
+
+  it("loads Observable Plot from the pinned CDN and inlines the points", () => {
+    const out = buildEmbedHtml(chartSpec(), { geoBaseUrl: base });
+    expect(out.startsWith("<!doctype html>")).toBe(true);
+    expect(out).toContain(`@observablehq/plot@${EMBED_PLOT_VERSION}`);
+    expect(out).toContain('"render":"bar"');
+    expect(out).toContain('"axisX":"anno"');
+    expect(out).not.toContain("maplibre"); // charts are not maps
+  });
+
+  it("renders a table when render is table", () => {
+    const out = buildEmbedHtml(
+      chartSpec({
+        render: "table",
+        points: undefined,
+        table: { columns: ["anno", "valore"], rows: [{ anno: "2020", valore: "10" }] },
+      }),
+      { geoBaseUrl: base },
+    );
+    expect(out).toContain('"render":"table"');
+    expect(out).toContain("anno");
+    expect(out).toContain('class="sr-only"');
+  });
+
+  it("ships a visually-hidden data table for charts", () => {
+    const out = buildEmbedHtml(chartSpec(), { geoBaseUrl: base });
+    expect(out).toContain('class="sr-only"');
+    expect(out).toContain("anno");
+  });
+
+  it("escapes malicious table content", () => {
+    const out = buildEmbedHtml(
+      chartSpec({
+        render: "table",
+        points: undefined,
+        table: { columns: ["x"], rows: [{ x: "<img src=x onerror=alert(1)>" }] },
+      }),
+      { geoBaseUrl: base },
+    );
+    expect(out).not.toContain("<img src=x onerror=alert(1)>");
   });
 });
 

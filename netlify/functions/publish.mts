@@ -23,7 +23,7 @@
 
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import { verifyToken, readCookie } from "./_session.mts";
-import { isChoroplethSpec, type ChoroplethSpec } from "../../src/lib/spec";
+import { isVizSpec, type ChoroplethSpec, type VizSpec } from "../../src/lib/spec";
 import { buildEmbedHtml } from "../../src/lib/embed-html";
 import { publishKeys } from "../../src/lib/publish-key";
 import {
@@ -64,11 +64,11 @@ export default async (req: Request): Promise<Response> => {
   const baseUrl = (process.env.EMBED_BASE_URL ?? DEFAULT_BASE).replace(/\/$/, "");
   const geoBase = (process.env.EMBED_GEO_BASE ?? DEFAULT_GEO).replace(/\/$/, "");
 
-  // 3. Parse + validate the spec.
-  let spec: ChoroplethSpec;
+  // 3. Parse + validate the spec (area or point map).
+  let spec: VizSpec;
   try {
     const body = (await req.json()) as { spec?: unknown };
-    if (!isChoroplethSpec(body.spec)) {
+    if (!isVizSpec(body.spec)) {
       return json({ error: "Spec non valida o tipo non supportato." }, 400);
     }
     spec = body.spec;
@@ -83,8 +83,15 @@ export default async (req: Request): Promise<Response> => {
   // Classify against the REAL geometry so the published map uses exactly the
   // values it renders (an aggregate/total row or an unmatched area must not
   // skew the breaks). Falls back to spec-data classification if geometry is
-  // unreachable at publish time.
-  const classes = await classifyAgainstGeometry(spec, geoBase);
+  // unreachable at publish time. Only the graduated-numeric AREA maps need it;
+  // point maps inline their coordinates, and category/bivariate maps derive
+  // their own colours, so both skip classification.
+  const numericAreaRender =
+    spec.type === "choropleth" &&
+    (!spec.render || ["choropleth", "symbol", "spike", "extrusion"].includes(spec.render));
+  const classes = numericAreaRender
+    ? await classifyAgainstGeometry(spec as ChoroplethSpec, geoBase)
+    : undefined;
   const html = buildEmbedHtml(spec, { geoBaseUrl: geoBase, selfUrl, classes });
 
   // 5. Upload to Spaces (S3-compatible). Immutable, cacheable, public-read.
