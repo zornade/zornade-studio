@@ -3,7 +3,7 @@ import type { PresetChoice } from "./catalog";
 import type { GeoLevel } from "../lib/choropleth";
 import type { Annotation } from "../lib/annotations";
 
-export type StepId = "data" | "visualize" | "design" | "publish";
+export type StepId = "data" | "structure" | "visualize" | "design" | "publish";
 
 export type DataSourceKind =
   | "upload"

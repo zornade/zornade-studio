@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type * as Plot from "@observablehq/plot";
 import { useStudio } from "../studio/StudioContext";
 import { COLOR_SCALES } from "../studio/catalog";
+import { DataTableView } from "./DataTableView";
 import {
   chartColumnRoles,
   resolveChartAxes,
@@ -84,7 +85,7 @@ export function ChartCanvas() {
 
       <div className="min-h-0 flex-1 p-6">
         {vizType === "table" ? (
-          <TableView data={data} />
+          <DataTableView columns={data.columns} rows={data.rows} />
         ) : isChartType(vizType) ? (
           <PlotView
             data={data}
@@ -340,51 +341,6 @@ function PlotView({ data, vizType, design, colors }: PlotViewProps) {
     <div ref={containerRef} className="relative h-full w-full">
       <div ref={hostRef} className="h-full w-full" />
       <div ref={tipRef} className="studio-chart-tip" style={{ opacity: 0 }} />
-    </div>
-  );
-}
-
-/* ------------------------------- Table view ------------------------------- */
-
-function TableView({
-  data,
-}: {
-  data: { columns: string[]; rows: Record<string, string>[] };
-}) {
-  const MAX = 500;
-  const shown = data.rows.slice(0, MAX);
-  return (
-    <div className="h-full overflow-auto rounded-lg ring-1 ring-slate-200">
-      <table className="w-full border-collapse text-sm">
-        <thead className="sticky top-0 bg-slate-50">
-          <tr>
-            {data.columns.map((c) => (
-              <th
-                key={c}
-                className="border-b border-slate-200 px-3 py-2 text-left font-semibold text-slate-700"
-              >
-                {c}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {shown.map((row, i) => (
-            <tr key={i} className="odd:bg-white even:bg-slate-50/60">
-              {data.columns.map((c) => (
-                <td key={c} className="border-b border-slate-100 px-3 py-1.5 text-slate-600">
-                  {row[c]}
-                </td>
-              ))}
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      {data.rows.length > MAX && (
-        <p className="px-3 py-2 text-[11px] text-slate-400">
-          Mostrate le prime {MAX} righe di {data.rows.length}.
-        </p>
-      )}
     </div>
   );
 }

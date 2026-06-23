@@ -41,6 +41,8 @@ export interface DataLayer {
   circleRadius?: unknown;
   /** Feature property holding the area name (for tooltips). */
   nameField?: string;
+  /** Show always-on text labels from `nameField` (locator map). */
+  showLabels?: boolean;
   /** Human label for the mapped value (for tooltips). */
   valueLabel?: string;
   /** Optional unit appended to the value (for tooltips). */
@@ -96,6 +98,8 @@ const INITIAL_ZOOM = 5;
 const SRC = "studio-data";
 const FILL = "studio-data-fill";
 const LINE = "studio-data-line";
+/** Always-on point labels (locator map). */
+const LABEL = "studio-data-label";
 /** Extra layer for points inside a user "geo" dataset (KML/Shapefile points). */
 const GEO_POINT = "studio-geo-point";
 
@@ -161,6 +165,7 @@ export function MapPreview({
       return;
     }
     if (map.getLayer(GEO_POINT)) map.removeLayer(GEO_POINT);
+    if (map.getLayer(LABEL)) map.removeLayer(LABEL);
     if (map.getLayer(LINE)) map.removeLayer(LINE);
     if (map.getLayer(FILL)) map.removeLayer(FILL);
     if (map.getSource(SRC)) map.removeSource(SRC);
@@ -196,6 +201,34 @@ export function MapPreview({
         },
         firstSymbol,
       );
+      // Locator: always-on text labels above the points. Reuse the basemap's
+      // own glyph font (read from the first symbol layer) so the text is
+      // guaranteed to render; fall back to a common font otherwise.
+      if (layer.showLabels && layer.nameField) {
+        let textFont: string[] = ["Noto Sans Regular"];
+        if (firstSymbol) {
+          const f = map.getLayoutProperty(firstSymbol, "text-font");
+          if (Array.isArray(f) && f.length > 0) textFont = f as string[];
+        }
+        map.addLayer({
+          id: LABEL,
+          type: "symbol",
+          source: SRC,
+          layout: {
+            "text-field": ["get", layer.nameField],
+            "text-font": textFont,
+            "text-size": 12,
+            "text-anchor": "top",
+            "text-offset": [0, 0.8],
+            "text-max-width": 10,
+          },
+          paint: {
+            "text-color": "#0f172a",
+            "text-halo-color": "#ffffff",
+            "text-halo-width": 1.4,
+          },
+        });
+      }
       return;
     }
 

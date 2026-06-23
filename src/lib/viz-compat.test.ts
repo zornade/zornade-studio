@@ -79,4 +79,32 @@ describe("evaluateCompatibility", () => {
     const compat = evaluateCompatibility(profile, fakeGeo("comuni", "enteTerritoriale"));
     expect(compat.choropleth.compatible).toBe(true);
   });
+
+  it("opts.hasGeoPoint forces point maps on even without name-based lat/lon", () => {
+    // Columns NOT named lat/lon — the profile alone wouldn't detect points.
+    const cols = ["x", "y", "nome"];
+    const rows = [
+      { x: "41.9", y: "12.5", nome: "Roma" },
+      { x: "45.4", y: "9.2", nome: "Milano" },
+    ];
+    const profile = profileColumns(cols, rows);
+    const off = evaluateCompatibility(profile, null);
+    expect(off.points.compatible).toBe(false);
+    // The committed mapping (Struttura) designated x/y as coordinates.
+    const on = evaluateCompatibility(profile, null, { hasGeoPoint: true });
+    expect(on.points.compatible).toBe(true);
+    expect(on.locator.compatible).toBe(true);
+  });
+
+  it("opts.hasGeoArea forces area maps on (committed mapping)", () => {
+    const cols = ["zona", "valore"];
+    const rows = [
+      { zona: "Alfa", valore: "10" },
+      { zona: "Beta", valore: "20" },
+    ];
+    const profile = profileColumns(cols, rows);
+    const on = evaluateCompatibility(profile, null, { hasGeoArea: true });
+    expect(on.choropleth.compatible).toBe(true);
+  });
 });
+

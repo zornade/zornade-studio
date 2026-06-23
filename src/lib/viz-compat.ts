@@ -220,12 +220,20 @@ const RULES: Record<string, Rule> = {
 /**
  * Evaluate data compatibility for every catalog viz id.
  * Returns a map id → {compatible, score, reason}.
+ *
+ * `opts` lets the caller override the geo flags with the **committed** dataset
+ * shape (the Struttura mapping) rather than the name-based profile guess — e.g.
+ * after the operator designates lat/lon columns, point maps must light up even
+ * when those columns aren't literally named "lat"/"lon".
  */
 export function evaluateCompatibility(
   profile: DataProfile,
   geo: GeoResolution | null,
+  opts: { hasGeoPoint?: boolean; hasGeoArea?: boolean } = {},
 ): Record<string, VizCompatibility> {
   const shape = shapeOf(profile, geo);
+  if (opts.hasGeoPoint !== undefined) shape.hasGeoPoint = opts.hasGeoPoint;
+  if (opts.hasGeoArea !== undefined) shape.hasGeoArea = opts.hasGeoArea;
   const out: Record<string, VizCompatibility> = {};
   for (const group of VIZ_GROUPS) {
     for (const item of group.items) {

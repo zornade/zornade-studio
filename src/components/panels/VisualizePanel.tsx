@@ -10,6 +10,7 @@ import { GEO_LEVELS, type GeoResolution } from "../../lib/choropleth";
 const IMPLEMENTED = new Set<string>([
   "choropleth",
   "points",
+  "locator",
   "symbol",
   "category",
   "bar",
@@ -52,7 +53,13 @@ export function VisualizePanel() {
         ? { level: data.geoLevel, keyColumn: data.keyColumn, score: 1, alternatives: [] }
         : null;
     return {
-      compat: evaluateCompatibility(profile, geo),
+      compat: evaluateCompatibility(profile, geo, {
+        // Compatibility follows the COMMITTED mapping (Struttura), not the
+        // name-based profile: a point dataset enables point maps even when its
+        // coordinate columns aren't literally named lat/lon.
+        hasGeoPoint: data.kind === "point",
+        hasGeoArea: data.kind === "area",
+      }),
       summary: { profile, geo },
     };
   }, [data]);
@@ -104,13 +111,13 @@ export function VisualizePanel() {
           {data.kind === "geo" && (
             <p className="mt-1 text-[11px] text-slate-500">
               La tua geometria viene disegnata direttamente sulla mappa. Scegli
-              colore e dato da mappare nel passo “Design”.
+              il dato nel passo “Struttura” e i colori nel “Design”.
             </p>
           )}
           {data.kind === "table" && (
             <p className="mt-1 text-[11px] text-slate-500">
               Dati senza una dimensione geografica: usali per un grafico o una
-              tabella. Scegli gli assi nel passo “Design”.
+              tabella. Scegli gli assi nel passo “Struttura”.
             </p>
           )}
           <div className="mt-1.5 flex flex-wrap gap-1">
@@ -126,7 +133,7 @@ export function VisualizePanel() {
           </div>
           <p className="mt-2 text-[11px] text-slate-400">
             Le visualizzazioni si attivano in base ai dati. Puoi correggere il
-            livello e la colonna chiave nel passo “Design”.
+            tipo di dato, il livello e le colonne nel passo “Struttura”.
           </p>
         </div>
       )}

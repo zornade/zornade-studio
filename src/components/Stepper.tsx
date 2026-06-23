@@ -1,4 +1,4 @@
-import { Database, BarChart3, Palette, Share2, Check } from "lucide-react";
+import { Database, Columns3, BarChart3, Palette, Share2, Check } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useStudio } from "../studio/StudioContext";
 import type { StepId } from "../studio/types";
@@ -11,6 +11,7 @@ interface StepDef {
 
 const STEPS: StepDef[] = [
   { id: "data", label: "Dati", icon: Database },
+  { id: "structure", label: "Struttura", icon: Columns3 },
   { id: "visualize", label: "Visualizza", icon: BarChart3 },
   { id: "design", label: "Design", icon: Palette },
   { id: "publish", label: "Pubblica", icon: Share2 },

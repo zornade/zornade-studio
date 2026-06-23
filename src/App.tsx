@@ -8,6 +8,7 @@ import { MapCanvas } from "./components/MapCanvas";
 import { ChartCanvas } from "./components/ChartCanvas";
 import { MapErrorBoundary } from "./components/MapErrorBoundary";
 import { DataPanel } from "./components/panels/DataPanel";
+import { StructurePanel, StructurePreview } from "./components/panels/StructurePanel";
 import { VisualizePanel } from "./components/panels/VisualizePanel";
 import { DesignPanel } from "./components/panels/DesignPanel";
 import { PublishPanel } from "./components/panels/PublishPanel";
@@ -15,7 +16,7 @@ import { Button } from "./components/primitives";
 import { isChartType } from "./lib/chart-data";
 import type { StepId } from "./studio/types";
 
-const STEP_ORDER: StepId[] = ["data", "visualize", "design", "publish"];
+const STEP_ORDER: StepId[] = ["data", "structure", "visualize", "design", "publish"];
 
 function MapEmptyState() {
   return (
@@ -51,6 +52,7 @@ function Workspace() {
       <aside className="flex w-[368px] flex-shrink-0 flex-col border-r border-slate-200 bg-white">
         <div className="scrollbar-thin flex-1 overflow-y-auto p-5">
           {step === "data" && <DataPanel />}
+          {step === "structure" && <StructurePanel />}
           {step === "visualize" && <VisualizePanel />}
           {step === "design" && <DesignPanel />}
           {step === "publish" && <PublishPanel />}
@@ -77,9 +79,13 @@ function Workspace() {
 
       <main className="min-w-0 flex-1">
         {data ? (
-          <MapErrorBoundary>
-            {useChartCanvas ? <ChartCanvas /> : <MapCanvas />}
-          </MapErrorBoundary>
+          step === "structure" ? (
+            <StructurePreview />
+          ) : (
+            <MapErrorBoundary>
+              {useChartCanvas ? <ChartCanvas /> : <MapCanvas />}
+            </MapErrorBoundary>
+          )
         ) : (
           <MapEmptyState />
         )}

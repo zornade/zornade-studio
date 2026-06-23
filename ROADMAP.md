@@ -661,8 +661,31 @@ L'utente incolla **host / utente / password** (credenziali read-only generate a 
    (+30), tsc + build OK (chunk `pdf` lazy 1,08 KB gz, main 340 KB gz). *(Smoke-test browser/WP da fare:
    scarica CSV; PDF di mappa e grafico; SVG di un grafico; pubblica → tabella sr-only nell'embed +
    auto-embed oEmbed su WordPress.)*
-
-### Onda 4 — Storytelling & avanzate
+- **O3.6** ✅ **Passo “Struttura” (mappatura colonne) + Design capability-driven + mappe complete**
+   (2026-06-23). Nuovo step **Struttura** tra Dati e Visualizza: a sinistra l'operatore conferma/override
+   **come usare ogni colonna** (tipo di dato area/punti/tabella; livello geo + chiave; lat/lon; valore;
+   categoria; tempo; etichetta), a destra la **tabella CSV** con un **badge di ruolo colorato** per
+   colonna che si aggiorna live. Modulo puro `lib/mapping.ts` (**testato**, 15 test): `DatasetMapping`,
+   `mappingFromDataset` (legge i binding correnti), `applyMapping` (ricostruisce il `DatasetState`
+   fidandosi delle scelte, senza ri-risolvere geometrie/chiavi → niente rete), `kindsAvailable` (offre
+   solo le forme possibili; geometria propria bloccata su “geo”), `roleOf`/`kindLabel`. La logica di
+   auto-detect a load resta il **default**; la Struttura la rende correggibile. **`DataTableView`**
+   condiviso (estratto da ChartCanvas) con badge di ruolo opzionali. **Compatibilità basata sul mapping
+   committato**, non più solo sul profiling per nome: `evaluateCompatibility(profile, geo, {hasGeoPoint,
+   hasGeoArea})` accende le mappe a punti/aree secondo il *kind* scelto (es. due colonne designate
+   lat/lon abilitano Punti/Localizzatore anche se non si chiamano “lat”/“lon”). Così **tutti i grafici
+   davvero disponibili per il dato diventano selezionabili**. **Mappe “pronte” completate**: implementato
+   il **Localizzatore** (pin + **etichette sempre visibili** dal nome, riusando il glyph-font del basemap
+   per evitare problemi di glyph; layer `studio-data-label` idempotente in MapPreview) e risolto il
+   mismatch catalogo/IMPLEMENTED. **`design-caps` attivato**: il pannello Design mostra **solo** le
+   sezioni pertinenti alla viz (Coropletica → Dato/Colore/Classi e legenda; Barre → Grafico; Categorie →
+   Colore), e i selettori di colonna/assi sono **spostati** dal Design alla Struttura (niente più
+   “Colonna da mappare” né “Assi del grafico” nel Design). 321 test verdi (+17), tsc + build OK (main
+   ~344 KB gz). **Verificato dal vivo** (browser, DOM/SVG — la mappa richiede WebGL assente in test):
+   cambio tipo dato → binding e badge corretti + errori guida quando incompleto; mappatura ad aree →
+   Coropletica/Simboli/Categorie abilitati; mappatura a punti (lat/lon arbitrari) → Punti/Localizzatore
+   abilitati; Design gated per viz. *(Smoke-test mappa vera da fare su browser con WebGL: render
+   coropletica/punti/localizzatore con etichette.)*
 - **O4.1** **Scrollytelling** (Scrollama: passi + transizioni camera/dati)
 - **O4.2** Heatmap, hexbin, flussi, estrusione 3D aggregata (deck.gl) + layer raster/satellite/WMS/GeoTIFF
 - **O4.3** Inset/minimappa isole + scale bar + freccia nord + proiezioni + **globo 3D (MapLibre v5)**

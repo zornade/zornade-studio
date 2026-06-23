@@ -295,6 +295,30 @@ export function MapCanvas() {
         tooltipTemplate: design.tooltipTemplate,
       };
     }
+    // Locator map: pins with always-on labels on a base map. Uses the point
+    // dataset, uniform size (it's about *where*, not magnitude), labels from
+    // the chosen name column.
+    if (vizType === "locator" && points && data?.kind === "point") {
+      const categoryPalette =
+        scaleColors.length > 0 ? scaleColors : CAT_PALETTE;
+      return {
+        kind: "point",
+        geojson: points.geojson,
+        circleColor: data.categoryColumn
+          ? buildPointColorExpression(
+              points.categories,
+              categoryPalette,
+              design.pointColor,
+            )
+          : design.pointColor,
+        circleRadius: Math.max(4, design.pointSize),
+        nameField: "__name",
+        showLabels: true,
+        valueLabel,
+        valueUnit: design.valueUnit || undefined,
+        tooltipTemplate: design.tooltipTemplate,
+      };
+    }
     // Point dataset.
     if (points && data?.kind === "point") {
       const categoryPalette =

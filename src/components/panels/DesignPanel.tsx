@@ -28,7 +28,7 @@ import {
   type Annotation,
   type DrawTool,
 } from "../../lib/annotations";
-import { isChartType } from "../../lib/chart-data";
+import { designCaps } from "../../studio/design-caps";
 
 const PRESET_OPTIONS: { id: PresetChoice; label: string }[] = [
   ...NEWSROOM_KIT_LIST.map((k) => ({ id: k.id as PresetChoice, label: k.label })),
@@ -46,7 +46,6 @@ export function DesignPanel() {
     design,
     updateDesign,
     data,
-    setData,
     vizType,
     annotations,
     annotationTool,
@@ -59,6 +58,10 @@ export function DesignPanel() {
   const activeKit = preset !== "custom" ? NEWSROOM_KITS[preset] : null;
   // Cap classes at the number of source rows (each row can be its own class).
   const maxClasses = data ? Math.max(2, data.rows.length) : 9;
+  // Capabilities for the active visualisation: each Design block renders only
+  // when its capability is declared (lib/design-caps). Column bindings (geo
+  // level/key, axes, value column) now live in the Struttura step.
+  const caps = designCaps(vizType);
   const fontId =
     FONT_OPTIONS.find((f) => f.stack === design.titleFont)?.id ??
     "space-grotesk";
@@ -225,54 +228,12 @@ export function DesignPanel() {
         </div>
       </PanelSection>
 
-      {/* ---- Assi del grafico (solo per i grafici) ---- */}
-      {data && isChartType(vizType) && (
+      {/* ---- Grafico: etichette (gli assi sono nel passo Struttura) ---- */}
+      {caps.has("chartAxes") && (
         <PanelSection
-          title="Assi del grafico"
-          hint="Scegli le colonne per gli assi e le serie."
+          title="Grafico"
+          hint="Etichette e colore. Gli assi si scelgono nel passo “Struttura”."
         >
-          <Field label={vizType === "scatter" ? "Asse X (numerico)" : "Asse X (categoria)"}>
-            <select
-              value={design.chartX}
-              onChange={(e) => updateDesign({ chartX: e.target.value })}
-              className={inputCls}
-            >
-              <option value="">— automatico —</option>
-              {data.columns.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <Field label="Asse Y (valore)">
-            <select
-              value={design.chartY}
-              onChange={(e) => updateDesign({ chartY: e.target.value })}
-              className={inputCls}
-            >
-              <option value="">— automatico —</option>
-              {data.numericColumns.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <Field label="Serie / colore (opzionale)">
-            <select
-              value={design.chartSeries}
-              onChange={(e) => updateDesign({ chartSeries: e.target.value })}
-              className={inputCls}
-            >
-              <option value="">— nessuna —</option>
-              {data.columns.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </select>
-          </Field>
           <Field label="Nome dell'asse Y (opzionale)">
             <input
               value={design.valueLabel}
@@ -323,126 +284,120 @@ export function DesignPanel() {
         </PanelSection>
       )}
 
-      {/* ---- Dato, colori e legenda (solo per le mappe) ---- */}
-      {!isChartType(vizType) && vizType !== "table" && (
-      <PanelSection
-        title="Dato e legenda"
-        hint="Etichetta del dato, scala colore, classi e legenda."
-      >
-        {data && data.kind !== "table" && (
-          <>
-            <Field label="Colonna da mappare">
-              <select
-                value={data.valueColumn}
-                onChange={(e) =>
-                  setData({ ...data, valueColumn: e.target.value })
-                }
-                className={inputCls}
-              >
-                {data.numericColumns.map((c) => (
-                  <option key={c} value={c}>
-                    {c}
-                  </option>
-                ))}
-              </select>
-            </Field>
-            <Field label="Nome del dato in mappa">
-              <input
-                value={design.valueLabel}
-                onChange={(e) => updateDesign({ valueLabel: e.target.value })}
-                placeholder={data.valueColumn}
-                className={inputCls}
-              />
-            </Field>
-            <Field label="Unità di misura (opzionale)">
-              <input
-                value={design.valueUnit}
-                onChange={(e) => updateDesign({ valueUnit: e.target.value })}
-                placeholder="es. %, €/m², ab/km²"
-                className={inputCls}
-              />
-            </Field>
-          </>
-        )}
+      {/* ---- Dato: etichetta del valore mappato (mappe) ---- */}
+      {caps.has("valueLabel") && data && data.kind !== "table" && (
+        <PanelSection title="Dato" hint="Etichetta e unità del valore in mappa.">
+          <Field label="Nome del dato in mappa">
+            <input
+              value={design.valueLabel}
+              onChange={(e) => updateDesign({ valueLabel: e.target.value })}
+              placeholder={data.valueColumn}
+              className={inputCls}
+            />
+          </Field>
+          <Field label="Unità di misura (opzionale)">
+            <input
+              value={design.valueUnit}
+              onChange={(e) => updateDesign({ valueUnit: e.target.value })}
+              placeholder="es. %, €/m², ab/km²"
+              className={inputCls}
+            />
+          </Field>
+          <p className="text-[11px] text-slate-400">
+            La colonna del valore si sceglie nel passo “Struttura”.
+          </p>
+        </PanelSection>
+      )}
 
-        <Field label="Scala colore">
-          <div className="space-y-1.5">
-            {COLOR_SCALES.map((s) => (
-              <button
-                key={s.id}
-                onClick={() => updateDesign({ colorScale: s.id })}
-                className={`flex w-full items-center gap-2 rounded-lg border px-2.5 py-1.5 transition-colors ${
-                  design.colorScale === s.id
-                    ? "border-zornade bg-zornade-50"
-                    : "border-slate-200 hover:border-slate-300"
-                }`}
-              >
-                <span className="flex h-3.5 w-24 overflow-hidden rounded-full">
-                  {s.colors.map((c) => (
-                    <span key={c} className="flex-1" style={{ background: c }} />
-                  ))}
-                </span>
-                <span className="text-xs text-slate-600">{s.label}</span>
-              </button>
-            ))}
-          </div>
-        </Field>
+      {/* ---- Colore: scala del dato (mappe) ---- */}
+      {caps.has("colorScale") && !caps.has("chartAxes") && (
+        <PanelSection title="Colore" hint="Scala colore del dato.">
+          <Field label="Scala colore">
+            <div className="space-y-1.5">
+              {COLOR_SCALES.map((s) => (
+                <button
+                  key={s.id}
+                  onClick={() => updateDesign({ colorScale: s.id })}
+                  className={`flex w-full items-center gap-2 rounded-lg border px-2.5 py-1.5 transition-colors ${
+                    design.colorScale === s.id
+                      ? "border-zornade bg-zornade-50"
+                      : "border-slate-200 hover:border-slate-300"
+                  }`}
+                >
+                  <span className="flex h-3.5 w-24 overflow-hidden rounded-full">
+                    {s.colors.map((c) => (
+                      <span key={c} className="flex-1" style={{ background: c }} />
+                    ))}
+                  </span>
+                  <span className="text-xs text-slate-600">{s.label}</span>
+                </button>
+              ))}
+            </div>
+          </Field>
+        </PanelSection>
+      )}
 
-        <Field label="Metodo di classificazione">
-          <select
-            value={design.classification}
-            onChange={(e) => updateDesign({ classification: e.target.value })}
-            className={inputCls}
-          >
-            {CLASSIFICATION_METHODS.map((m) => (
-              <option key={m.id} value={m.id}>
-                {m.label}
-              </option>
-            ))}
-          </select>
-        </Field>
-
-        <Field label={`Numero di classi · ${design.nClasses}`}>
-          <input
-            type="range"
-            min={2}
-            max={maxClasses}
-            step={1}
-            value={Math.min(design.nClasses, maxClasses)}
-            onChange={(e) => updateDesign({ nClasses: Number(e.target.value) })}
-            className="w-full accent-zornade"
-          />
-          {data && (
-            <p className="mt-1 text-[11px] text-slate-400">
-              Fino a {maxClasses} classi ({data.rows.length} righe nel file).
-            </p>
-          )}
-        </Field>
-
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="Tipo di legenda">
+      {/* ---- Classi e legenda (coropletica / geometria) ---- */}
+      {caps.has("classification") && (
+        <PanelSection
+          title="Classi e legenda"
+          hint="Metodo di classificazione, numero di classi e legenda."
+        >
+          <Field label="Metodo di classificazione">
             <select
-              value={design.legendType}
-              onChange={(e) => updateDesign({ legendType: e.target.value })}
+              value={design.classification}
+              onChange={(e) => updateDesign({ classification: e.target.value })}
               className={inputCls}
             >
-              {LEGEND_TYPES.map((l) => (
-                <option key={l.id} value={l.id}>
-                  {l.label}
+              {CLASSIFICATION_METHODS.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.label}
                 </option>
               ))}
             </select>
           </Field>
-          <Field label="Nessun dato">
+
+          <Field label={`Numero di classi · ${design.nClasses}`}>
             <input
-              type="color"
-              value={noData}
-              onChange={(e) => setNoData(e.target.value)}
-              className="h-9 w-full cursor-pointer rounded border border-slate-200"
+              type="range"
+              min={2}
+              max={maxClasses}
+              step={1}
+              value={Math.min(design.nClasses, maxClasses)}
+              onChange={(e) => updateDesign({ nClasses: Number(e.target.value) })}
+              className="w-full accent-zornade"
             />
+            {data && (
+              <p className="mt-1 text-[11px] text-slate-400">
+                Fino a {maxClasses} classi ({data.rows.length} righe nel file).
+              </p>
+            )}
           </Field>
-        </div>
-      </PanelSection>
+
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Tipo di legenda">
+              <select
+                value={design.legendType}
+                onChange={(e) => updateDesign({ legendType: e.target.value })}
+                className={inputCls}
+              >
+                {LEGEND_TYPES.map((l) => (
+                  <option key={l.id} value={l.id}>
+                    {l.label}
+                  </option>
+                ))}
+              </select>
+            </Field>
+            <Field label="Nessun dato">
+              <input
+                type="color"
+                value={noData}
+                onChange={(e) => setNoData(e.target.value)}
+                className="h-9 w-full cursor-pointer rounded border border-slate-200"
+              />
+            </Field>
+          </div>
+        </PanelSection>
       )}
 
       {/* ---- Interattività ---- */}
