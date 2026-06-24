@@ -639,8 +639,8 @@ ${EMBED_RENDERER}
 
 /** Shared embed CSS (area + point renderers). */
 const EMBED_CSS = `
-  html,body{margin:0;height:100%;font-family:system-ui,-apple-system,sans-serif}
-  #map{position:absolute;inset:0}
+  html,body{margin:0;height:100%;background:transparent;font-family:system-ui,-apple-system,sans-serif}
+  #map{position:absolute;inset:0;background:transparent}
   .ttl{position:absolute;left:12px;top:12px;max-width:70%;background:rgba(255,255,255,.92);
     padding:8px 12px;border-radius:10px;box-shadow:0 1px 6px rgba(0,0,0,.12);z-index:2}
   .ttl h1{margin:0;font-size:16px;color:#0f172a}

@@ -56,6 +56,10 @@ describe("buildEmbedHtml", () => {
     expect(html).toContain("https://embed.x/geo/regioni.geojson");
   });
 
+  it("renders the map on a transparent background so the host page shows through", () => {
+    expect(html).toContain("background:transparent");
+  });
+
   it("includes the (normalised) join keys and the title", () => {
     expect(html).toContain("lombardia");
     expect(html).toContain("Arrivi 2024");
