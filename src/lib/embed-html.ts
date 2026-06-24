@@ -623,7 +623,6 @@ ${oembedLinks}
 <style>${EMBED_CSS}</style>
 </head>
 <body>
-${spec.globe ? `<canvas id="space"></canvas>` : ""}
 <div id="map"></div>
 ${spec.design.showTitle && title ? `<div class="ttl"><h1 style="font-family:${titleFont}">${title}</h1>${subtitle ? `<p style="font-family:${titleFont}">${subtitle}</p>` : ""}</div>` : ""}
 ${spec.design.showSource && source ? `<div class="src">${source}</div>` : ""}
@@ -641,9 +640,7 @@ ${EMBED_RENDERER}
 /** Shared embed CSS (area + point renderers). */
 const EMBED_CSS = `
   html,body{margin:0;height:100%;font-family:system-ui,-apple-system,sans-serif}
-  #space{position:absolute;inset:0;z-index:0;display:block;
-    background:radial-gradient(120% 90% at 50% 28%,#0b1026 0%,#070a18 55%,#03030a 100%)}
-  #map{position:absolute;inset:0;z-index:1}
+  #map{position:absolute;inset:0}
   .ttl{position:absolute;left:12px;top:12px;max-width:70%;background:rgba(255,255,255,.92);
     padding:8px 12px;border-radius:10px;box-shadow:0 1px 6px rgba(0,0,0,.12);z-index:2}
   .ttl h1{margin:0;font-size:16px;color:#0f172a}
@@ -683,121 +680,6 @@ const EMBED_CSS = `
     font-weight:600;color:#334155;font-variant-numeric:tabular-nums}
   .sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;
     overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
-`;
-
-/**
- * Level 1 globe environment — a lightweight, dependency-free space backdrop drawn
- * on a 2D canvas (#space) that sits *behind* the transparent globe. Shared verbatim
- * across all three embed renderers (area / point / geo) via `${SPACE_FX}`.
- *
- * It only activates when `E.globe` is true (flat maps keep a plain background).
- * Effects: twinkling parallax-free starfield sized to the viewport, a soft Milky
- * Way band, a few slowly drifting nebulae, a shaded Moon parked in the top-right
- * corner and a satellite that streaks across every ~20–40s with a short trail.
- * The loop pauses while the tab is hidden. Pure ES5, no CDN, ~3 KB.
- *
- * NOTE: keep this free of backticks and `${}` — it is injected into String.raw
- * renderer templates, so either would corrupt the surrounding literal.
- */
-const SPACE_FX = String.raw`
-function space(){
-  if(!E.globe)return;
-  var cv=document.getElementById("space");
-  if(!cv||!cv.getContext)return;
-  var ctx=cv.getContext("2d");
-  if(!ctx)return;
-  var DPR=Math.min(window.devicePixelRatio||1,2);
-  var W=0,H=0,stars=[],neb=[],sat=null,satTimer=12,t0=Date.now(),last=Date.now(),raf=0;
-  function build(){
-    stars=[];
-    var n=Math.round(Math.min(280,Math.max(70,W*H/8000)));
-    for(var i=0;i<n;i++){
-      stars.push({x:Math.random()*W,y:Math.random()*H,r:Math.random()*1.1+0.25,
-        p:Math.random()*6.2832,s:Math.random()*0.7+0.3,tw:Math.random()*1.4+0.6});
-    }
-    neb=[];
-    for(var j=0;j<3;j++){
-      neb.push({x:Math.random()*W,y:Math.random()*H*0.7,
-        r:Math.max(W,H)*(0.25+Math.random()*0.2),
-        vx:(Math.random()-0.5)*4,vy:(Math.random()-0.5)*2,h:200+Math.random()*40});
-    }
-  }
-  function resize(){
-    W=cv.clientWidth||(cv.parentNode&&cv.parentNode.clientWidth)||window.innerWidth;
-    H=cv.clientHeight||(cv.parentNode&&cv.parentNode.clientHeight)||window.innerHeight;
-    cv.width=Math.round(W*DPR);cv.height=Math.round(H*DPR);
-    ctx.setTransform(DPR,0,0,DPR,0,0);
-    build();
-  }
-  function milky(){
-    var g=ctx.createLinearGradient(0,H*0.15,W,H*0.8);
-    g.addColorStop(0,"rgba(120,140,210,0)");
-    g.addColorStop(0.5,"rgba(150,165,225,0.05)");
-    g.addColorStop(1,"rgba(120,140,210,0)");
-    ctx.save();ctx.globalCompositeOperation="screen";ctx.fillStyle=g;ctx.fillRect(0,0,W,H);ctx.restore();
-  }
-  function nebula(dt){
-    ctx.save();ctx.globalCompositeOperation="screen";
-    for(var i=0;i<neb.length;i++){
-      var b=neb[i];b.x+=b.vx*dt;b.y+=b.vy*dt;
-      if(b.x<-b.r)b.x=W+b.r;if(b.x>W+b.r)b.x=-b.r;
-      if(b.y<-b.r)b.y=H+b.r;if(b.y>H+b.r)b.y=-b.r;
-      var rg=ctx.createRadialGradient(b.x,b.y,0,b.x,b.y,b.r);
-      rg.addColorStop(0,"hsla("+b.h+",60%,62%,0.05)");
-      rg.addColorStop(1,"hsla("+b.h+",60%,62%,0)");
-      ctx.fillStyle=rg;ctx.beginPath();ctx.arc(b.x,b.y,b.r,0,6.2832);ctx.fill();
-    }
-    ctx.restore();
-  }
-  function moon(){
-    var mr=Math.max(16,Math.min(W,H)*0.045),mx=W-mr*2.6,my=mr*2.2;
-    var gg=ctx.createRadialGradient(mx,my,mr*0.7,mx,my,mr*2.6);
-    gg.addColorStop(0,"rgba(214,222,244,0.22)");gg.addColorStop(1,"rgba(214,222,244,0)");
-    ctx.fillStyle=gg;ctx.beginPath();ctx.arc(mx,my,mr*2.6,0,6.2832);ctx.fill();
-    var dg=ctx.createRadialGradient(mx-mr*0.35,my-mr*0.35,mr*0.2,mx,my,mr);
-    dg.addColorStop(0,"#f6f7fb");dg.addColorStop(1,"#c1c6d4");
-    ctx.fillStyle=dg;ctx.beginPath();ctx.arc(mx,my,mr,0,6.2832);ctx.fill();
-    ctx.fillStyle="rgba(150,156,176,0.32)";
-    cr(mx-mr*0.28,my-mr*0.08,mr*0.17);cr(mx+mr*0.22,my+mr*0.26,mr*0.12);cr(mx+mr*0.05,my-mr*0.34,mr*0.09);
-    function cr(cx,cy,r){ctx.beginPath();ctx.arc(cx,cy,r,0,6.2832);ctx.fill();}
-  }
-  function spawnSat(){
-    var dir=Math.random()<0.5?1:-1;
-    sat={x:dir>0?-20:W+20,y:H*(0.12+Math.random()*0.5),
-      vx:(W+60)/(7+Math.random()*5),dir:dir,vy:(Math.random()-0.5)*8};
-  }
-  function frame(){
-    var now=Date.now();var dt=(now-last)/1000;if(dt>0.1)dt=0.1;last=now;
-    ctx.clearRect(0,0,W,H);
-    milky();nebula(dt);
-    var tt=(now-t0)/1000;
-    for(var i=0;i<stars.length;i++){
-      var st=stars[i];var a=st.s*(0.55+0.45*Math.sin(tt*st.tw+st.p));
-      if(a<0)a=0;ctx.globalAlpha=a;ctx.fillStyle="#eef3ff";
-      ctx.beginPath();ctx.arc(st.x,st.y,st.r,0,6.2832);ctx.fill();
-    }
-    ctx.globalAlpha=1;
-    moon();
-    satTimer-=dt;
-    if(!sat&&satTimer<=0){spawnSat();satTimer=18+Math.random()*22;}
-    if(sat){
-      sat.x+=sat.dir*sat.vx*dt;sat.y+=sat.vy*dt;
-      ctx.save();ctx.globalCompositeOperation="lighter";
-      ctx.strokeStyle="rgba(180,210,255,0.28)";ctx.lineWidth=1;
-      ctx.beginPath();ctx.moveTo(sat.x-sat.dir*16,sat.y-sat.vy*0.02);ctx.lineTo(sat.x,sat.y);ctx.stroke();
-      ctx.fillStyle="rgba(245,250,255,0.95)";
-      ctx.beginPath();ctx.arc(sat.x,sat.y,1.5,0,6.2832);ctx.fill();ctx.restore();
-      if(sat.x>W+30||sat.x<-30)sat=null;
-    }
-    raf=window.requestAnimationFrame(frame);
-  }
-  window.addEventListener("resize",resize);
-  document.addEventListener("visibilitychange",function(){
-    if(document.hidden){if(raf){window.cancelAnimationFrame(raf);raf=0;}}
-    else if(!raf){last=Date.now();frame();}
-  });
-  resize();frame();
-}
 `;
 
 /**
@@ -848,13 +730,12 @@ function sky(){try{map.setSky({"sky-color":"#a9d3ff","sky-horizon-blend":0.6,
 // so the shapes read as solid volumes. Only fill-extrusion layers react to it.
 function light(){try{map.setLight({anchor:"map",color:"#ffffff",intensity:0.55,
   position:[1.5,215,40]});}catch(e){}}
-${SPACE_FX}
 var map=new maplibregl.Map({container:"map",
   style:E.basemapStyle||{version:8,sources:{},layers:[]},
   center:E.center,zoom:E.zoom,pitch:E.pitch,bearing:E.bearing,attributionControl:false,interactive:E.interactive});
 map.addControl(new maplibregl.AttributionControl({compact:true}));
 var GEO=null,ready=false;
-map.on("load",function(){ready=true;if(E.globe){try{map.setProjection({type:"globe"});}catch(e){}}sky();light();space();if(GEO)build();});
+map.on("load",function(){ready=true;if(E.globe){try{map.setProjection({type:"globe"});}catch(e){}}sky();light();if(GEO)build();});
 fetch(E.geoUrl).then(function(r){return r.json();}).then(function(g){GEO=g;if(ready)build();});
 function build(){
   var noData=paint(E.keyed);
@@ -1366,7 +1247,6 @@ ${oembedLinks}
 <style>${EMBED_CSS}</style>
 </head>
 <body>
-${spec.globe ? `<canvas id="space"></canvas>` : ""}
 <div id="map"></div>
 ${spec.design.showTitle && title ? `<div class="ttl"><h1 style="font-family:${titleFont}">${title}</h1>${subtitle ? `<p style="font-family:${titleFont}">${subtitle}</p>` : ""}</div>` : ""}
 ${spec.design.showSource && source ? `<div class="src">${source}</div>` : ""}
@@ -1396,12 +1276,11 @@ function fmt(n){var s=NF.format(n);return E.valueUnit?(s+"\u00a0"+E.valueUnit):s
 function sky(){try{map.setSky({"sky-color":"#a9d3ff","sky-horizon-blend":0.6,
   "horizon-color":"#eaf3ff","horizon-fog-blend":0.6,"fog-color":"#ffffff","fog-ground-blend":0.6,
   "atmosphere-blend":["interpolate",["linear"],["zoom"],0,E.globe?0.9:0.6,5,0.3,7,0]});}catch(e){}}
-${SPACE_FX}
 var map=new maplibregl.Map({container:"map",
   style:E.basemapStyle||{version:8,sources:{},layers:[]},
   center:E.center,zoom:E.zoom,pitch:E.pitch,bearing:E.bearing,attributionControl:false,interactive:E.interactive});
 map.addControl(new maplibregl.AttributionControl({compact:true}));
-map.on("load",function(){if(E.globe){try{map.setProjection({type:"globe"});}catch(e){}}sky();space();build();});
+map.on("load",function(){if(E.globe){try{map.setProjection({type:"globe"});}catch(e){}}sky();build();});
 function build(){
   map.addSource("d",{type:"geojson",data:E.geojson});
   map.addLayer({id:"d-fill",type:E.layerType,source:"d",paint:E.paint});
@@ -1644,7 +1523,6 @@ ${oembedLinks}
 <style>${EMBED_CSS}</style>
 </head>
 <body>
-${spec.globe ? `<canvas id="space"></canvas>` : ""}
 <div id="map"></div>
 ${spec.design.showTitle && title ? `<div class="ttl"><h1 style="font-family:${titleFont}">${title}</h1>${subtitle ? `<p style="font-family:${titleFont}">${subtitle}</p>` : ""}</div>` : ""}
 ${spec.design.showSource && source ? `<div class="src">${source}</div>` : ""}
@@ -1682,12 +1560,11 @@ function beforeId(){var ls=(map.getStyle().layers||[]),lg=-1,i,t;
 function sky(){try{map.setSky({"sky-color":"#a9d3ff","sky-horizon-blend":0.6,
   "horizon-color":"#eaf3ff","horizon-fog-blend":0.6,"fog-color":"#ffffff","fog-ground-blend":0.6,
   "atmosphere-blend":["interpolate",["linear"],["zoom"],0,E.globe?0.9:0.6,5,0.3,7,0]});}catch(e){}}
-${SPACE_FX}
 var map=new maplibregl.Map({container:"map",
   style:E.basemapStyle||{version:8,sources:{},layers:[]},
   center:E.center,zoom:E.zoom,pitch:E.pitch,bearing:E.bearing,attributionControl:false,interactive:E.interactive});
 map.addControl(new maplibregl.AttributionControl({compact:true}));
-map.on("load",function(){if(E.globe){try{map.setProjection({type:"globe"});}catch(e){}}sky();space();build();});
+map.on("load",function(){if(E.globe){try{map.setProjection({type:"globe"});}catch(e){}}sky();build();});
 function build(){
   map.addSource("d",{type:"geojson",data:E.geojson});
   var before=beforeId();
