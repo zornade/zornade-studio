@@ -168,7 +168,12 @@ function dataInsertBeforeId(map: maplibregl.Map): string | undefined {
   for (let i = 0; i < ls.length; i++) {
     const l = ls[i];
     if (OWN_LAYER_IDS.has(l.id)) continue;
-    if (l.type === "fill" || l.type === "line" || l.type === "fill-extrusion") {
+    if (
+      l.type === "fill" ||
+      l.type === "line" ||
+      l.type === "fill-extrusion" ||
+      l.type === "raster"
+    ) {
       lastGeom = i;
     }
   }
@@ -258,6 +263,203 @@ function applyLight(map: maplibregl.Map): void {
   }
 }
 
+type Star = { x: number; y: number; r: number; p: number; s: number; tw: number };
+type Nebula = { x: number; y: number; r: number; vx: number; vy: number; h: number };
+type Satellite = { x: number; y: number; vx: number; dir: number; vy: number };
+
+/**
+ * Level 1 globe environment for the editor preview — the same lightweight,
+ * dependency-free space backdrop shipped in the published embeds (see
+ * `SPACE_FX` in embed-html.ts), drawn on a 2D canvas sitting behind the
+ * transparent globe. Twinkling starfield, a soft Milky Way band, drifting
+ * nebulae, a shaded Moon in the top-right corner and an occasional satellite
+ * streak. Returns a handle whose `stop()` cancels the loop, unbinds the resize
+ * listener and clears the canvas (called when the globe is toggled off / on
+ * unmount). Pure canvas 2D, no WebGL, negligible cost.
+ */
+function startStarfield(canvas: HTMLCanvasElement): { stop: () => void } {
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return { stop: () => {} };
+  const DPR = Math.min(window.devicePixelRatio || 1, 2);
+  let W = 0;
+  let H = 0;
+  let raf = 0;
+  let stars: Star[] = [];
+  let neb: Nebula[] = [];
+  let sat: Satellite | null = null;
+  let satTimer = 12;
+  const t0 = Date.now();
+  let last = Date.now();
+
+  const build = () => {
+    stars = [];
+    const n = Math.round(Math.min(280, Math.max(70, (W * H) / 8000)));
+    for (let i = 0; i < n; i++) {
+      stars.push({
+        x: Math.random() * W,
+        y: Math.random() * H,
+        r: Math.random() * 1.1 + 0.25,
+        p: Math.random() * 6.2832,
+        s: Math.random() * 0.7 + 0.3,
+        tw: Math.random() * 1.4 + 0.6,
+      });
+    }
+    neb = [];
+    for (let j = 0; j < 3; j++) {
+      neb.push({
+        x: Math.random() * W,
+        y: Math.random() * H * 0.7,
+        r: Math.max(W, H) * (0.25 + Math.random() * 0.2),
+        vx: (Math.random() - 0.5) * 4,
+        vy: (Math.random() - 0.5) * 2,
+        h: 200 + Math.random() * 40,
+      });
+    }
+  };
+
+  const resize = () => {
+    W = canvas.clientWidth || window.innerWidth;
+    H = canvas.clientHeight || window.innerHeight;
+    canvas.width = Math.round(W * DPR);
+    canvas.height = Math.round(H * DPR);
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    build();
+  };
+
+  const milky = () => {
+    const g = ctx.createLinearGradient(0, H * 0.15, W, H * 0.8);
+    g.addColorStop(0, "rgba(120,140,210,0)");
+    g.addColorStop(0.5, "rgba(150,165,225,0.05)");
+    g.addColorStop(1, "rgba(120,140,210,0)");
+    ctx.save();
+    ctx.globalCompositeOperation = "screen";
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, W, H);
+    ctx.restore();
+  };
+
+  const nebula = (dt: number) => {
+    ctx.save();
+    ctx.globalCompositeOperation = "screen";
+    for (const b of neb) {
+      b.x += b.vx * dt;
+      b.y += b.vy * dt;
+      if (b.x < -b.r) b.x = W + b.r;
+      if (b.x > W + b.r) b.x = -b.r;
+      if (b.y < -b.r) b.y = H + b.r;
+      if (b.y > H + b.r) b.y = -b.r;
+      const rg = ctx.createRadialGradient(b.x, b.y, 0, b.x, b.y, b.r);
+      rg.addColorStop(0, `hsla(${b.h},60%,62%,0.05)`);
+      rg.addColorStop(1, `hsla(${b.h},60%,62%,0)`);
+      ctx.fillStyle = rg;
+      ctx.beginPath();
+      ctx.arc(b.x, b.y, b.r, 0, 6.2832);
+      ctx.fill();
+    }
+    ctx.restore();
+  };
+
+  const moon = () => {
+    const mr = Math.max(16, Math.min(W, H) * 0.045);
+    const mx = W - mr * 2.6;
+    const my = mr * 2.2;
+    const gg = ctx.createRadialGradient(mx, my, mr * 0.7, mx, my, mr * 2.6);
+    gg.addColorStop(0, "rgba(214,222,244,0.22)");
+    gg.addColorStop(1, "rgba(214,222,244,0)");
+    ctx.fillStyle = gg;
+    ctx.beginPath();
+    ctx.arc(mx, my, mr * 2.6, 0, 6.2832);
+    ctx.fill();
+    const dg = ctx.createRadialGradient(mx - mr * 0.35, my - mr * 0.35, mr * 0.2, mx, my, mr);
+    dg.addColorStop(0, "#f6f7fb");
+    dg.addColorStop(1, "#c1c6d4");
+    ctx.fillStyle = dg;
+    ctx.beginPath();
+    ctx.arc(mx, my, mr, 0, 6.2832);
+    ctx.fill();
+    ctx.fillStyle = "rgba(150,156,176,0.32)";
+    const cr = (cx: number, cy: number, r: number) => {
+      ctx.beginPath();
+      ctx.arc(cx, cy, r, 0, 6.2832);
+      ctx.fill();
+    };
+    cr(mx - mr * 0.28, my - mr * 0.08, mr * 0.17);
+    cr(mx + mr * 0.22, my + mr * 0.26, mr * 0.12);
+    cr(mx + mr * 0.05, my - mr * 0.34, mr * 0.09);
+  };
+
+  const spawnSat = () => {
+    const dir = Math.random() < 0.5 ? 1 : -1;
+    sat = {
+      x: dir > 0 ? -20 : W + 20,
+      y: H * (0.12 + Math.random() * 0.5),
+      vx: (W + 60) / (7 + Math.random() * 5),
+      dir,
+      vy: (Math.random() - 0.5) * 8,
+    };
+  };
+
+  const frame = () => {
+    const now = Date.now();
+    let dt = (now - last) / 1000;
+    if (dt > 0.1) dt = 0.1;
+    last = now;
+    ctx.clearRect(0, 0, W, H);
+    milky();
+    nebula(dt);
+    const tt = (now - t0) / 1000;
+    for (const st of stars) {
+      let a = st.s * (0.55 + 0.45 * Math.sin(tt * st.tw + st.p));
+      if (a < 0) a = 0;
+      ctx.globalAlpha = a;
+      ctx.fillStyle = "#eef3ff";
+      ctx.beginPath();
+      ctx.arc(st.x, st.y, st.r, 0, 6.2832);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+    moon();
+    satTimer -= dt;
+    if (!sat && satTimer <= 0) {
+      spawnSat();
+      satTimer = 18 + Math.random() * 22;
+    }
+    if (sat) {
+      sat.x += sat.dir * sat.vx * dt;
+      sat.y += sat.vy * dt;
+      ctx.save();
+      ctx.globalCompositeOperation = "lighter";
+      ctx.strokeStyle = "rgba(180,210,255,0.28)";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(sat.x - sat.dir * 16, sat.y - sat.vy * 0.02);
+      ctx.lineTo(sat.x, sat.y);
+      ctx.stroke();
+      ctx.fillStyle = "rgba(245,250,255,0.95)";
+      ctx.beginPath();
+      ctx.arc(sat.x, sat.y, 1.5, 0, 6.2832);
+      ctx.fill();
+      ctx.restore();
+      if (sat.x > W + 30 || sat.x < -30) sat = null;
+    }
+    raf = window.requestAnimationFrame(frame);
+  };
+
+  const onResize = () => resize();
+  window.addEventListener("resize", onResize);
+  resize();
+  frame();
+
+  return {
+    stop() {
+      if (raf) window.cancelAnimationFrame(raf);
+      raf = 0;
+      window.removeEventListener("resize", onResize);
+      ctx.clearRect(0, 0, W, H);
+    },
+  };
+}
+
 export function MapPreview({
   tilesUrl,
   flavor,
@@ -279,6 +481,7 @@ export function MapPreview({
 }: MapPreviewProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
+  const spaceRef = useRef<HTMLCanvasElement | null>(null);
   const dataLayerRef = useRef<DataLayer | null>(dataLayer);
   dataLayerRef.current = dataLayer;
   const dataFilterRef = useRef<unknown | null>(dataFilter);
@@ -1050,7 +1253,32 @@ export function MapPreview({
     if (!tooltip) popupRef.current?.remove();
   }, [tooltip]);
 
-  return <div ref={containerRef} className="h-full w-full" />;
+  // Level 1 globe environment: run the canvas starfield only while the globe is
+  // on; stop and clear it when switched back to the flat map or on unmount.
+  useEffect(() => {
+    if (!globe || !spaceRef.current) return;
+    const sf = startStarfield(spaceRef.current);
+    return () => sf.stop();
+  }, [globe]);
+
+  return (
+    <div className="relative h-full w-full">
+      <canvas
+        ref={spaceRef}
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 z-0"
+        style={
+          globe
+            ? {
+                background:
+                  "radial-gradient(120% 90% at 50% 28%, #0b1026 0%, #070a18 55%, #03030a 100%)",
+              }
+            : { display: "none" }
+        }
+      />
+      <div ref={containerRef} className="absolute inset-0 z-[1]" />
+    </div>
+  );
 }
 
 /** Minimal HTML escaping for tooltip content. */

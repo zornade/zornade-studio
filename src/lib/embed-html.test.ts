@@ -52,6 +52,17 @@ describe("buildEmbedHtml", () => {
     expect(off).toContain('"tooltip":false');
   });
 
+  it("adds the space backdrop canvas and starfield only on the globe", () => {
+    expect(html).not.toContain('id="space"');
+    const onGlobe = buildEmbedHtml(
+      spec({ globe: true }),
+      { geoBaseUrl: "https://embed.x/geo" },
+    );
+    expect(onGlobe).toContain('id="space"');
+    expect(onGlobe).toContain("function space(");
+    expect(onGlobe).toContain("space();");
+  });
+
   it("references the geometry under the given base URL", () => {
     expect(html).toContain("https://embed.x/geo/regioni.geojson");
   });
