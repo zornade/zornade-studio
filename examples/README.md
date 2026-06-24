@@ -151,3 +151,71 @@ Note:
   per ruotare la vista.
 - Tutte queste mappe restano **in editor + export PNG** (come simboli/punti/
   categorie): la pubblicazione embed oggi è solo per la coropletica.
+
+---
+
+# 10 mappe reali per la landing — set verificato
+
+Dieci dataset con **dati reali da fonti ufficiali** (World Bank, Eurostat),
+pronti per pubblicare dieci coropletiche da usare nel carosello della landing
+di Studio. Tutte sono **mappe ad aree (coropletiche)** sui quattro livelli
+geografici supportati dall'embed, quindi **pubblicabili** così come sono.
+
+Tutte le chiavi geografiche sono state verificate contro le geometrie incluse:
+**paesi** join su `codice_iso` (ISO-A3), **regioni** su `regione` (nome esatto),
+**province** su `sigla` (targa). Copertura: regioni 20/20, province 107/107.
+
+## Mondo ed Europa (livello `paesi`)
+
+| File | Fonte esatta | Colonna valore | Titolo / sottotitolo suggerito | Storia per chi scrive |
+|------|--------------|----------------|--------------------------------|-----------------------|
+| `mondo-pil-procapite-ppp-2023.csv` | World Bank, indicatore `NY.GDP.PCAP.PP.CD`, 2023 (161 paesi) | `pil_procapite_ppp_usd` | *Ricchezza del mondo* — PIL pro capite a parità di potere d'acquisto, 2023 | Outlier estremi (Lussemburgo, Irlanda, Qatar > 129.000 $) contro l'Africa sub-sahariana: il colpo d'occhio del divario globale. |
+| `mondo-aspettativa-vita-2023-full.csv` | World Bank, indicatore `SP.DYN.LE00.IN`, 2023 (169 paesi) | `aspettativa_vita_anni` | *Quanto si vive* — aspettativa di vita alla nascita, 2023 | Contrasto netto tra Europa/Asia orientale (81–84 anni) e Africa centrale (53–62): mappa mondiale ad alto impatto. |
+| `europa-rinnovabili-2023.csv` | Eurostat, `nrg_ind_ren` (`nrg_bal=REN`, `unit=PC`), 2023 (36 paesi) | `rinnovabili_pct` | *L'Europa delle rinnovabili* — quota di energia da fonti rinnovabili, 2023 | Islanda, Norvegia e Svezia oltre il 60%; Italia e grandi economie continentali molto sotto: la geografia della transizione. |
+| `europa-disoccupazione-giovanile-2023.csv` | Eurostat, `une_rt_a` (`sex=T`, `age=Y15-24`, `unit=PC_ACT`), 2023 (33 paesi) | `disoccupazione_giovanile_pct` | *Giovani senza lavoro* — tasso di disoccupazione 15–24 anni, 2023 | Il Sud Europa (Spagna, Italia, Grecia) contro Germania e Paesi Bassi: una frattura generazionale che si vede sulla mappa. |
+
+## Italia per regione (livello `regioni`)
+
+| File | Fonte esatta | Colonna valore | Titolo / sottotitolo suggerito | Storia per chi scrive |
+|------|--------------|----------------|--------------------------------|-----------------------|
+| `regioni-reddito-famiglie-2022.csv` | Eurostat, `nama_10r_2hhinc` (`direct=BAL`, `na_item=B6N`, `unit=PPS_EU27_2020_HAB`), 2022 | `reddito_disponibile_pps` | *Il reddito delle famiglie* — reddito disponibile pro capite (PPS), 2022 | Trentino-Alto Adige e Lombardia in testa (~24.500–24.850), Campania e Calabria in coda (~14.800): il divario Nord-Sud in una scala. |
+| `regioni-speranza-vita-2022.csv` | Eurostat, `demo_r_mlifexp` (`sex=T`, `age=Y_LT1`), 2022 | `speranza_vita_anni` | *Dove si vive più a lungo* — speranza di vita alla nascita, 2022 | Trentino-Alto Adige e Veneto sopra gli 83,5 anni; Campania ultima a 81,1: salute e territorio. |
+| `regioni-occupazione-2023.csv` | Eurostat, `lfst_r_lfe2emprt` (`sex=T`, `age=Y20-64`, `unit=PC`), 2023 | `tasso_occupazione_pct` | *Chi lavora in Italia* — tasso di occupazione 20–64 anni, 2023 | Il Mezzogiorno con i tassi più bassi d'Europa: una mappa che spiega un problema strutturale. |
+
+## Italia per provincia (livello `province`)
+
+| File | Fonte esatta | Colonna valore | Titolo / sottotitolo suggerito | Storia per chi scrive |
+|------|--------------|----------------|--------------------------------|-----------------------|
+| `province-pil-procapite-2022.csv` | Eurostat, `nama_10r_3gdp` (`unit=EUR_HAB`), 2022 (107/107) | `pil_procapite_eur` | *La ricchezza provincia per provincia* — PIL pro capite in euro, 2022 | Dal cuore produttivo del Nord alle province del Sud: il dettaglio provinciale rende il divario più granulare e leggibile. |
+| `province-eta-mediana-2023.csv` | Eurostat, `demo_r_pjanind3` (`indic_de=MEDAGEPOP`), 2023 (107/107) | `eta_mediana_anni` | *L'Italia che invecchia* — età mediana della popolazione, 2023 | Savona, Biella e Oristano oltre i 52 anni; Napoli e Caserta le più giovani (~44): la demografia che cambia il Paese. |
+| `province-densita-popolazione-2022.csv` | Eurostat, `demo_r_d3dens` 2022 (102 province) + 5 province sarde calcolate (vedi nota) (107/107) | `densita_ab_kmq` | *Dove vivono gli italiani* — densità di popolazione (ab./km²), 2022 | Napoli e Monza-Brianza oltre 2.000 ab./km² contro le province interne sotto i 40: il vuoto e il pieno del territorio. |
+
+## Note di provenienza (essere precisi)
+
+- **Regioni e dati Eurostat regionali**: i livelli NUTS2 di Eurostat dividono il
+  Trentino-Alto Adige in due (Bolzano e Trento). Nei file `regioni-*` i due
+  valori sono stati **combinati come media** nella riga
+  `Trentino-Alto Adige/Südtirol`, coerente con la geometria a 20 regioni dello
+  Studio (Bolzano ~534k e Trento ~542k abitanti, quindi la media è quasi
+  equivalente a una media ponderata).
+- **Densità province**: i 102 valori provengono direttamente da Eurostat
+  `demo_r_d3dens` (2022). Le **5 province sarde** (Sassari, Nuoro, Cagliari,
+  Oristano, Sud Sardegna) non sono presenti in quel dataset con i codici NUTS3
+  attuali (riorganizzazione del 2016): sono state **calcolate** come
+  popolazione residente Eurostat 2023 (`demo_r_pjanaggr3`) divisa per la
+  superficie del confine provinciale ufficiale ISTAT (area geodetica del
+  poligono incluso nello Studio). I valori risultanti combaciano con le cifre
+  ISTAT note (es. Cagliari ~337 ab./km², Nuoro ~35 ab./km²).
+- **Nomi esatti delle regioni**: i due nomi bilingui sono scritti come nelle
+  geometrie — `Trentino-Alto Adige/Südtirol` e `Valle d'Aosta/Vallée d'Aoste` —
+  per garantire il join automatico per nome.
+- **Aggregati esclusi**: nei file mondiali ed europei sono stati rimossi gli
+  aggregati (UE27, area euro, raggruppamenti World Bank), così la mappa mostra
+  solo singoli paesi.
+
+Come pubblicarli per la landing:
+1. **Dati** → carica il CSV. **Struttura** → conferma livello e chiave.
+2. **Visualizza** → **Coropletica**. **Design** → palette sequenziale, classi
+   (quantili o intervalli naturali), unità nel tooltip, titolo e fonte.
+3. **Pubblica** → ottieni l'URL embed `studio.zornade.com/embed/{slug}/{hash}/`
+   da inserire nel carosello della landing.

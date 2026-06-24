@@ -1,0 +1,170 @@
+paese,codice_iso,aspettativa_vita_anni
+Svizzera,CHE,84.2
+Giappone,JPN,84.0
+Spagna,ESP,83.9
+Italia,ITA,83.4
+Corea del Sud,KOR,83.4
+Lussemburgo,LUX,83.3
+Svezia,SWE,83.3
+Israele,ISR,83.2
+Kuwait,KWT,83.2
+Australia,AUS,83.1
+Norvegia,NOR,83.0
+Emirati Arabi Uniti,ARE,82.9
+Francia,FRA,82.8
+Irlanda,IRL,82.8
+Islanda,ISL,82.5
+Belgio,BEL,82.4
+Qatar,QAT,82.4
+Portogallo,PRT,82.3
+Paesi Bassi,NLD,81.9
+Slovenia,SVN,81.9
+Austria,AUT,81.8
+Danimarca,DNK,81.8
+Nuova Zelanda,NZL,81.8
+Grecia,GRC,81.7
+Porto Rico,PRI,81.7
+Canada,CAN,81.6
+Cipro,CYP,81.6
+Finlandia,FIN,81.6
+Cile,CHL,81.2
+Regno Unito,GBR,81.2
+Germania,DEU,81.0
+Costa Rica,CRI,80.8
+Oman,OMN,80.0
+Repubblica Ceca,CZE,79.8
+Albania,ALB,79.6
+Panama,PAN,79.6
+Estonia,EST,78.8
+Nuova Caledonia,NCL,78.8
+Arabia Saudita,SAU,78.7
+Croazia,HRV,78.5
+Stati Uniti d'America,USA,78.4
+Polonia,POL,78.3
+Cuba,CUB,78.1
+Slovacchia,SVK,78.1
+Uruguay,URY,78.1
+Cina,CHN,78.0
+Bosnia ed Erzegovina,BIH,77.8
+Giordania,JOR,77.8
+Libano,LBN,77.8
+Colombia,COL,77.7
+Iran,IRN,77.7
+Perù,PER,77.7
+Montenegro,MNE,77.6
+Armenia,ARM,77.5
+Sri Lanka,LKA,77.5
+Argentina,ARG,77.4
+Ecuador,ECU,77.4
+Lituania,LTU,77.3
+Turchia,TUR,77.2
+Malaysia,MYS,76.7
+Ungheria,HUN,76.6
+Tunisia,TUN,76.5
+Romania,ROU,76.4
+Thailandia,THA,76.4
+Algeria,DZA,76.3
+Serbia,SRB,76.1
+Brasile,BRA,75.8
+Bulgaria,BGR,75.8
+Lettonia,LVA,75.4
+Brunei,BRN,75.3
+Marocco,MAR,75.3
+Macedonia del Nord,MKD,75.3
+Messico,MEX,75.1
+Nicaragua,NIC,74.9
+Bangladesh,BGD,74.7
+Bahamas,BHS,74.6
+Vietnam,VNM,74.6
+Georgia,GEO,74.5
+Azerbaigian,AZE,74.4
+Kazakistan,KAZ,74.4
+Bielorussia,BLR,74.2
+Paraguay,PRY,73.8
+Repubblica Dominicana,DOM,73.7
+Belize,BLZ,73.6
+Corea del Nord,PRK,73.6
+Suriname,SUR,73.6
+Trinidad e Tobago,TTO,73.5
+Ucraina,UKR,73.4
+Russia,RUS,73.3
+Bhutan,BTN,73.0
+Honduras,HND,72.9
+Guatemala,GTM,72.6
+Venezuela,VEN,72.5
+Uzbekistan,UZB,72.4
+Iraq,IRQ,72.3
+Kirghizistan,KGZ,72.2
+El Salvador,SLV,72.1
+Mongolia,MNG,72.1
+Siria,SYR,72.1
+India,IND,72.0
+Tagikistan,TJK,71.8
+Egitto,EGY,71.6
+Giamaica,JAM,71.5
+Vanuatu,VUT,71.5
+Moldavia,MDA,71.2
+Indonesia,IDN,71.1
+Groenlandia,GRL,71.0
+Cambogia,KHM,70.7
+Isole Salomone,SLB,70.5
+Nepal,NPL,70.4
+Guyana,GUY,70.2
+Turkmenistan,TKM,70.1
+Filippine,PHL,69.8
+Libia,LBY,69.3
+Yemen,YEM,69.3
+Botswana,BWA,69.2
+Laos,LAO,69.0
+Senegal,SEN,68.7
+Bolivia,BOL,68.6
+Eritrea,ERI,68.6
+Mauritania,MRT,68.5
+Gabon,GAB,68.3
+Uganda,UGA,68.3
+Ruanda,RWA,67.8
+Timor Est,TLS,67.7
+Pakistan,PAK,67.6
+Malawi,MWI,67.4
+Namibia,NAM,67.4
+Etiopia,ETH,67.3
+Figi,FJI,67.3
+Tanzania,TZA,67.0
+Birmania,MMR,66.9
+Sudan,SDN,66.3
+Zambia,ZMB,66.3
+Papua Nuova Guinea,PNG,66.1
+Sudafrica,ZAF,66.1
+Afghanistan,AFG,66.0
+Gibuti,DJI,66.0
+Gambia,GMB,65.9
+Repubblica del Congo,COG,65.8
+Ghana,GHA,65.5
+Palestina,PSE,65.2
+Haiti,HTI,64.9
+Angola,AGO,64.6
+eSwatini,SWZ,64.1
+Guinea-Bissau,GNB,64.1
+Burundi,BDI,63.7
+Camerun,CMR,63.7
+Guinea Equatoriale,GNQ,63.7
+Kenya,KEN,63.6
+Madagascar,MDG,63.6
+Mozambico,MOZ,63.6
+Zimbabwe,ZWE,62.8
+Togo,TGO,62.7
+Liberia,LBR,62.2
+Repubblica Democratica del Congo,COD,61.9
+Costa d'Avorio,CIV,61.9
+Sierra Leone,SLE,61.8
+Niger,NER,61.2
+Burkina Faso,BFA,61.1
+Benin,BEN,60.8
+Guinea,GIN,60.7
+Mali,MLI,60.4
+Somalia,SOM,58.8
+Sudan del Sud,SSD,57.6
+Repubblica Centrafricana,CAF,57.4
+Lesotho,LSO,57.4
+Ciad,TCD,55.1
+Nigeria,NGA,54.5

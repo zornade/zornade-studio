@@ -138,6 +138,73 @@ const EMPTY_FC: GeoJSON.FeatureCollection = { type: "FeatureCollection", feature
 /** Italian number formatting for tooltip values. */
 const fmt = new Intl.NumberFormat("it-IT", { maximumFractionDigits: 2 });
 
+/** Layer ids this component manages; never treat them as basemap geometry. */
+const OWN_LAYER_IDS = new Set<string>([
+  FILL,
+  LINE,
+  LABEL,
+  HEATMAP,
+  EXTRUSION,
+  GEO_POINT,
+  ANNOT_FILL,
+  ANNOT_LINE,
+  ANNOT_PREVIEW_FILL,
+  ANNOT_PREVIEW_LINE,
+]);
+
+/**
+ * Insertion point (`before` id) for the data layers: above every basemap
+ * geometry layer (roads, buildings, boundaries) but below the first label.
+ *
+ * The naive "first symbol layer" heuristic is wrong for OpenMapTiles styles
+ * (OpenFreeMap), where an early `water_name` symbol precedes the road/building
+ * layers — inserting before it buries the data UNDER the roads. Instead we find
+ * the last basemap fill/line/extrusion layer and return the id of the next
+ * (label) layer. Returns undefined when no label follows → add on top.
+ */
+function dataInsertBeforeId(map: maplibregl.Map): string | undefined {
+  const ls = map.getStyle().layers ?? [];
+  let lastGeom = -1;
+  for (let i = 0; i < ls.length; i++) {
+    const l = ls[i];
+    if (OWN_LAYER_IDS.has(l.id)) continue;
+    if (l.type === "fill" || l.type === "line" || l.type === "fill-extrusion") {
+      lastGeom = i;
+    }
+  }
+  for (let i = lastGeom + 1; i < ls.length; i++) {
+    if (!OWN_LAYER_IDS.has(ls[i].id)) return ls[i].id;
+  }
+  return undefined;
+}
+
+/**
+ * Bounding-box centre of a GeoJSON geometry, used to anchor the 3D-extrusion
+ * tooltip to a feature's footprint (the raw event `lngLat` is the ground point
+ * under the cursor, which drifts far from a tall bar when the map is pitched).
+ */
+function featureCenter(geom: GeoJSON.Geometry | null | undefined): [number, number] | null {
+  if (!geom || !("coordinates" in geom)) return null;
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+  const visit = (c: unknown): void => {
+    if (Array.isArray(c) && typeof c[0] === "number") {
+      const [x, y] = c as number[];
+      if (x < minX) minX = x;
+      if (x > maxX) maxX = x;
+      if (y < minY) minY = y;
+      if (y > maxY) maxY = y;
+    } else if (Array.isArray(c)) {
+      for (const child of c) visit(child);
+    }
+  };
+  visit((geom as { coordinates: unknown }).coordinates);
+  if (!Number.isFinite(minX)) return null;
+  return [(minX + maxX) / 2, (minY + maxY) / 2];
+}
+
 export function MapPreview({
   tilesUrl,
   flavor,
@@ -205,10 +272,10 @@ export function MapPreview({
 
     map.addSource(SRC, { type: "geojson", data: layer.geojson });
 
-    // Insert below the first symbol layer so place labels stay readable.
-    const firstSymbol = map
-      .getStyle()
-      .layers?.find((l) => l.type === "symbol")?.id;
+    // Insert above all basemap geometry (roads, buildings, boundaries) but
+    // below the first label, so place names stay readable and the basemap
+    // roads never paint over the data (see dataInsertBeforeId).
+    const firstSymbol = dataInsertBeforeId(map);
 
     if (layer.kind === "heatmap") {
       // Density heatmap from points (paint precomputed in lib/heatmap).
@@ -229,6 +296,10 @@ export function MapPreview({
       // the choropleth. Needs map pitch > 0 (set via the pitch prop) to be seen.
       const range = layer.extrusionRange ?? { min: 0, max: 1 };
       const maxH = layer.extrusionMaxHeight ?? 180000;
+      // Floor the smallest bars to a fraction of the max height so low values
+      // still rise visibly off the surface instead of sitting at height 0,
+      // where they z-fight with the basemap (and intersect the 3D globe).
+      const minH = Math.max(maxH * 0.04, 2000);
       map.addLayer({
         id: EXTRUSION,
         type: "fill-extrusion",
@@ -241,7 +312,7 @@ export function MapPreview({
             ["linear"],
             ["coalesce", ["get", "__value"], range.min],
             range.min,
-            0,
+            minH,
             range.max,
             maxH,
           ] as unknown as maplibregl.ExpressionSpecification,
@@ -615,8 +686,37 @@ export function MapPreview({
       map.on("mousemove", id, showOnLayer);
       map.on("mouseleave", id, hideOnLayer);
     }
-    // The 3D extrusion uses its own layer id; bind the same hover tooltip.
-    map.on("mousemove", EXTRUSION, showOnLayer);
+    // The 3D extrusion uses its own layer id. Anchor the tooltip at the
+    // feature's footprint centre, not the event lngLat: with the map pitched
+    // the ground point under the cursor drifts far from a tall bar, making the
+    // popup jump around or point at the wrong area.
+    const showOnExtrusion = (e: maplibregl.MapLayerMouseEvent) => {
+      if (annotToolRef.current) return;
+      if (!tooltipEnabledRef.current) return;
+      const f = e.features?.[0];
+      if (!f) return;
+      map.getCanvas().style.cursor = "pointer";
+      const layer = dataLayerRef.current;
+      const props = (f.properties ?? {}) as Record<string, unknown>;
+      const name = layer?.nameField ? props[layer.nameField] : undefined;
+      const raw = props.__value;
+      const unit = layer?.valueUnit ? `\u00a0${layer.valueUnit}` : "";
+      const value =
+        typeof raw === "number"
+          ? `${fmt.format(raw)}${unit}`
+          : raw != null
+            ? `${String(raw)}${unit}`
+            : "n/d";
+      const label = layer?.valueLabel ?? "Valore";
+      const tpl = layer?.tooltipTemplate?.trim();
+      const html = tpl
+        ? renderTooltipTemplate(tpl, tooltipValues(props, String(name ?? ""), value))
+        : `<div class="studio-tooltip-name">${escapeHtml(String(name ?? ""))}</div>` +
+          `<div class="studio-tooltip-value"><span>${escapeHtml(label)}</span> ${escapeHtml(value)}</div>`;
+      const anchor = featureCenter(f.geometry) ?? [e.lngLat.lng, e.lngLat.lat];
+      popup.setLngLat(anchor).setHTML(html).addTo(map);
+    };
+    map.on("mousemove", EXTRUSION, showOnExtrusion);
     map.on("mouseleave", EXTRUSION, hideOnLayer);
 
     // Annotation placement: a click with a tool armed adds the annotation.

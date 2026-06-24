@@ -701,6 +701,22 @@ function esc(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"
   .replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");}
 var NF=new Intl.NumberFormat("it-IT",{maximumFractionDigits:2});
 function fmt(n){var s=NF.format(n);return E.valueUnit?(s+"\u00a0"+E.valueUnit):s;}
+// Insertion point for the data layers: above every basemap geometry layer
+// (roads, buildings, boundaries) but below the first label. The naive "first
+// symbol" is wrong for OpenMapTiles styles (an early water_name symbol precedes
+// the roads), which buries the data under the roads.
+function beforeId(){var ls=(map.getStyle().layers||[]),lg=-1,i,t;
+  for(i=0;i<ls.length;i++){if(ls[i].id.indexOf("d-")===0)continue;t=ls[i].type;
+    if(t==="fill"||t==="line"||t==="fill-extrusion")lg=i;}
+  for(i=lg+1;i<ls.length;i++){if(ls[i].id.indexOf("d-")!==0)return ls[i].id;}
+  return undefined;}
+// Bounding-box centre of a feature geometry, used to anchor the extrusion
+// tooltip to the footprint (the event lngLat drifts when the map is pitched).
+function centerOf(g){if(!g||!g.coordinates)return null;
+  var mnx=1/0,mny=1/0,mxx=-1/0,mxy=-1/0;
+  (function v(c){if(typeof c[0]==="number"){if(c[0]<mnx)mnx=c[0];if(c[0]>mxx)mxx=c[0];
+    if(c[1]<mny)mny=c[1];if(c[1]>mxy)mxy=c[1];}else{for(var i=0;i<c.length;i++)v(c[i]);}})(g.coordinates);
+  if(!isFinite(mnx))return null;return[(mnx+mxx)/2,(mny+mxy)/2];}
 var map=new maplibregl.Map({container:"map",
   style:E.basemapStyle||{version:8,sources:{},layers:[]},
   center:E.center,zoom:E.zoom,pitch:E.pitch,bearing:E.bearing,attributionControl:false,interactive:E.interactive});
@@ -711,13 +727,12 @@ fetch(E.geoUrl).then(function(r){return r.json();}).then(function(g){GEO=g;if(re
 function build(){
   var noData=paint(E.keyed);
   map.addSource("d",{type:"geojson",data:GEO});
-  var firstSym=(map.getStyle().layers||[]).filter(function(l){return l.type==="symbol";})[0];
-  var before=firstSym&&firstSym.id;
+  var before=beforeId();
   if(E.render==="extrusion"){
     map.addLayer({id:"d-fill",type:"fill-extrusion",source:"d",
       paint:{"fill-extrusion-color":E.fill,
         "fill-extrusion-height":["interpolate",["linear"],
-          ["coalesce",["to-number",["get","__value"]],E.min],E.min,0,E.max,120000],
+          ["coalesce",["to-number",["get","__value"]],E.min],E.min,4800,E.max,120000],
         "fill-extrusion-base":0,"fill-extrusion-opacity":0.9}},before);
   }else if(E.render==="symbol"||E.render==="spike"){
     map.addLayer({id:"d-line",type:"line",source:"d",
@@ -976,7 +991,8 @@ function tooltip(){
       html=tplRender(E.tooltipTemplate,vals);}
     else{html='<div class="studio-tooltip-name">'+esc(nm)+'</div>'+
       '<div class="studio-tooltip-value"><span>'+esc(E.valueLabel)+'</span> '+esc(vtxt)+'</div>';}
-    pop.setLngLat(e.lngLat).setHTML(html).addTo(map);
+    var at=(E.render==="extrusion"&&centerOf(f.geometry))||e.lngLat;
+    pop.setLngLat(at).setHTML(html).addTo(map);
     map.getCanvas().style.cursor="pointer";});
   map.on("mouseleave","d-fill",function(){pop.remove();map.getCanvas().style.cursor="";});
 }
@@ -1506,6 +1522,12 @@ function esc(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"
   .replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");}
 var NF=new Intl.NumberFormat("it-IT",{maximumFractionDigits:2});
 function fmt(n){var s=NF.format(n);return E.valueUnit?(s+"\u00a0"+E.valueUnit):s;}
+// Insert above all basemap geometry (roads/buildings/boundaries), below labels.
+function beforeId(){var ls=(map.getStyle().layers||[]),lg=-1,i,t;
+  for(i=0;i<ls.length;i++){if(ls[i].id.indexOf("d-")===0)continue;t=ls[i].type;
+    if(t==="fill"||t==="line"||t==="fill-extrusion")lg=i;}
+  for(i=lg+1;i<ls.length;i++){if(ls[i].id.indexOf("d-")!==0)return ls[i].id;}
+  return undefined;}
 var map=new maplibregl.Map({container:"map",
   style:E.basemapStyle||{version:8,sources:{},layers:[]},
   center:E.center,zoom:E.zoom,pitch:E.pitch,bearing:E.bearing,attributionControl:false,interactive:E.interactive});
@@ -1513,8 +1535,7 @@ map.addControl(new maplibregl.AttributionControl({compact:true}));
 map.on("load",function(){if(E.globe)map.setProjection({type:"globe"});build();});
 function build(){
   map.addSource("d",{type:"geojson",data:E.geojson});
-  var firstSym=(map.getStyle().layers||[]).filter(function(l){return l.type==="symbol";})[0];
-  var before=firstSym&&firstSym.id;
+  var before=beforeId();
   map.addLayer({id:"d-fill",type:"fill",source:"d",
     paint:{"fill-color":E.fillColor,"fill-opacity":0.7}},before);
   map.addLayer({id:"d-line",type:"line",source:"d",
