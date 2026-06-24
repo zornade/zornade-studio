@@ -31,6 +31,7 @@ import {
 import { PanelSection, Field, SoonBadge } from "../primitives";
 import {
   annotationSummary,
+  sameTool,
   type Annotation,
   type DrawTool,
 } from "../../lib/annotations";
@@ -819,14 +820,6 @@ const DRAW_TOOLS: {
   { label: "Rettangolo", icon: Square, tool: { kind: "area", shape: "rectangle" } },
   { label: "Cerchio", icon: Circle, tool: { kind: "area", shape: "circle" } },
 ];
-
-/** Structural equality for two draw tools (sub-variants included). */
-function sameTool(a: DrawTool | null, b: DrawTool): boolean {
-  if (!a || a.kind !== b.kind) return false;
-  if (a.kind === "line" && b.kind === "line") return a.arrow === b.arrow;
-  if (a.kind === "area" && b.kind === "area") return a.shape === b.shape;
-  return true;
-}
 
 /** One editable row for an annotation: summary, colour, optional text, delete. */
 function AnnotationRow({

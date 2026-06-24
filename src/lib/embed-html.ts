@@ -22,7 +22,7 @@ import {
   DEFAULT_NO_DATA_COLOR,
   type ClassBreaks,
 } from "./choropleth";
-import { colorsForScale, resolveBasemap } from "../studio/palettes";
+import { colorsForScale, resolveBasemap, BRAND_TEAL } from "../studio/palettes";
 import { frameLabel } from "./temporal";
 import {
   annotationsToGeoJson,
@@ -34,7 +34,29 @@ import { buildHeatmapPaint } from "./heatmap";
 import { hexbin } from "./hexbin";
 import { buildPointColorExpression, buildPointRadiusExpression } from "./points";
 import { accessibleTableHtml } from "./data-table";
+import { skySpec, lightSpec } from "./map-style";
 import type { AreaRender } from "./spec";
+
+/**
+ * Sky/light config inlined into every renderer, serialised once from the shared
+ * map-style source so the published embed paints the exact same atmosphere and
+ * lighting as the live editor preview.
+ */
+const SKY_GLOBE_JSON = JSON.stringify(skySpec(true));
+const SKY_FLAT_JSON = JSON.stringify(skySpec(false));
+const LIGHT_JSON = JSON.stringify(lightSpec());
+
+/**
+ * Inline-JS prelude shared by every renderer (injected once into each
+ * `String.raw` template): a single security-critical HTML escaper plus the
+ * Italian number formatter. Keeping one definition prevents the escaping logic
+ * from drifting between the three renderers.
+ */
+const RENDER_PRELUDE = String.raw`
+function esc(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;")
+  .replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");}
+var NF=new Intl.NumberFormat("it-IT",{maximumFractionDigits:2});
+function fmt(n){var s=NF.format(n);return E.valueUnit?(s+"\u00a0"+E.valueUnit):s;}`;
 
 /** Pinned MapLibre version for embeds (matches the app's maplibre-gl).
  *  Must be v5+: the globe projection (`setProjection`) and `setSky` used by
@@ -574,7 +596,7 @@ function buildAreaEmbedHtml(
     fill,
     render,
     cartogramKind: spec.cartogramKind ?? "noncontiguous",
-    pointColor: d.pointColor || "#01646f",
+    pointColor: d.pointColor || BRAND_TEAL,
     pointSize: d.pointSize || 7,
     valueRange: { min: classes.min, max: classes.max },
     legendColors,
@@ -700,10 +722,7 @@ var E=EMBED;
 function nk(v){if(v==null)return"";var s=String(v).trim().toLowerCase();
   if(/^\d$/.test(s))s="0"+s;s=s.split("/")[0].trim();
   return s.normalize("NFD").replace(/[\u0300-\u036f]/g,"");}
-function esc(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;")
-  .replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");}
-var NF=new Intl.NumberFormat("it-IT",{maximumFractionDigits:2});
-function fmt(n){var s=NF.format(n);return E.valueUnit?(s+"\u00a0"+E.valueUnit):s;}
+${RENDER_PRELUDE}
 // Insertion point for the data layers: above every basemap geometry layer
 // (roads, buildings, boundaries) but below the first label. The naive "first
 // symbol" is wrong for OpenMapTiles styles (an early water_name symbol precedes
@@ -721,16 +740,11 @@ function centerOf(g){if(!g||!g.coordinates)return null;
   (function v(c){if(typeof c[0]==="number"){if(c[0]<mnx)mnx=c[0];if(c[0]>mxx)mxx=c[0];
     if(c[1]<mny)mny=c[1];if(c[1]>mxy)mxy=c[1];}else{for(var i=0;i<c.length;i++)v(c[i]);}})(g.coordinates);
   if(!isFinite(mnx))return null;return[(mnx+mxx)/2,(mny+mxy)/2];}
-// Subtle sky + atmospheric haze. On a pitched map it draws a soft horizon; on
-// the globe only the atmosphere halo is drawn so the surrounding space stays
-// transparent and the host page background shows through.
-function sky(){try{if(E.globe){map.setSky({"atmosphere-blend":["interpolate",["linear"],["zoom"],0,0.8,5,0.3,7,0]});}else{map.setSky({"sky-color":"#a9d3ff","sky-horizon-blend":0.6,
-  "horizon-color":"#eaf3ff","horizon-fog-blend":0.6,"fog-color":"#ffffff","fog-ground-blend":0.6,
-  "atmosphere-blend":["interpolate",["linear"],["zoom"],0,0.6,5,0.3,7,0]});}}catch(e){}}
+// Subtle sky + atmospheric haze, serialised from the shared map-style source.
+function sky(){try{map.setSky(E.globe?${SKY_GLOBE_JSON}:${SKY_FLAT_JSON});}catch(e){}}
 // Directional light anchored to the map: shades the sides of the 3D extrusion
 // so the shapes read as solid volumes. Only fill-extrusion layers react to it.
-function light(){try{map.setLight({anchor:"map",color:"#ffffff",intensity:0.55,
-  position:[1.5,215,40]});}catch(e){}}
+function light(){try{map.setLight(${LIGHT_JSON});}catch(e){}}
 var map=new maplibregl.Map({container:"map",
   style:E.basemapStyle||{version:8,sources:{},layers:[]},
   center:E.center,zoom:E.zoom,pitch:E.pitch,bearing:E.bearing,attributionControl:false,interactive:E.interactive});
@@ -1270,13 +1284,8 @@ ${POINT_RENDERER}
 const POINT_RENDERER = String.raw`
 (function(){
 var E=EMBED;
-function esc(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;")
-  .replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");}
-var NF=new Intl.NumberFormat("it-IT",{maximumFractionDigits:2});
-function fmt(n){var s=NF.format(n);return E.valueUnit?(s+"\u00a0"+E.valueUnit):s;}
-function sky(){try{if(E.globe){map.setSky({"atmosphere-blend":["interpolate",["linear"],["zoom"],0,0.8,5,0.3,7,0]});}else{map.setSky({"sky-color":"#a9d3ff","sky-horizon-blend":0.6,
-  "horizon-color":"#eaf3ff","horizon-fog-blend":0.6,"fog-color":"#ffffff","fog-ground-blend":0.6,
-  "atmosphere-blend":["interpolate",["linear"],["zoom"],0,0.6,5,0.3,7,0]});}}catch(e){}}
+${RENDER_PRELUDE}
+function sky(){try{map.setSky(E.globe?${SKY_GLOBE_JSON}:${SKY_FLAT_JSON});}catch(e){}}
 var map=new maplibregl.Map({container:"map",
   style:E.basemapStyle||{version:8,sources:{},layers:[]},
   center:E.center,zoom:E.zoom,pitch:E.pitch,bearing:E.bearing,attributionControl:false,interactive:E.interactive});
@@ -1547,10 +1556,7 @@ ${GEO_RENDERER}
 const GEO_RENDERER = String.raw`
 (function(){
 var E=EMBED;
-function esc(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;")
-  .replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");}
-var NF=new Intl.NumberFormat("it-IT",{maximumFractionDigits:2});
-function fmt(n){var s=NF.format(n);return E.valueUnit?(s+"\u00a0"+E.valueUnit):s;}
+${RENDER_PRELUDE}
 // Insert above all basemap geometry (roads/buildings/boundaries), below labels.
 // A raster background counts as geometry too, so the data stays above it.
 function beforeId(){var ls=(map.getStyle().layers||[]),lg=-1,i,t;
@@ -1558,9 +1564,7 @@ function beforeId(){var ls=(map.getStyle().layers||[]),lg=-1,i,t;
     if(t==="fill"||t==="line"||t==="fill-extrusion"||t==="raster")lg=i;}
   for(i=lg+1;i<ls.length;i++){if(ls[i].id.indexOf("d-")!==0)return ls[i].id;}
   return undefined;}
-function sky(){try{if(E.globe){map.setSky({"atmosphere-blend":["interpolate",["linear"],["zoom"],0,0.8,5,0.3,7,0]});}else{map.setSky({"sky-color":"#a9d3ff","sky-horizon-blend":0.6,
-  "horizon-color":"#eaf3ff","horizon-fog-blend":0.6,"fog-color":"#ffffff","fog-ground-blend":0.6,
-  "atmosphere-blend":["interpolate",["linear"],["zoom"],0,0.6,5,0.3,7,0]});}}catch(e){}}
+function sky(){try{map.setSky(E.globe?${SKY_GLOBE_JSON}:${SKY_FLAT_JSON});}catch(e){}}
 var map=new maplibregl.Map({container:"map",
   style:E.basemapStyle||{version:8,sources:{},layers:[]},
   center:E.center,zoom:E.zoom,pitch:E.pitch,bearing:E.bearing,attributionControl:false,interactive:E.interactive});

@@ -3,40 +3,35 @@ import { Play, Pause } from "lucide-react";
 import { makeFlavor } from "../basemap";
 import { useStudio } from "../studio/StudioContext";
 import { COLOR_SCALES } from "../studio/catalog";
-import { resolveBasemap } from "../studio/palettes";
+import { resolveBasemap, BRAND_TEAL } from "../studio/palettes";
 import { MapPreview, type DataLayer } from "./MapPreview";
 import { TILES_URL } from "../lib/tiles";
 import {
   GEO_LEVELS,
   joinChoropleth,
   joinCategory,
-  buildFillColorExpression,
   computeBreaks,
   temporalSharedValues,
   sampleColors,
   DEFAULT_NO_DATA_COLOR,
 } from "../lib/choropleth";
-import {
-  buildPointFeatures,
-  buildPointColorExpression,
-  buildPointRadiusExpression,
-} from "../lib/points";
+import { buildPointFeatures } from "../lib/points";
 import { prepareGeoRender } from "../lib/geo-dataset";
-import { joinBivariate, buildBivariateColorExpression, BIVARIATE_PALETTE } from "../lib/bivariate";
+import { joinBivariate, BIVARIATE_PALETTE } from "../lib/bivariate";
 import { spikeTriangles } from "../lib/spike";
 import { hexbin } from "../lib/hexbin";
-import { buildHeatmapPaint } from "../lib/heatmap";
 import { nonContiguousCartogram, dorlingCartogram } from "../lib/cartogram";
 import { buildFlows } from "../lib/flow";
 import { featureCentroid } from "../lib/centroid";
 import { templateColumns } from "../lib/tooltip";
 import { buildClassVisibilityFilter, classLabel } from "../lib/class-filter";
 import { rowsForFrame, frameLabel } from "../lib/temporal";
+import { buildDataLayer } from "../lib/data-layer";
 
 const NO_DATA_COLOR = DEFAULT_NO_DATA_COLOR;
 /** Categorical palette for point/category colouring (falls back to teal). */
 const CAT_PALETTE =
-  COLOR_SCALES.find((s) => s.id === "cat")?.colors ?? ["#01646f"];
+  COLOR_SCALES.find((s) => s.id === "cat")?.colors ?? [BRAND_TEAL];
 
 export function MapCanvas() {
   const {
@@ -356,278 +351,30 @@ export function MapCanvas() {
       (data && data.kind !== "table" ? data.valueColumn : "")) ??
     "";
 
-  const dataLayer: DataLayer | null = useMemo(() => {
-    // Choropleth: graduated fill.
-    if (vizType === "choropleth" && choro) {
-      const fillColor = buildFillColorExpression(
-        choro.classes,
+  const dataLayer: DataLayer | null = useMemo(
+    () =>
+      buildDataLayer({
+        vizType,
+        choro,
+        joined,
+        bivariate,
+        spike,
+        points,
+        hexbinResult,
+        hexbinClasses,
+        cartogram,
+        flow,
+        symbolPoints,
+        categoryJoin,
+        geoRender,
         scaleColors,
-        NO_DATA_COLOR,
-      );
-      return {
-        kind: "area",
-        geojson: choro.geojson,
-        fillColor,
-        nameField: data?.kind === "area" ? GEO_LEVELS[data.geoLevel].nameField : undefined,
+        data,
         valueLabel,
-        valueUnit: design.valueUnit || undefined,
-        tooltipTemplate: design.tooltipTemplate,
-      };
-    }
-    // Bivariate map: two variables → a 3×3 colour matrix on the areas.
-    if (vizType === "bivariate" && bivariate) {
-      return {
-        kind: "area",
-        geojson: bivariate.geojson,
-        fillColor: buildBivariateColorExpression(BIVARIATE_PALETTE, NO_DATA_COLOR),
-        nameField: data?.kind === "area" ? GEO_LEVELS[data.geoLevel].nameField : undefined,
-        valueLabel,
-        valueUnit: design.valueUnit || undefined,
-        tooltipTemplate: design.tooltipTemplate,
-      };
-    }
-    // Spike map: triangles at centroids, height ∝ value, uniform colour.
-    if (vizType === "spike" && spike) {
-      return {
-        kind: "area",
-        geojson: spike,
-        fillColor: design.pointColor,
-        lineColor: design.pointColor,
-        nameField: "__name",
-        valueLabel,
-        valueUnit: design.valueUnit || undefined,
-        tooltipTemplate: design.tooltipTemplate,
-      };
-    }
-    // 3D extrusion: areas raised by value, graduated colour. Needs map pitch.
-    if (vizType === "extrusion" && joined) {
-      return {
-        kind: "extrusion",
-        geojson: joined.geojson,
-        fillColor: buildFillColorExpression(joined.classes, scaleColors, NO_DATA_COLOR),
-        extrusionRange: { min: joined.classes.min, max: joined.classes.max },
-        extrusionMaxHeight: 120000,
-        nameField: data?.kind === "area" ? GEO_LEVELS[data.geoLevel].nameField : undefined,
-        valueLabel,
-        valueUnit: design.valueUnit || undefined,
-        tooltipTemplate: design.tooltipTemplate,
-      };
-    }
-    // Heatmap: density surface from the point cloud.
-    if (vizType === "heatmap" && points && data?.kind === "point") {
-      return {
-        kind: "heatmap",
-        geojson: points.geojson,
-        heatmapPaint: buildHeatmapPaint({
-          valueRange: points.valueRange,
-          colors: scaleColors,
-          radius: Math.max(10, design.pointSize * 2.4),
-        }),
-      };
-    }
-    // Hexbin: aggregated density hexagons, classified like a choropleth.
-    if (vizType === "hexbin" && hexbinResult && hexbinClasses) {
-      return {
-        kind: "area",
-        geojson: hexbinResult.geojson,
-        fillColor: buildFillColorExpression(hexbinClasses, scaleColors, NO_DATA_COLOR),
-        valueLabel: valueLabel || "Conteggio",
-        valueUnit: design.valueUnit || undefined,
-        tooltipTemplate: design.tooltipTemplate,
-      };
-    }
-    // Cartogram: deformed areas (non-contiguous) or Dorling circles, both
-    // coloured by value with the choropleth classes.
-    if (vizType === "cartogram" && cartogram && joined) {
-      const fillColor = buildFillColorExpression(joined.classes, scaleColors, NO_DATA_COLOR);
-      return {
-        kind: "area",
-        geojson: cartogram,
-        fillColor,
-        nameField:
-          design.cartogramKind === "dorling"
-            ? "__name"
-            : data?.kind === "area"
-              ? GEO_LEVELS[data.geoLevel].nameField
-              : undefined,
-        valueLabel,
-        valueUnit: design.valueUnit || undefined,
-        tooltipTemplate: design.tooltipTemplate,
-      };
-    }
-    // Flow map: arcs drawn as lines, coloured/sized by value.
-    if (vizType === "flow" && flow) {
-      const expr = flow.valueRange
-        ? buildFillColorExpression(
-            computeBreaks(
-              flow.geojson.features
-                .map((f) => (f.properties as Record<string, unknown>).__value)
-                .filter((v): v is number => typeof v === "number"),
-              design.classification,
-              design.nClasses,
-              design.manualBreaks,
-            ),
-            scaleColors,
-            NO_DATA_COLOR,
-          )
-        : design.pointColor;
-      return {
-        kind: "geo",
-        geojson: flow.geojson,
-        lineColorExpr: expr,
-        circleColor: design.pointColor,
-        circleRadius: 0,
-        nameField: "__name",
-        valueLabel,
-        valueUnit: design.valueUnit || undefined,
-        tooltipTemplate: design.tooltipTemplate,
-      };
-    }
-    // Dot density: one small translucent dot per event (no aggregation).
-    if (vizType === "dotdensity" && points && data?.kind === "point") {
-      const categoryPalette = scaleColors.length > 0 ? scaleColors : CAT_PALETTE;
-      return {
-        kind: "point",
-        geojson: points.geojson,
-        circleColor: data.categoryColumn
-          ? buildPointColorExpression(points.categories, categoryPalette, design.pointColor)
-          : design.pointColor,
-        circleRadius: Math.max(2, design.pointSize * 0.45),
-        circleOpacity: 0.55,
-        nameField: data.nameColumn || data.categoryColumn ? "__name" : undefined,
-        valueLabel,
-        valueUnit: design.valueUnit || undefined,
-        tooltipTemplate: design.tooltipTemplate,
-      };
-    }
-    // Symbol map: sized bubbles at centroids, single colour.
-    if (vizType === "symbol" && symbolPoints) {
-      return {
-        kind: "point",
-        geojson: symbolPoints.geojson,
-        circleColor: design.pointColor,
-        circleRadius: buildPointRadiusExpression(
-          symbolPoints.valueRange,
-          Math.max(2, design.pointSize * 0.6),
-          design.pointSize * 2.8,
-          design.pointSize,
-        ),
-        nameField: "__name",
-        valueLabel,
-        valueUnit: design.valueUnit || undefined,
-        tooltipTemplate: design.tooltipTemplate,
-      };
-    }
-    // Category map: areas coloured by category.
-    if (vizType === "category" && categoryJoin) {
-      const palette = scaleColors.length > 0 ? scaleColors : CAT_PALETTE;
-      return {
-        kind: "area",
-        geojson: categoryJoin.geojson,
-        fillColor: buildPointColorExpression(
-          categoryJoin.categories,
-          palette,
-          NO_DATA_COLOR,
-        ),
-        nameField: data?.kind === "area" ? GEO_LEVELS[data.geoLevel].nameField : undefined,
-        valueLabel: data?.kind === "area" ? data.categoryColumn ?? "" : "",
-        tooltipTemplate: design.tooltipTemplate,
-      };
-    }
-    // Locator map: pins with always-on labels on a base map. Uses the point
-    // dataset, uniform size (it's about *where*, not magnitude), labels from
-    // the chosen name column.
-    if (vizType === "locator" && points && data?.kind === "point") {
-      const categoryPalette =
-        scaleColors.length > 0 ? scaleColors : CAT_PALETTE;
-      return {
-        kind: "point",
-        geojson: points.geojson,
-        circleColor: data.categoryColumn
-          ? buildPointColorExpression(
-              points.categories,
-              categoryPalette,
-              design.pointColor,
-            )
-          : design.pointColor,
-        circleRadius: Math.max(4, design.pointSize),
-        nameField: "__name",
-        showLabels: true,
-        valueLabel,
-        valueUnit: design.valueUnit || undefined,
-        tooltipTemplate: design.tooltipTemplate,
-      };
-    }
-    // Point dataset.
-    if (points && data?.kind === "point") {
-      const categoryPalette =
-        scaleColors.length > 0 ? scaleColors : CAT_PALETTE;
-      return {
-        kind: "point",
-        geojson: points.geojson,
-        circleColor: data.categoryColumn
-          ? buildPointColorExpression(
-              points.categories,
-              categoryPalette,
-              design.pointColor,
-            )
-          : design.pointColor,
-        circleRadius: buildPointRadiusExpression(
-          points.valueRange,
-          Math.max(2, design.pointSize * 0.6),
-          design.pointSize * 2.6,
-          design.pointSize,
-        ),
-        nameField: data.nameColumn || data.categoryColumn ? "__name" : undefined,
-        valueLabel,
-        valueUnit: design.valueUnit || undefined,
-        tooltipTemplate: design.tooltipTemplate,
-      };
-    }
-    // User "geo" dataset: draw the uploaded geometry. Polygons are coloured by
-    // value (graduated) or category; lines/points get a single colour/category.
-    if (data?.kind === "geo" && geoRender) {
-      const palette = scaleColors.length > 0 ? scaleColors : CAT_PALETTE;
-      const hasValue = !!data.valueColumn && geoRender.values.length > 0;
-      const hasCategory =
-        !!data.categoryColumn && geoRender.categories.length > 0;
-
-      let fillColor: unknown = design.pointColor;
-      let lineColorExpr: unknown = undefined;
-      let circleColor: unknown = design.pointColor;
-      if (hasValue) {
-        const classes = computeBreaks(
-          geoRender.values,
-          design.classification,
-          design.nClasses,
-          design.manualBreaks,
-        );
-        fillColor = buildFillColorExpression(classes, scaleColors, NO_DATA_COLOR);
-      } else if (hasCategory) {
-        const expr = buildPointColorExpression(
-          geoRender.categories,
-          palette,
-          design.pointColor,
-        );
-        fillColor = expr;
-        lineColorExpr = expr;
-        circleColor = expr;
-      }
-      return {
-        kind: "geo",
-        geojson: geoRender.geojson,
-        fillColor,
-        lineColorExpr,
-        circleColor,
-        circleRadius: design.pointSize,
-        nameField: data.nameColumn || data.categoryColumn ? "__name" : undefined,
-        valueLabel,
-        valueUnit: design.valueUnit || undefined,
-        tooltipTemplate: design.tooltipTemplate,
-      };
-    }
-    return null;
-  }, [vizType, joined, choro, symbolPoints, categoryJoin, points, geoRender, bivariate, spike, hexbinResult, hexbinClasses, cartogram, flow, scaleColors, data, valueLabel, design.valueUnit, design.pointColor, design.pointSize, design.tooltipTemplate, design.classification, design.nClasses, design.manualBreaks, design.cartogramKind]);
+        design,
+        catPalette: CAT_PALETTE,
+      }),
+    [vizType, joined, choro, symbolPoints, categoryJoin, points, geoRender, bivariate, spike, hexbinResult, hexbinClasses, cartogram, flow, scaleColors, data, valueLabel, design],
+  );
 
   // Tilt the camera for the 3D extrusion; flat for every other map.
   const pitch = vizType === "extrusion" ? 50 : 0;

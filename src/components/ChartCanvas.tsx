@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type * as Plot from "@observablehq/plot";
 import { useStudio } from "../studio/StudioContext";
 import { COLOR_SCALES } from "../studio/catalog";
+import { BRAND_TEAL } from "../studio/palettes";
 import { DataTableView } from "./DataTableView";
 import {
   chartColumnRoles,
@@ -183,7 +184,7 @@ function PlotView({ data, vizType, design, colors }: PlotViewProps) {
     const { points, axes } = prepared;
     const isScatter = vizType === "scatter";
     const hasSeries = points.some((p) => p.series != null);
-    const baseColor = colors[colors.length - 1] ?? "#01646f";
+    const baseColor = colors[colors.length - 1] ?? BRAND_TEAL;
 
     const xLabel = axes.x;
     const yLabel = design.valueLabel || axes.y;

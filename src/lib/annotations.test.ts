@@ -12,6 +12,7 @@ import {
   makeText,
   makeLine,
   makeArea,
+  sameTool,
   DEFAULT_ANNOTATION_COLOR,
   type Annotation,
 } from "./annotations";
@@ -169,5 +170,31 @@ describe("annotationSummary", () => {
     expect(annotationSummary(makeArea("a", "circle", [0, 0], [1, 1], "#000", 0.3))).toBe(
       "Evidenzia · cerchio",
     );
+  });
+});
+
+describe("sameTool", () => {
+  it("is false against a null armed tool", () => {
+    expect(sameTool(null, { kind: "marker" })).toBe(false);
+  });
+
+  it("matches simple kinds (marker/text) by kind alone", () => {
+    expect(sameTool({ kind: "marker" }, { kind: "marker" })).toBe(true);
+    expect(sameTool({ kind: "text" }, { kind: "text" })).toBe(true);
+    expect(sameTool({ kind: "marker" }, { kind: "text" })).toBe(false);
+  });
+
+  it("discriminates line sub-variants by arrow", () => {
+    expect(sameTool({ kind: "line", arrow: true }, { kind: "line", arrow: true })).toBe(true);
+    expect(sameTool({ kind: "line", arrow: false }, { kind: "line", arrow: true })).toBe(false);
+  });
+
+  it("discriminates area sub-variants by shape", () => {
+    expect(
+      sameTool({ kind: "area", shape: "circle" }, { kind: "area", shape: "circle" }),
+    ).toBe(true);
+    expect(
+      sameTool({ kind: "area", shape: "rectangle" }, { kind: "area", shape: "circle" }),
+    ).toBe(false);
   });
 });

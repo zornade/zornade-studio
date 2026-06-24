@@ -3,7 +3,10 @@ import maplibregl from "maplibre-gl";
 import type { Flavor } from "@protomaps/basemaps";
 import { buildStyle } from "../basemap";
 import { ensurePmtilesProtocol } from "../lib/pmtiles";
-import { renderTooltipTemplate } from "../lib/tooltip";
+import { renderTooltipTemplate, tooltipValues } from "../lib/tooltip";
+import { featureCenter, computeBounds } from "../lib/geo-bounds";
+import { skySpec, lightSpec, projectionSpec } from "../lib/map-style";
+import { BRAND_TEAL } from "../studio/palettes";
 import {
   annotationsToGeoJson,
   markerAnnotations,
@@ -184,33 +187,6 @@ function dataInsertBeforeId(map: maplibregl.Map): string | undefined {
 }
 
 /**
- * Bounding-box centre of a GeoJSON geometry, used to anchor the 3D-extrusion
- * tooltip to a feature's footprint (the raw event `lngLat` is the ground point
- * under the cursor, which drifts far from a tall bar when the map is pitched).
- */
-function featureCenter(geom: GeoJSON.Geometry | null | undefined): [number, number] | null {
-  if (!geom || !("coordinates" in geom)) return null;
-  let minX = Infinity;
-  let minY = Infinity;
-  let maxX = -Infinity;
-  let maxY = -Infinity;
-  const visit = (c: unknown): void => {
-    if (Array.isArray(c) && typeof c[0] === "number") {
-      const [x, y] = c as number[];
-      if (x < minX) minX = x;
-      if (x > maxX) maxX = x;
-      if (y < minY) minY = y;
-      if (y > maxY) maxY = y;
-    } else if (Array.isArray(c)) {
-      for (const child of c) visit(child);
-    }
-  };
-  visit((geom as { coordinates: unknown }).coordinates);
-  if (!Number.isFinite(minX)) return null;
-  return [(minX + maxX) / 2, (minY + maxY) / 2];
-}
-
-/**
  * Add a subtle sky + atmospheric haze. On a pitched 2D map it draws a soft
  * horizon; on the globe it gives the planet a blue atmosphere halo. The
  * atmosphere fades out as the camera zooms in so it never washes out the data.
@@ -218,43 +194,7 @@ function featureCenter(geom: GeoJSON.Geometry | null | undefined): [number, numb
  */
 function applySky(map: maplibregl.Map, globe: boolean): void {
   try {
-    if (globe) {
-      // On the globe only the atmosphere halo is drawn, so the space around the
-      // planet stays transparent (the host page background shows through).
-      map.setSky({
-        "atmosphere-blend": [
-          "interpolate",
-          ["linear"],
-          ["zoom"],
-          0,
-          0.8,
-          5,
-          0.3,
-          7,
-          0,
-        ],
-      });
-      return;
-    }
-    map.setSky({
-      "sky-color": "#a9d3ff",
-      "sky-horizon-blend": 0.6,
-      "horizon-color": "#eaf3ff",
-      "horizon-fog-blend": 0.6,
-      "fog-color": "#ffffff",
-      "fog-ground-blend": 0.6,
-      "atmosphere-blend": [
-        "interpolate",
-        ["linear"],
-        ["zoom"],
-        0,
-        0.6,
-        5,
-        0.3,
-        7,
-        0,
-      ],
-    });
+    map.setSky(skySpec(globe));
   } catch {
     /* setSky unsupported by the current renderer — ignore. */
   }
@@ -270,12 +210,7 @@ function applySky(map: maplibregl.Map, globe: boolean): void {
  */
 function applyLight(map: maplibregl.Map): void {
   try {
-    map.setLight({
-      anchor: "map",
-      color: "#ffffff",
-      intensity: 0.55,
-      position: [1.5, 215, 40],
-    });
+    map.setLight(lightSpec());
   } catch {
     /* setLight unsupported by the current renderer — ignore. */
   }
@@ -290,7 +225,7 @@ function applyLight(map: maplibregl.Map): void {
  */
 function applyProjection(map: maplibregl.Map, globe: boolean): void {
   try {
-    map.setProjection(globe ? { type: "globe" } : { type: "mercator" });
+    map.setProjection(projectionSpec(globe));
   } catch {
     /* globe projection unsupported by the current renderer — ignore. */
   }
@@ -402,7 +337,7 @@ export function MapPreview({
         source: SRC,
         paint: {
           "fill-extrusion-color":
-            (layer.fillColor as maplibregl.ExpressionSpecification) ?? "#01646f",
+            (layer.fillColor as maplibregl.ExpressionSpecification) ?? BRAND_TEAL,
           "fill-extrusion-height": [
             "interpolate",
             ["linear"],
@@ -432,7 +367,7 @@ export function MapPreview({
           paint: {
             "circle-color":
               (layer.circleColor as maplibregl.ExpressionSpecification) ??
-              "#01646f",
+              BRAND_TEAL,
             "circle-radius":
               (layer.circleRadius as maplibregl.ExpressionSpecification) ?? 5,
             "circle-stroke-color": "#ffffff",
@@ -487,7 +422,7 @@ export function MapPreview({
           paint: {
             "fill-color":
               (layer.fillColor as maplibregl.ExpressionSpecification) ??
-              "#01646f",
+              BRAND_TEAL,
             "fill-opacity": 0.7,
           },
         },
@@ -502,7 +437,7 @@ export function MapPreview({
             "line-color":
               (layer.lineColorExpr as maplibregl.ExpressionSpecification) ??
               layer.lineColor ??
-              "#01646f",
+              BRAND_TEAL,
             "line-width": 1.2,
           },
         },
@@ -516,7 +451,7 @@ export function MapPreview({
           paint: {
             "circle-color":
               (layer.circleColor as maplibregl.ExpressionSpecification) ??
-              "#01646f",
+              BRAND_TEAL,
             "circle-radius":
               (layer.circleRadius as maplibregl.ExpressionSpecification) ?? 5,
             "circle-stroke-color": "#ffffff",
@@ -1006,7 +941,7 @@ export function MapPreview({
   useEffect(() => {
     const map = mapRef.current;
     if (map) applyDataFilter(map);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [dataFilter]);
 
   // Re-render annotations whenever they change (O3.4).
@@ -1041,6 +976,7 @@ export function MapPreview({
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Auto fit-bounds to the data extent when the dataset changes (fitKey).
@@ -1057,7 +993,7 @@ export function MapPreview({
     if (map.isStyleLoaded()) doFit();
     else map.once("idle", doFit);
     lastFitRef.current = fitKey;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [fitKey, dataLayer]);
 
   // Enable/disable zoom & pan interactions and the navigation control.
@@ -1143,69 +1079,3 @@ function buildMarkerEl(desc: MarkerDescriptor): HTMLElement {
   return el;
 }
 
-/**
- * Build the token dictionary for a custom tooltip template from a feature's
- * properties: `nome`, `valore` (already formatted), plus every `col:`-prefixed
- * column carried onto the feature for the template.
- */
-function tooltipValues(
-  props: Record<string, unknown>,
-  name: string,
-  value: string,
-): Record<string, string> {
-  const values: Record<string, string> = { nome: name, valore: value };
-  for (const k of Object.keys(props)) {
-    if (k.startsWith("col:")) values[k.slice(4)] = String(props[k] ?? "");
-  }
-  return values;
-}
-
-/**
- * Compute the bounding box of the features that carry a numeric `__value`
- * (i.e. the data the user actually mapped), falling back to all features.
- * Handles Polygon / MultiPolygon / Point geometries. Returns null if empty.
- */
-function computeBounds(
-  geojson: GeoJSON.FeatureCollection,
-): [[number, number], [number, number]] | null {
-  let minLng = Infinity;
-  let minLat = Infinity;
-  let maxLng = -Infinity;
-  let maxLat = -Infinity;
-
-  const visit = (lng: number, lat: number) => {
-    if (lng < minLng) minLng = lng;
-    if (lat < minLat) minLat = lat;
-    if (lng > maxLng) maxLng = lng;
-    if (lat > maxLat) maxLat = lat;
-  };
-
-  const walk = (coords: unknown): void => {
-    if (!Array.isArray(coords)) return;
-    if (
-      coords.length >= 2 &&
-      typeof coords[0] === "number" &&
-      typeof coords[1] === "number"
-    ) {
-      visit(coords[0], coords[1]);
-      return;
-    }
-    for (const c of coords) walk(c);
-  };
-
-  const withValue = geojson.features.filter(
-    (f) => typeof (f.properties as Record<string, unknown>)?.__value === "number",
-  );
-  const features = withValue.length > 0 ? withValue : geojson.features;
-  for (const f of features) {
-    if (f.geometry && "coordinates" in f.geometry) {
-      walk((f.geometry as { coordinates: unknown }).coordinates);
-    }
-  }
-
-  if (!Number.isFinite(minLng) || !Number.isFinite(maxLng)) return null;
-  return [
-    [minLng, minLat],
-    [maxLng, maxLat],
-  ];
-}

@@ -91,6 +91,14 @@ export type DrawTool =
   | { kind: "line"; arrow: boolean }
   | { kind: "area"; shape: AreaShape };
 
+/** Structural equality for two draw tools (sub-variants included). */
+export function sameTool(a: DrawTool | null, b: DrawTool): boolean {
+  if (!a || a.kind !== b.kind) return false;
+  if (a.kind === "line" && b.kind === "line") return a.arrow === b.arrow;
+  if (a.kind === "area" && b.kind === "area") return a.shape === b.shape;
+  return true;
+}
+
 /** Default colour for a new annotation (a high-contrast rose). */
 export const DEFAULT_ANNOTATION_COLOR = "#e11d48";
 /** Default stroke width for a line/arrow (px). */

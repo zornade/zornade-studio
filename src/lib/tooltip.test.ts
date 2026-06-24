@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   templateColumns,
   renderTooltipTemplate,
+  tooltipValues,
   escapeHtml,
 } from "./tooltip";
 
@@ -52,5 +53,33 @@ describe("renderTooltipTemplate", () => {
 describe("escapeHtml", () => {
   it("escapes the dangerous characters", () => {
     expect(escapeHtml(`<b>"&'`)).toBe("&lt;b&gt;&quot;&amp;&#39;");
+  });
+});
+
+describe("tooltipValues", () => {
+  it("always provides nome and valore", () => {
+    expect(tooltipValues({}, "Lazio", "8,19 %")).toEqual({
+      nome: "Lazio",
+      valore: "8,19 %",
+    });
+  });
+
+  it("adds col:-prefixed columns under their bare name", () => {
+    const values = tooltipValues(
+      { "col:regione": "Lazio", "col:anno": 2023, ignored: "x" },
+      "Roma",
+      "10",
+    );
+    expect(values).toEqual({
+      nome: "Roma",
+      valore: "10",
+      regione: "Lazio",
+      anno: "2023",
+    });
+  });
+
+  it("coerces null/undefined column values to an empty string", () => {
+    const values = tooltipValues({ "col:note": null }, "X", "1");
+    expect(values.note).toBe("");
   });
 });

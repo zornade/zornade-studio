@@ -3,6 +3,18 @@ import { buildEmbedHtml, escapeHtml, EMBED_MAPLIBRE_VERSION, EMBED_PLOT_VERSION,
 import { computeBreaks } from "./choropleth";
 import type { ChoroplethSpec, PointSpec, GeoSpec, ChartSpec, StorySpec } from "./spec";
 
+/**
+ * Asserts the inline renderer script embedded in `html` is syntactically valid.
+ * `new Function` compiles (syntax-checks) the code without executing the IIFE,
+ * so it catches a broken `String.raw` template without needing a browser.
+ */
+function expectRendererCompiles(html: string): void {
+  const match = html.match(/<script>\s*const EMBED =[\s\S]*?<\/script>/);
+  expect(match).not.toBeNull();
+  const code = match![0].replace(/^<script>/, "").replace(/<\/script>$/, "");
+  expect(() => new Function(code)).not.toThrow();
+}
+
 function spec(over: Partial<ChoroplethSpec> = {}): ChoroplethSpec {
   return {
     schemaVersion: 1,
@@ -58,6 +70,21 @@ describe("buildEmbedHtml", () => {
 
   it("renders the map on a transparent background so the host page shows through", () => {
     expect(html).toContain("background:transparent");
+  });
+
+  it("injects the shared sky/light config into the renderer (single source of truth)", () => {
+    expect(html).toContain("map.setSky(E.globe?");
+    expect(html).toContain('{"atmosphere-blend":["interpolate",["linear"],["zoom"],0,0.8,5,0.3,7,0]}');
+    expect(html).toContain('"sky-color":"#a9d3ff"');
+    expect(html).toContain(
+      'map.setLight({"anchor":"map","color":"#ffffff","intensity":0.55,"position":[1.5,215,40]})',
+    );
+    // The old per-renderer inlined branch must be gone.
+    expect(html).not.toContain("if(E.globe){map.setSky");
+  });
+
+  it("produces a syntactically valid inline renderer script", () => {
+    expectRendererCompiles(html);
   });
 
   it("includes the (normalised) join keys and the title", () => {
@@ -428,6 +455,10 @@ describe("buildEmbedHtml · point maps (O4 publish, phase 2)", () => {
     expect(out).not.toContain("fetch("); // never fetches geometry
   });
 
+  it("produces a syntactically valid inline renderer script", () => {
+    expectRendererCompiles(buildEmbedHtml(pointSpec(), { geoBaseUrl: base }));
+  });
+
   it("locator ships always-on labels", () => {
     const out = buildEmbedHtml(pointSpec({ render: "locator" }), { geoBaseUrl: base });
     expect(out).toContain('"showLabels":true');
@@ -521,6 +552,10 @@ describe("buildEmbedHtml · custom geometry (O4 publish, phase 3)", () => {
     expect(out).toContain("d-fill");
     expect(out).toContain("d-point");
     expect(out).not.toContain("fetch(");
+  });
+
+  it("produces a syntactically valid inline renderer script", () => {
+    expectRendererCompiles(buildEmbedHtml(geoSpec(), { geoBaseUrl: base }));
   });
 
   it("uses a graduated step legend when features carry a value", () => {

@@ -64,3 +64,20 @@ export function renderTooltipTemplate(
     return v == null ? "" : escapeHtml(v);
   });
 }
+
+/**
+ * Build the token dictionary for a custom tooltip template from a feature's
+ * properties: `nome`, `valore` (already formatted), plus every `col:`-prefixed
+ * column carried onto the feature for the template.
+ */
+export function tooltipValues(
+  props: Record<string, unknown>,
+  name: string,
+  value: string,
+): Record<string, string> {
+  const values: Record<string, string> = { nome: name, valore: value };
+  for (const k of Object.keys(props)) {
+    if (k.startsWith("col:")) values[k.slice(4)] = String(props[k] ?? "");
+  }
+  return values;
+}

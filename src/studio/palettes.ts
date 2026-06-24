@@ -11,6 +11,13 @@
 import type { StyleSpecification } from "maplibre-gl";
 import { buildRasterStyle } from "../lib/raster";
 
+/**
+ * Zornade brand teal — the default accent for data layers, used as the colour
+ * fallback wherever a layer/series has no explicit colour. It is also the
+ * darkest stop of the `teal-seq` scale below, keeping the brand consistent.
+ */
+export const BRAND_TEAL = "#01646f";
+
 /** Data color scales for choropleth/symbol layers. */
 export interface ColorScale {
   id: string;

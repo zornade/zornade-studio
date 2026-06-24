@@ -7,6 +7,8 @@
  * and intensity grow with zoom so the heatmap stays readable across scales.
  */
 
+import { BRAND_TEAL } from "../studio/palettes";
+
 export interface HeatmapPaintOptions {
   /** Numeric range of the weighting value, when a value column is set. */
   valueRange?: { min: number; max: number };
@@ -27,7 +29,7 @@ export interface HeatmapPaintOptions {
  * range is supplied; otherwise it is a constant 1 (pure point density).
  */
 export function buildHeatmapPaint(opts: HeatmapPaintOptions): Record<string, unknown> {
-  const colors = opts.colors.length > 0 ? opts.colors : ["#01646f"];
+  const colors = opts.colors.length > 0 ? opts.colors : [BRAND_TEAL];
   const radius = opts.radius ?? 18;
   const intensity = opts.intensity ?? 0.9;
   const opacity = opts.opacity ?? 0.85;
