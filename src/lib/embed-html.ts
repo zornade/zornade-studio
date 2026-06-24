@@ -36,8 +36,10 @@ import { buildPointColorExpression, buildPointRadiusExpression } from "./points"
 import { accessibleTableHtml } from "./data-table";
 import type { AreaRender } from "./spec";
 
-/** Pinned MapLibre version for embeds (matches the app's maplibre-gl). */
-export const EMBED_MAPLIBRE_VERSION = "4.7.1";
+/** Pinned MapLibre version for embeds (matches the app's maplibre-gl).
+ *  Must be v5+: the globe projection (`setProjection`) and `setSky` used by
+ *  the renderers only exist from MapLibre GL JS 5.0. */
+export const EMBED_MAPLIBRE_VERSION = "5.24.0";
 
 export interface EmbedOptions {
   /** Base URL where `{level}.geojson` geometries are served (no trailing /). */
@@ -727,7 +729,7 @@ var map=new maplibregl.Map({container:"map",
   center:E.center,zoom:E.zoom,pitch:E.pitch,bearing:E.bearing,attributionControl:false,interactive:E.interactive});
 map.addControl(new maplibregl.AttributionControl({compact:true}));
 var GEO=null,ready=false;
-map.on("load",function(){ready=true;if(E.globe)map.setProjection({type:"globe"});sky();if(GEO)build();});
+map.on("load",function(){ready=true;if(E.globe){try{map.setProjection({type:"globe"});}catch(e){}}sky();if(GEO)build();});
 fetch(E.geoUrl).then(function(r){return r.json();}).then(function(g){GEO=g;if(ready)build();});
 function build(){
   var noData=paint(E.keyed);
@@ -1271,7 +1273,7 @@ var map=new maplibregl.Map({container:"map",
   style:E.basemapStyle||{version:8,sources:{},layers:[]},
   center:E.center,zoom:E.zoom,pitch:E.pitch,bearing:E.bearing,attributionControl:false,interactive:E.interactive});
 map.addControl(new maplibregl.AttributionControl({compact:true}));
-map.on("load",function(){if(E.globe)map.setProjection({type:"globe"});sky();build();});
+map.on("load",function(){if(E.globe){try{map.setProjection({type:"globe"});}catch(e){}}sky();build();});
 function build(){
   map.addSource("d",{type:"geojson",data:E.geojson});
   map.addLayer({id:"d-fill",type:E.layerType,source:"d",paint:E.paint});
@@ -1554,7 +1556,7 @@ var map=new maplibregl.Map({container:"map",
   style:E.basemapStyle||{version:8,sources:{},layers:[]},
   center:E.center,zoom:E.zoom,pitch:E.pitch,bearing:E.bearing,attributionControl:false,interactive:E.interactive});
 map.addControl(new maplibregl.AttributionControl({compact:true}));
-map.on("load",function(){if(E.globe)map.setProjection({type:"globe"});sky();build();});
+map.on("load",function(){if(E.globe){try{map.setProjection({type:"globe"});}catch(e){}}sky();build();});
 function build(){
   map.addSource("d",{type:"geojson",data:E.geojson});
   var before=beforeId();
