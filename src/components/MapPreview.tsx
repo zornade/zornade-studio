@@ -237,6 +237,27 @@ function applySky(map: maplibregl.Map, globe: boolean): void {
   }
 }
 
+/**
+ * Directional lighting for the 3D extrusion. A light anchored to the map (so
+ * the shading stays consistent with the geography as the camera rotates),
+ * coming from the upper-left at a moderate elevation, shades the sides of the
+ * extruded shapes and gives them real volume instead of a flat colour. Harmless
+ * for the flat maps (only `fill-extrusion` layers react to it). Wiped by
+ * setStyle(), so it is re-applied wherever applySky is.
+ */
+function applyLight(map: maplibregl.Map): void {
+  try {
+    map.setLight({
+      anchor: "map",
+      color: "#ffffff",
+      intensity: 0.55,
+      position: [1.5, 215, 40],
+    });
+  } catch {
+    /* setLight unsupported by the current renderer — ignore. */
+  }
+}
+
 export function MapPreview({
   tilesUrl,
   flavor,
@@ -354,7 +375,8 @@ export function MapPreview({
             maxH,
           ] as unknown as maplibregl.ExpressionSpecification,
           "fill-extrusion-base": 0,
-          "fill-extrusion-opacity": 0.9,
+          "fill-extrusion-opacity": 0.95,
+          "fill-extrusion-vertical-gradient": true,
         },
       });
       applyDataFilter(map);
@@ -839,6 +861,7 @@ export function MapPreview({
 
     map.on("load", () => {
       applySky(map, globeRef.current);
+      applyLight(map);
       syncData(map);
       syncAnnotations(map);
     });
@@ -893,6 +916,7 @@ export function MapPreview({
     map.once("idle", () => {
       if (mapRef.current) {
         applySky(map, globeRef.current);
+        applyLight(map);
         syncData(map);
         syncAnnotations(map);
       }
@@ -923,6 +947,7 @@ export function MapPreview({
     const apply = () => {
       map.setProjection(globe ? { type: "globe" } : { type: "mercator" });
       applySky(map, globe);
+      applyLight(map);
       if (globe) {
         map.easeTo({ zoom: 1.5, center: [0, 20], duration: 400 });
       }

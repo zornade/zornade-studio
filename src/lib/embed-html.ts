@@ -724,12 +724,16 @@ function centerOf(g){if(!g||!g.coordinates)return null;
 function sky(){try{map.setSky({"sky-color":"#a9d3ff","sky-horizon-blend":0.6,
   "horizon-color":"#eaf3ff","horizon-fog-blend":0.6,"fog-color":"#ffffff","fog-ground-blend":0.6,
   "atmosphere-blend":["interpolate",["linear"],["zoom"],0,E.globe?0.9:0.6,5,0.3,7,0]});}catch(e){}}
+// Directional light anchored to the map: shades the sides of the 3D extrusion
+// so the shapes read as solid volumes. Only fill-extrusion layers react to it.
+function light(){try{map.setLight({anchor:"map",color:"#ffffff",intensity:0.55,
+  position:[1.5,215,40]});}catch(e){}}
 var map=new maplibregl.Map({container:"map",
   style:E.basemapStyle||{version:8,sources:{},layers:[]},
   center:E.center,zoom:E.zoom,pitch:E.pitch,bearing:E.bearing,attributionControl:false,interactive:E.interactive});
 map.addControl(new maplibregl.AttributionControl({compact:true}));
 var GEO=null,ready=false;
-map.on("load",function(){ready=true;if(E.globe){try{map.setProjection({type:"globe"});}catch(e){}}sky();if(GEO)build();});
+map.on("load",function(){ready=true;if(E.globe){try{map.setProjection({type:"globe"});}catch(e){}}sky();light();if(GEO)build();});
 fetch(E.geoUrl).then(function(r){return r.json();}).then(function(g){GEO=g;if(ready)build();});
 function build(){
   var noData=paint(E.keyed);
@@ -740,7 +744,8 @@ function build(){
       paint:{"fill-extrusion-color":E.fill,
         "fill-extrusion-height":["interpolate",["linear"],
           ["coalesce",["to-number",["get","__value"]],E.min],E.min,4800,E.max,120000],
-        "fill-extrusion-base":0,"fill-extrusion-opacity":0.9}},before);
+        "fill-extrusion-base":0,"fill-extrusion-opacity":0.95,
+        "fill-extrusion-vertical-gradient":true}},before);
   }else if(E.render==="symbol"||E.render==="spike"){
     map.addLayer({id:"d-line",type:"line",source:"d",
       paint:{"line-color":"#cbd5e1","line-width":0.5}},before);
