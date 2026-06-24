@@ -205,6 +205,38 @@ function featureCenter(geom: GeoJSON.Geometry | null | undefined): [number, numb
   return [(minX + maxX) / 2, (minY + maxY) / 2];
 }
 
+/**
+ * Add a subtle sky + atmospheric haze. On a pitched 2D map it draws a soft
+ * horizon; on the globe it gives the planet a blue atmosphere halo. The
+ * atmosphere fades out as the camera zooms in so it never washes out the data.
+ * setStyle() wipes the sky, so this is re-applied after every (re)style.
+ */
+function applySky(map: maplibregl.Map, globe: boolean): void {
+  try {
+    map.setSky({
+      "sky-color": "#a9d3ff",
+      "sky-horizon-blend": 0.6,
+      "horizon-color": "#eaf3ff",
+      "horizon-fog-blend": 0.6,
+      "fog-color": "#ffffff",
+      "fog-ground-blend": 0.6,
+      "atmosphere-blend": [
+        "interpolate",
+        ["linear"],
+        ["zoom"],
+        0,
+        globe ? 0.9 : 0.6,
+        5,
+        0.3,
+        7,
+        0,
+      ],
+    });
+  } catch {
+    /* setSky unsupported by the current renderer — ignore. */
+  }
+}
+
 export function MapPreview({
   tilesUrl,
   flavor,
@@ -235,6 +267,11 @@ export function MapPreview({
   const tooltipEnabledRef = useRef<boolean>(tooltip);
   tooltipEnabledRef.current = tooltip;
   const lastFitRef = useRef<string | null>(null);
+  /** Live globe flag read by the once-bound load/restyle handlers (for sky). */
+  const globeRef = useRef<boolean>(globe);
+  globeRef.current = globe;
+  /** Feature id currently under the cursor (for the hover highlight). */
+  const hoveredIdRef = useRef<number | string | null>(null);
 
   // --- Annotations (O3.4): live refs read by the once-bound map handlers. ---
   const annotationsRef = useRef<Annotation[]>(annotations);
@@ -270,7 +307,7 @@ export function MapPreview({
     const layer = dataLayerRef.current;
     if (!layer) return;
 
-    map.addSource(SRC, { type: "geojson", data: layer.geojson });
+    map.addSource(SRC, { type: "geojson", data: layer.geojson, generateId: true });
 
     // Insert above all basemap geometry (roads, buildings, boundaries) but
     // below the first label, so place names stay readable and the basemap
@@ -440,7 +477,14 @@ export function MapPreview({
         source: SRC,
         paint: {
           "fill-color": layer.fillColor as maplibregl.ExpressionSpecification,
-          "fill-opacity": 0.82,
+          // Brighten the polygon under the cursor (hover highlight); the rest
+          // stays slightly translucent so the basemap gives a sense of depth.
+          "fill-opacity": [
+            "case",
+            ["boolean", ["feature-state", "hover"], false],
+            0.95,
+            0.82,
+          ] as unknown as maplibregl.ExpressionSpecification,
         },
       },
       firstSymbol,
@@ -452,7 +496,14 @@ export function MapPreview({
         source: SRC,
         paint: {
           "line-color": layer.lineColor ?? "#ffffff",
-          "line-width": 0.6,
+          // Thin white casing between polygons; thickens on hover.
+          "line-width": [
+            "case",
+            ["boolean", ["feature-state", "hover"], false],
+            1.6,
+            0.6,
+          ] as unknown as maplibregl.ExpressionSpecification,
+          "line-opacity": 0.55,
         },
       },
       firstSymbol,
@@ -621,6 +672,15 @@ export function MapPreview({
       const f = e.features?.[0];
       if (!f) return;
       map.getCanvas().style.cursor = "pointer";
+      // Hover highlight: move the `hover` feature-state to the polygon under the
+      // cursor (read by the fill-opacity / line-width paint expressions).
+      if (hoveredIdRef.current != null) {
+        map.setFeatureState({ source: SRC, id: hoveredIdRef.current }, { hover: false });
+      }
+      if (f.id != null) {
+        hoveredIdRef.current = f.id;
+        map.setFeatureState({ source: SRC, id: f.id }, { hover: true });
+      }
       const layer = dataLayerRef.current;
       const props = (f.properties ?? {}) as Record<string, unknown>;
       const name = layer?.nameField ? props[layer.nameField] : undefined;
@@ -646,6 +706,10 @@ export function MapPreview({
     map.on("mouseleave", FILL, () => {
       if (annotToolRef.current) return;
       map.getCanvas().style.cursor = "";
+      if (hoveredIdRef.current != null) {
+        map.setFeatureState({ source: SRC, id: hoveredIdRef.current }, { hover: false });
+        hoveredIdRef.current = null;
+      }
       popup.remove();
     });
 
@@ -774,6 +838,7 @@ export function MapPreview({
     map.on("mousemove", handleAnnotMove);
 
     map.on("load", () => {
+      applySky(map, globeRef.current);
       syncData(map);
       syncAnnotations(map);
     });
@@ -827,6 +892,7 @@ export function MapPreview({
     map.setStyle(resolveStyle());
     map.once("idle", () => {
       if (mapRef.current) {
+        applySky(map, globeRef.current);
         syncData(map);
         syncAnnotations(map);
       }
@@ -856,6 +922,7 @@ export function MapPreview({
     if (!map) return;
     const apply = () => {
       map.setProjection(globe ? { type: "globe" } : { type: "mercator" });
+      applySky(map, globe);
       if (globe) {
         map.easeTo({ zoom: 1.5, center: [0, 20], duration: 400 });
       }

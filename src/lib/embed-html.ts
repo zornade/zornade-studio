@@ -717,16 +717,21 @@ function centerOf(g){if(!g||!g.coordinates)return null;
   (function v(c){if(typeof c[0]==="number"){if(c[0]<mnx)mnx=c[0];if(c[0]>mxx)mxx=c[0];
     if(c[1]<mny)mny=c[1];if(c[1]>mxy)mxy=c[1];}else{for(var i=0;i<c.length;i++)v(c[i]);}})(g.coordinates);
   if(!isFinite(mnx))return null;return[(mnx+mxx)/2,(mny+mxy)/2];}
+// Subtle sky + atmospheric haze. On a pitched map it draws a soft horizon; on
+// the globe it gives the planet a blue atmosphere halo, fading out on zoom-in.
+function sky(){try{map.setSky({"sky-color":"#a9d3ff","sky-horizon-blend":0.6,
+  "horizon-color":"#eaf3ff","horizon-fog-blend":0.6,"fog-color":"#ffffff","fog-ground-blend":0.6,
+  "atmosphere-blend":["interpolate",["linear"],["zoom"],0,E.globe?0.9:0.6,5,0.3,7,0]});}catch(e){}}
 var map=new maplibregl.Map({container:"map",
   style:E.basemapStyle||{version:8,sources:{},layers:[]},
   center:E.center,zoom:E.zoom,pitch:E.pitch,bearing:E.bearing,attributionControl:false,interactive:E.interactive});
 map.addControl(new maplibregl.AttributionControl({compact:true}));
 var GEO=null,ready=false;
-map.on("load",function(){ready=true;if(E.globe)map.setProjection({type:"globe"});if(GEO)build();});
+map.on("load",function(){ready=true;if(E.globe)map.setProjection({type:"globe"});sky();if(GEO)build();});
 fetch(E.geoUrl).then(function(r){return r.json();}).then(function(g){GEO=g;if(ready)build();});
 function build(){
   var noData=paint(E.keyed);
-  map.addSource("d",{type:"geojson",data:GEO});
+  map.addSource("d",{type:"geojson",data:GEO,generateId:true});
   var before=beforeId();
   if(E.render==="extrusion"){
     map.addLayer({id:"d-fill",type:"fill-extrusion",source:"d",
@@ -757,9 +762,13 @@ function build(){
       paint:{"line-color":"#fff","line-width":0.5}},before);
   }else{
     map.addLayer({id:"d-fill",type:"fill",source:"d",
-      paint:{"fill-color":E.fill,"fill-opacity":0.82}},before);
+      paint:{"fill-color":E.fill,
+        "fill-opacity":["case",["boolean",["feature-state","hover"],false],0.95,0.82]}},before);
     map.addLayer({id:"d-line",type:"line",source:"d",
-      paint:{"line-color":"#fff","line-width":0.6}},before);
+      paint:{"line-color":"#fff",
+        "line-width":["case",["boolean",["feature-state","hover"],false],1.6,0.6],
+        "line-opacity":0.55}},before);
+    hoverFx();
   }
   if(!E.hasCamera&&!E.globe){fit();}else if(E.bounds){map.fitBounds(E.bounds,{pitch:E.pitch,bearing:E.bearing,duration:0,padding:0});}
   if(E.showLegend)legend(noData);
@@ -973,6 +982,13 @@ function classFilter(hid){if(!hid.length)return null;
     return ["all",[">=",v,bb[0]],["<",v,bb[1]]];});
   var any=tests.length===1?tests[0]:["any"].concat(tests);
   return ["!",["all",["has","__value"],any]];}
+// Hover highlight: move a "hover" feature-state to the polygon under the cursor
+// (read by the fill-opacity / line-width paint of the standard choropleth).
+function hoverFx(){var hid=null;
+  map.on("mousemove","d-fill",function(e){var f=e.features&&e.features[0];if(!f||f.id==null)return;
+    if(hid!==null)map.setFeatureState({source:"d",id:hid},{hover:false});
+    hid=f.id;map.setFeatureState({source:"d",id:hid},{hover:true});});
+  map.on("mouseleave","d-fill",function(){if(hid!==null)map.setFeatureState({source:"d",id:hid},{hover:false});hid=null;});}
 function tooltip(){
   var pop=new maplibregl.Popup({closeButton:false,closeOnClick:false,className:"studio-tooltip"});
   function tplRender(tpl,vals){return tpl.replace(/\{([^{}]+)\}/g,function(_,t){
@@ -1248,11 +1264,14 @@ function esc(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"
   .replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");}
 var NF=new Intl.NumberFormat("it-IT",{maximumFractionDigits:2});
 function fmt(n){var s=NF.format(n);return E.valueUnit?(s+"\u00a0"+E.valueUnit):s;}
+function sky(){try{map.setSky({"sky-color":"#a9d3ff","sky-horizon-blend":0.6,
+  "horizon-color":"#eaf3ff","horizon-fog-blend":0.6,"fog-color":"#ffffff","fog-ground-blend":0.6,
+  "atmosphere-blend":["interpolate",["linear"],["zoom"],0,E.globe?0.9:0.6,5,0.3,7,0]});}catch(e){}}
 var map=new maplibregl.Map({container:"map",
   style:E.basemapStyle||{version:8,sources:{},layers:[]},
   center:E.center,zoom:E.zoom,pitch:E.pitch,bearing:E.bearing,attributionControl:false,interactive:E.interactive});
 map.addControl(new maplibregl.AttributionControl({compact:true}));
-map.on("load",function(){if(E.globe)map.setProjection({type:"globe"});build();});
+map.on("load",function(){if(E.globe)map.setProjection({type:"globe"});sky();build();});
 function build(){
   map.addSource("d",{type:"geojson",data:E.geojson});
   map.addLayer({id:"d-fill",type:E.layerType,source:"d",paint:E.paint});
@@ -1528,11 +1547,14 @@ function beforeId(){var ls=(map.getStyle().layers||[]),lg=-1,i,t;
     if(t==="fill"||t==="line"||t==="fill-extrusion")lg=i;}
   for(i=lg+1;i<ls.length;i++){if(ls[i].id.indexOf("d-")!==0)return ls[i].id;}
   return undefined;}
+function sky(){try{map.setSky({"sky-color":"#a9d3ff","sky-horizon-blend":0.6,
+  "horizon-color":"#eaf3ff","horizon-fog-blend":0.6,"fog-color":"#ffffff","fog-ground-blend":0.6,
+  "atmosphere-blend":["interpolate",["linear"],["zoom"],0,E.globe?0.9:0.6,5,0.3,7,0]});}catch(e){}}
 var map=new maplibregl.Map({container:"map",
   style:E.basemapStyle||{version:8,sources:{},layers:[]},
   center:E.center,zoom:E.zoom,pitch:E.pitch,bearing:E.bearing,attributionControl:false,interactive:E.interactive});
 map.addControl(new maplibregl.AttributionControl({compact:true}));
-map.on("load",function(){if(E.globe)map.setProjection({type:"globe"});build();});
+map.on("load",function(){if(E.globe)map.setProjection({type:"globe"});sky();build();});
 function build(){
   map.addSource("d",{type:"geojson",data:E.geojson});
   var before=beforeId();
