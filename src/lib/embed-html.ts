@@ -602,6 +602,7 @@ function buildAreaEmbedHtml(
     valueLabel,
     valueUnit: d.valueUnit || "",
     noDataLabel: "Dato non disponibile",
+    tooltip: !!d.tooltip,
     tooltipTemplate: d.tooltipTemplate || "",
     extraByKey,
     frames,

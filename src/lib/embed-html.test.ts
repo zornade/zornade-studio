@@ -43,6 +43,15 @@ describe("buildEmbedHtml", () => {
     expect(html).toContain(`maplibre-gl@${EMBED_MAPLIBRE_VERSION}/dist/maplibre-gl.js`);
   });
 
+  it("serialises the tooltip flag so the area renderer enables it", () => {
+    expect(html).toContain('"tooltip":true');
+    const off = buildEmbedHtml(
+      spec({ design: { ...spec().design, tooltip: false } }),
+      { geoBaseUrl: "https://embed.x/geo" },
+    );
+    expect(off).toContain('"tooltip":false');
+  });
+
   it("references the geometry under the given base URL", () => {
     expect(html).toContain("https://embed.x/geo/regioni.geojson");
   });
