@@ -263,6 +263,21 @@ function applyLight(map: maplibregl.Map): void {
   }
 }
 
+/**
+ * Apply the map projection (globe vs flat mercator). setStyle() resets the
+ * projection to the style's default (mercator), so this MUST be re-applied
+ * after every (re)style — otherwise the globe silently reverts to flat when the
+ * user changes basemap, language or font while the globe toggle is still on.
+ * setProjection throws on a renderer without globe support (pre-v5), so guard it.
+ */
+function applyProjection(map: maplibregl.Map, globe: boolean): void {
+  try {
+    map.setProjection(globe ? { type: "globe" } : { type: "mercator" });
+  } catch {
+    /* globe projection unsupported by the current renderer — ignore. */
+  }
+}
+
 export function MapPreview({
   tilesUrl,
   flavor,
@@ -865,6 +880,7 @@ export function MapPreview({
     map.on("mousemove", handleAnnotMove);
 
     map.on("load", () => {
+      applyProjection(map, globeRef.current);
       applySky(map, globeRef.current);
       applyLight(map);
       syncData(map);
@@ -920,6 +936,7 @@ export function MapPreview({
     map.setStyle(resolveStyle());
     map.once("idle", () => {
       if (mapRef.current) {
+        applyProjection(map, globeRef.current);
         applySky(map, globeRef.current);
         applyLight(map);
         syncData(map);
@@ -950,7 +967,7 @@ export function MapPreview({
     const map = mapRef.current;
     if (!map) return;
     const apply = () => {
-      map.setProjection(globe ? { type: "globe" } : { type: "mercator" });
+      applyProjection(map, globe);
       applySky(map, globe);
       applyLight(map);
       if (globe) {
