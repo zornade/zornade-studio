@@ -722,10 +722,11 @@ function centerOf(g){if(!g||!g.coordinates)return null;
     if(c[1]<mny)mny=c[1];if(c[1]>mxy)mxy=c[1];}else{for(var i=0;i<c.length;i++)v(c[i]);}})(g.coordinates);
   if(!isFinite(mnx))return null;return[(mnx+mxx)/2,(mny+mxy)/2];}
 // Subtle sky + atmospheric haze. On a pitched map it draws a soft horizon; on
-// the globe it gives the planet a blue atmosphere halo, fading out on zoom-in.
-function sky(){try{map.setSky({"sky-color":"#a9d3ff","sky-horizon-blend":0.6,
+// the globe only the atmosphere halo is drawn so the surrounding space stays
+// transparent and the host page background shows through.
+function sky(){try{if(E.globe){map.setSky({"atmosphere-blend":["interpolate",["linear"],["zoom"],0,0.8,5,0.3,7,0]});}else{map.setSky({"sky-color":"#a9d3ff","sky-horizon-blend":0.6,
   "horizon-color":"#eaf3ff","horizon-fog-blend":0.6,"fog-color":"#ffffff","fog-ground-blend":0.6,
-  "atmosphere-blend":["interpolate",["linear"],["zoom"],0,E.globe?0.9:0.6,5,0.3,7,0]});}catch(e){}}
+  "atmosphere-blend":["interpolate",["linear"],["zoom"],0,0.6,5,0.3,7,0]});}}catch(e){}}
 // Directional light anchored to the map: shades the sides of the 3D extrusion
 // so the shapes read as solid volumes. Only fill-extrusion layers react to it.
 function light(){try{map.setLight({anchor:"map",color:"#ffffff",intensity:0.55,
@@ -1273,9 +1274,9 @@ function esc(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"
   .replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");}
 var NF=new Intl.NumberFormat("it-IT",{maximumFractionDigits:2});
 function fmt(n){var s=NF.format(n);return E.valueUnit?(s+"\u00a0"+E.valueUnit):s;}
-function sky(){try{map.setSky({"sky-color":"#a9d3ff","sky-horizon-blend":0.6,
+function sky(){try{if(E.globe){map.setSky({"atmosphere-blend":["interpolate",["linear"],["zoom"],0,0.8,5,0.3,7,0]});}else{map.setSky({"sky-color":"#a9d3ff","sky-horizon-blend":0.6,
   "horizon-color":"#eaf3ff","horizon-fog-blend":0.6,"fog-color":"#ffffff","fog-ground-blend":0.6,
-  "atmosphere-blend":["interpolate",["linear"],["zoom"],0,E.globe?0.9:0.6,5,0.3,7,0]});}catch(e){}}
+  "atmosphere-blend":["interpolate",["linear"],["zoom"],0,0.6,5,0.3,7,0]});}}catch(e){}}
 var map=new maplibregl.Map({container:"map",
   style:E.basemapStyle||{version:8,sources:{},layers:[]},
   center:E.center,zoom:E.zoom,pitch:E.pitch,bearing:E.bearing,attributionControl:false,interactive:E.interactive});
@@ -1557,9 +1558,9 @@ function beforeId(){var ls=(map.getStyle().layers||[]),lg=-1,i,t;
     if(t==="fill"||t==="line"||t==="fill-extrusion"||t==="raster")lg=i;}
   for(i=lg+1;i<ls.length;i++){if(ls[i].id.indexOf("d-")!==0)return ls[i].id;}
   return undefined;}
-function sky(){try{map.setSky({"sky-color":"#a9d3ff","sky-horizon-blend":0.6,
+function sky(){try{if(E.globe){map.setSky({"atmosphere-blend":["interpolate",["linear"],["zoom"],0,0.8,5,0.3,7,0]});}else{map.setSky({"sky-color":"#a9d3ff","sky-horizon-blend":0.6,
   "horizon-color":"#eaf3ff","horizon-fog-blend":0.6,"fog-color":"#ffffff","fog-ground-blend":0.6,
-  "atmosphere-blend":["interpolate",["linear"],["zoom"],0,E.globe?0.9:0.6,5,0.3,7,0]});}catch(e){}}
+  "atmosphere-blend":["interpolate",["linear"],["zoom"],0,0.6,5,0.3,7,0]});}}catch(e){}}
 var map=new maplibregl.Map({container:"map",
   style:E.basemapStyle||{version:8,sources:{},layers:[]},
   center:E.center,zoom:E.zoom,pitch:E.pitch,bearing:E.bearing,attributionControl:false,interactive:E.interactive});

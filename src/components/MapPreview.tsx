@@ -218,6 +218,24 @@ function featureCenter(geom: GeoJSON.Geometry | null | undefined): [number, numb
  */
 function applySky(map: maplibregl.Map, globe: boolean): void {
   try {
+    if (globe) {
+      // On the globe only the atmosphere halo is drawn, so the space around the
+      // planet stays transparent (the host page background shows through).
+      map.setSky({
+        "atmosphere-blend": [
+          "interpolate",
+          ["linear"],
+          ["zoom"],
+          0,
+          0.8,
+          5,
+          0.3,
+          7,
+          0,
+        ],
+      });
+      return;
+    }
     map.setSky({
       "sky-color": "#a9d3ff",
       "sky-horizon-blend": 0.6,
@@ -230,7 +248,7 @@ function applySky(map: maplibregl.Map, globe: boolean): void {
         ["linear"],
         ["zoom"],
         0,
-        globe ? 0.9 : 0.6,
+        0.6,
         5,
         0.3,
         7,
