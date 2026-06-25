@@ -278,8 +278,8 @@ function LiveCatalog({ onBack }: { onBack: () => void }) {
     <div className="space-y-4">
       <BackButton onClick={onBack} />
       <PanelSection
-        title="Catalogo dati"
-        hint="Cerca tra i dataset pubblicati dai portali open data italiani e caricali direttamente."
+        title="Catalogo open data"
+        hint="Cerca tra i dataset pubblicati dai portali open data e caricali direttamente."
       >
         {/* Portal selector */}
         <Field label="Portale">
@@ -826,17 +826,85 @@ function OsmSource() {
   const { setData, setStep, project, updateProject } = useStudio();
   const [selected, setSelected] = useState<string | null>(null);
   const [catQuery, setCatQuery] = useState("");
-  const [scopeKind, setScopeKind] = useState<"nationwide" | "comune" | "provincia" | "regione">("comune");
+  const [scopeMode, setScopeMode] = useState<"place" | "bbox">("place");
+  // place mode
   const [placeName, setPlaceName] = useState("");
+  // bbox mode: raw string "minLon,minLat,maxLon,maxLat" or from geocode resolve
+  const [bboxRaw, setBboxRaw] = useState("");
+  const [bboxResolved, setBboxResolved] = useState<{
+    south: number; west: number; north: number; east: number; label: string;
+  } | null>(null);
+  const [resolving, setResolving] = useState(false);
+  const [resolveError, setResolveError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
 
   const preset = OSM_PRESETS.find((p) => p.id === selected) ?? null;
-  const needsPlace = scopeKind !== "nationwide";
-  const canSearch = !!preset && (!needsPlace || placeName.trim() !== "") && !loading;
 
-  // Filter the category list by the search box (label, group or tag).
+  // Validate bbox string "minLon,minLat,maxLon,maxLat"
+  const parseBboxRaw = (s: string): { south: number; west: number; north: number; east: number } | null => {
+    const parts = s.trim().split(",").map((v) => parseFloat(v.trim()));
+    if (parts.length !== 4 || parts.some(isNaN)) return null;
+    const [west, south, east, north] = parts;
+    if (south >= north || west >= east) return null;
+    if (Math.abs(south) > 90 || Math.abs(north) > 90) return null;
+    if (Math.abs(west) > 180 || Math.abs(east) > 180) return null;
+    return { south, west, north, east };
+  };
+
+  const parsedBbox = scopeMode === "bbox" ? parseBboxRaw(bboxRaw) : null;
+  const bboxValid = scopeMode === "bbox" ? (parsedBbox !== null || bboxResolved !== null) : true;
+  const canSearch =
+    !!preset &&
+    !loading &&
+    (scopeMode === "place" ? placeName.trim() !== "" : bboxValid);
+
+  const resolvePlaceToBbox = async () => {
+    const q = placeName.trim();
+    if (!q) return;
+    setResolving(true);
+    setResolveError(null);
+    setBboxResolved(null);
+    try {
+      // Use Nominatim to get the place bbox
+      const params = new URLSearchParams({
+        q,
+        format: "json",
+        limit: "1",
+        "accept-language": "en,it",
+      });
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/search?${params.toString()}`,
+        { headers: { Accept: "application/json" } },
+      );
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const results = (await res.json()) as Array<{
+        boundingbox?: [string, string, string, string];
+        display_name?: string;
+      }>;
+      if (!results.length || !results[0].boundingbox) {
+        setResolveError(`Luogo "${q}" non trovato.`);
+        return;
+      }
+      const bb = results[0].boundingbox; // [south, north, west, east] from Nominatim
+      const resolved = {
+        south: parseFloat(bb[0]),
+        north: parseFloat(bb[1]),
+        west: parseFloat(bb[2]),
+        east: parseFloat(bb[3]),
+        label: results[0].display_name?.split(",")[0] ?? q,
+      };
+      setBboxResolved(resolved);
+      setBboxRaw(`${resolved.west},${resolved.south},${resolved.east},${resolved.north}`);
+    } catch (e) {
+      setResolveError(e instanceof Error ? e.message : "Errore geocoding.");
+    } finally {
+      setResolving(false);
+    }
+  };
+
+  // Filter the category list by the search box
   const visiblePresets = useMemo(() => {
     const q = catQuery.trim().toLowerCase();
     if (q === "") return OSM_PRESETS;
@@ -854,20 +922,28 @@ function OsmSource() {
     setError(null);
     setInfo(null);
     try {
-      // Resolve the scope to an Overpass area id. Nationwide uses Italy's area
-      // directly; otherwise geocode the place name (fuzzy) via Nominatim — so
-      // "Friuli" resolves to "Friuli-Venezia Giulia" instead of failing.
       let scope: OsmScope;
-      let where = "Italia";
-      if (scopeKind === "nationwide") {
-        scope = { kind: "nationwide" };
+      let where = "";
+
+      if (scopeMode === "bbox") {
+        const bbox = parsedBbox ?? (bboxResolved ? {
+          south: bboxResolved.south,
+          west: bboxResolved.west,
+          north: bboxResolved.north,
+          east: bboxResolved.east,
+        } : null);
+        if (!bbox) {
+          setError("Inserisci un bounding box valido (minLon,minLat,maxLon,maxLat).");
+          return;
+        }
+        scope = { kind: "bbox", ...bbox };
+        where = bboxResolved?.label ?? `bbox(${bboxRaw.slice(0, 40)})`;
       } else {
+        // place mode: geocode to area id (supports worldwide)
         const { geocodeArea } = await import("../../lib/nominatim");
-        const area = await geocodeArea(placeName.trim(), scopeKind);
+        const area = await geocodeArea(placeName.trim(), "area");
         if (!area) {
-          setError(
-            `Luogo “${placeName.trim()}” non trovato. Controlla il nome o cambia ambito.`,
-          );
+          setError(`Luogo "${placeName.trim()}" non trovato. Controlla il nome.`);
           return;
         }
         scope = { kind: "area", areaId: area.areaId };
@@ -879,8 +955,8 @@ function OsmSource() {
       const table = overpassToTable(elements, preset.filters);
       if (table.rows.length === 0) {
         setError(
-          `Nessun “${preset.label.toLowerCase()}” trovato in ${where}. ` +
-            "Prova un ambito più ampio o un'altra categoria.",
+          `Nessun "${preset.label.toLowerCase()}" trovato in ${where}. ` +
+            "Prova un'area più ampia o un'altra categoria.",
         );
         return;
       }
@@ -919,7 +995,7 @@ function OsmSource() {
         <input
           value={catQuery}
           onChange={(e) => setCatQuery(e.target.value)}
-          placeholder="Cerca una categoria (es. scuole, porti, musei)…"
+          placeholder="Cerca una categoria (es. schools, ports, hospitals)…"
           className="mb-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:border-zornade focus:outline-none"
         />
         <div className="max-h-56 space-y-3 overflow-y-auto pr-1">
@@ -955,41 +1031,97 @@ function OsmSource() {
           )}
         </div>
       </div>
-      <Field label="Ambito">
-        <select
-          value={scopeKind}
-          onChange={(e) =>
-            setScopeKind(
-              e.target.value as "nationwide" | "comune" | "provincia" | "regione",
-            )
-          }
-          className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:border-zornade focus:outline-none"
-        >
-          <option value="comune">Per comune…</option>
-          <option value="provincia">Per provincia…</option>
-          <option value="regione">Per regione…</option>
-          <option value="nationwide">Tutta Italia (può essere lento)</option>
-        </select>
+
+      {/* Scope mode selector */}
+      <Field label="Area di ricerca">
+        <div className="flex gap-1 rounded-lg bg-slate-100 p-1">
+          <button
+            onClick={() => setScopeMode("place")}
+            className={`flex-1 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+              scopeMode === "place"
+                ? "bg-white shadow-sm text-slate-800"
+                : "text-slate-500 hover:text-slate-700"
+            }`}
+          >
+            Nome del luogo
+          </button>
+          <button
+            onClick={() => setScopeMode("bbox")}
+            className={`flex-1 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+              scopeMode === "bbox"
+                ? "bg-white shadow-sm text-slate-800"
+                : "text-slate-500 hover:text-slate-700"
+            }`}
+          >
+            Bounding box
+          </button>
+        </div>
       </Field>
-      {needsPlace && (
-        <Field label="Nome del luogo">
+
+      {scopeMode === "place" && (
+        <Field label="Luogo" hint="Città, regione, paese — ovunque nel mondo">
           <input
             value={placeName}
             onChange={(e) => setPlaceName(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === "Enter" && canSearch) void search();
             }}
-            placeholder={
-              scopeKind === "comune"
-                ? "es. Bologna"
-                : scopeKind === "provincia"
-                  ? "es. Udine"
-                  : "es. Friuli"
-            }
+            placeholder="es. Berlin, Cairo, Buenos Aires, Toscana…"
             className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:border-zornade focus:outline-none"
           />
         </Field>
       )}
+
+      {scopeMode === "bbox" && (
+        <div className="space-y-2">
+          <Field
+            label="Bounding box"
+            hint="minLon, minLat, maxLon, maxLat (gradi decimali)"
+          >
+            <div className="flex gap-2">
+              <input
+                value={bboxRaw}
+                onChange={(e) => { setBboxRaw(e.target.value); setBboxResolved(null); }}
+                placeholder="es. 11.0,43.5,11.5,44.0"
+                className={`flex-1 rounded-lg border px-3 py-2 text-sm font-mono text-slate-700 focus:border-zornade focus:outline-none ${
+                  bboxRaw && !parseBboxRaw(bboxRaw) && !bboxResolved
+                    ? "border-amber-300 bg-amber-50"
+                    : "border-slate-200"
+                }`}
+              />
+            </div>
+          </Field>
+          <Field label="Oppure cerca un luogo per nome">
+            <div className="flex gap-2">
+              <input
+                value={placeName}
+                onChange={(e) => setPlaceName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") void resolvePlaceToBbox();
+                }}
+                placeholder="es. Firenze, France, Kenya…"
+                className="flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:border-zornade focus:outline-none"
+              />
+              <button
+                onClick={() => void resolvePlaceToBbox()}
+                disabled={resolving || !placeName.trim()}
+                className="flex-shrink-0 rounded-lg border border-slate-200 px-3 py-2 text-xs font-medium text-slate-600 hover:border-slate-300 disabled:opacity-50"
+              >
+                {resolving ? <Loader2 size={13} className="animate-spin" /> : "Risolvi"}
+              </button>
+            </div>
+          </Field>
+          {resolveError && (
+            <p className="text-xs text-amber-700">{resolveError}</p>
+          )}
+          {bboxResolved && (
+            <p className="text-[11px] text-emerald-700">
+              ✓ {bboxResolved.label} ({bboxResolved.west.toFixed(3)},{bboxResolved.south.toFixed(3)},{bboxResolved.east.toFixed(3)},{bboxResolved.north.toFixed(3)})
+            </p>
+          )}
+        </div>
+      )}
+
       <Button
         variant="primary"
         disabled={!canSearch}
@@ -999,7 +1131,7 @@ function OsmSource() {
         {loading ? (
           <span className="flex items-center justify-center gap-2">
             <Loader2 size={15} className="animate-spin" />
-            Ricerca su OpenStreetMap…
+            Ricerca in corso…
           </span>
         ) : (
           "Cerca su OpenStreetMap"
@@ -1023,7 +1155,6 @@ function OsmSource() {
     </div>
   );
 }
-
 function ZornadeDbSource() {
   const { setData, setStep, updateProject } = useStudio();
   const [dataset, setDataset] = useState<string>("omi");

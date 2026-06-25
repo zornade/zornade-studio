@@ -28,7 +28,13 @@ export const OVERPASS_ENDPOINTS = [
 export const ITALY_AREA_ID = 3600365331;
 export type OsmScope =
   | { kind: "nationwide" }
-  | { kind: "area"; areaId: number };
+  | { kind: "area"; areaId: number }
+  /**
+   * Bounding box [south, west, north, east] in decimal degrees.
+   * This is the primary scope for global searches: the user draws or types a
+   * bbox and Overpass filters within it. No Nominatim call needed.
+   */
+  | { kind: "bbox"; south: number; west: number; north: number; east: number };
 
 /** Hard cap on returned features (Overpass `out` count) to keep it manageable. */
 export const OVERPASS_MAX = 2000;
@@ -54,6 +60,18 @@ export function buildOverpassQuery(
   scope: OsmScope,
   timeoutSec = 25,
 ): string {
+  if (scope.kind === "bbox") {
+    const { south, west, north, east } = scope;
+    const bboxStr = `${south},${west},${north},${east}`;
+    const body = filters
+      .map((f) => `  nwr${selector(f)}(${bboxStr});`)
+      .join("\n");
+    return (
+      `[out:json][timeout:${timeoutSec}];\n` +
+      `(\n${body}\n);\n` +
+      `out center ${OVERPASS_MAX};`
+    );
+  }
   const areaId = scope.kind === "nationwide" ? ITALY_AREA_ID : scope.areaId;
   const areaDef = `area(${areaId})->.a;`;
   const body = filters

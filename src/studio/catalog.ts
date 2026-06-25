@@ -198,13 +198,13 @@ export const SOURCE_GROUPS: SourceGroup[] = [
   },
   {
     id: "ready",
-    label: "Dati pronti per l'Italia",
-    hint: "Fonti esterne autorevoli da cercare e interrogare al volo.",
+    label: "Fonti dati",
+    hint: "Portali open data, dati europei e OpenStreetMap — Italia e mondo.",
     items: [
       {
         id: "catalog",
-        label: "Italia",
-        desc: "Fonti ufficiali",
+        label: "Open data italiani",
+        desc: "dati.gov.it, regioni, comuni — cerca per tema",
         icon: Sparkles,
         status: "ready",
       },
@@ -218,7 +218,7 @@ export const SOURCE_GROUPS: SourceGroup[] = [
       {
         id: "osm",
         label: "OpenStreetMap",
-        desc: "Accedi al database osm completo",
+        desc: "Scuole, ospedali, porti… ovunque nel mondo",
         icon: Globe2,
         status: "ready",
       },

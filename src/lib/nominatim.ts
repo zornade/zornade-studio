@@ -18,13 +18,14 @@
 export const NOMINATIM_ENDPOINT = "https://nominatim.openstreetmap.org/search";
 
 /** Scope hint → Nominatim `featureType` (helps disambiguate same-named places). */
-export type GeocodeScope = "regione" | "provincia" | "comune";
+export type GeocodeScope = "regione" | "provincia" | "comune" | "area";
 
 const FEATURE_TYPE: Record<GeocodeScope, string | undefined> = {
   regione: "state",
   // Nominatim has no "province" featureType; geocode freely and pick a boundary.
   provincia: undefined,
   comune: "city",
+  area: undefined,
 };
 
 export interface GeocodedArea {
@@ -53,16 +54,18 @@ function toAreaId(osmType: string, osmId: number): number | null {
 }
 
 /**
- * Geocode a place name to an administrative area, biased to Italy. Returns the
- * best administrative-boundary match, or null when nothing suitable is found.
+ * Geocode a place name to an administrative area.
+ * When `countryBias` is set (e.g. "it"), results are narrowed to that country.
+ * Omit it for global searches.
  *
- * @param query free text typed by the operator (e.g. "Friuli", "Udine")
- * @param scope which administrative level the operator picked (a soft hint)
+ * @param query      free text typed by the operator (e.g. "Friuli", "Berlin")
+ * @param scope      administrative level hint (a soft hint for featureType)
+ * @param countryBias optional ISO 3166-1 alpha-2 code to restrict results
  */
 export async function geocodeArea(
   query: string,
   scope: GeocodeScope,
-  opts: { signal?: AbortSignal; endpoint?: string } = {},
+  opts: { signal?: AbortSignal; endpoint?: string; countryBias?: string } = {},
 ): Promise<GeocodedArea | null> {
   const q = query.trim();
   if (q === "") return null;
@@ -71,9 +74,9 @@ export async function geocodeArea(
     q,
     format: "json",
     limit: "5",
-    countrycodes: "it",
-    "accept-language": "it",
+    "accept-language": "en,it",
   });
+  if (opts.countryBias) params.set("countrycodes", opts.countryBias);
   const ft = FEATURE_TYPE[scope];
   if (ft) params.set("featureType", ft);
 
