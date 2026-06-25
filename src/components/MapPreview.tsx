@@ -4,7 +4,7 @@ import type { Flavor } from "@protomaps/basemaps";
 import { buildStyle } from "../basemap";
 import { ensurePmtilesProtocol } from "../lib/pmtiles";
 import { renderTooltipTemplate, tooltipValues } from "../lib/tooltip";
-import { featureCenter, computeBounds } from "../lib/geo-bounds";
+import { computeBounds } from "../lib/geo-bounds";
 import { skySpec, lightSpec, projectionSpec } from "../lib/map-style";
 import { BRAND_TEAL } from "../studio/palettes";
 import {
@@ -284,7 +284,8 @@ export function MapPreview({
   const dataFilterRef = useRef<unknown | null>(dataFilter);
   dataFilterRef.current = dataFilter;
   const navControlRef = useRef<maplibregl.NavigationControl | null>(null);
-  const popupRef = useRef<maplibregl.Popup | null>(null);
+  /** Cursor-following DOM tooltip (screen-space; robust on pitch/globe). */
+  const tipRef = useRef<HTMLDivElement | null>(null);
   const tooltipEnabledRef = useRef<boolean>(tooltip);
   tooltipEnabledRef.current = tooltip;
   const lastFitRef = useRef<string | null>(null);
@@ -293,6 +294,8 @@ export function MapPreview({
   globeRef.current = globe;
   /** Feature id currently under the cursor (for the hover highlight). */
   const hoveredIdRef = useRef<number | string | null>(null);
+  /** Imperative hide for the cursor tooltip, set once the map is built. */
+  const tipHideRef = useRef<(() => void) | null>(null);
 
   // --- Annotations (O3.4): live refs read by the once-bound map handlers. ---
   const annotationsRef = useRef<Annotation[]>(annotations);
@@ -681,23 +684,38 @@ export function MapPreview({
       "bottom-right",
     );
 
-    // Hover tooltip bound once to the data fill layer (persists across the
-    // layer being re-created in syncData, since it is keyed by layer id).
-    const popup = new maplibregl.Popup({
-      closeButton: false,
-      closeOnClick: false,
-      className: "studio-tooltip",
-    });
-    popupRef.current = popup;
+    // Hover tooltip: a cursor-following DOM element (NOT a geo-anchored popup).
+    // A MapLibre Popup pins to a lng/lat ground point; with the map pitched (3D
+    // extrusion) or on the globe, that ground point projects to a screen spot
+    // far from the cursor — behind/below tall bars — so the tooltip drifts and
+    // the auto-reanchoring makes it jump and flicker. A `<div>` positioned at
+    // the mouse pixel (`e.point`) always sits next to the cursor, in 2D, 3D and
+    // on the globe alike. Same look as the chart tooltip (`studio-chart-tip`).
+    const showTip = (html: string, x: number, y: number) => {
+      const tip = tipRef.current;
+      if (!tip) return;
+      tip.innerHTML = html;
+      // Flip to the left of the cursor near the right edge to avoid overflow.
+      const flip = x > map.getCanvas().clientWidth - 180;
+      tip.style.left = `${flip ? x - 14 : x + 14}px`;
+      tip.style.top = `${y + 14}px`;
+      tip.style.transform = flip ? "translateX(-100%)" : "none";
+      tip.style.opacity = "1";
+    };
+    const hideTip = () => {
+      const tip = tipRef.current;
+      if (tip) tip.style.opacity = "0";
+    };
+    tipHideRef.current = hideTip;
 
     // --- Hover tooltip ------------------------------------------------------
     // A SINGLE map-level mousemove drives the tooltip for every data layer
     // (choropleth fill, geo lines/points and the 3D extrusion). Per-layer
     // mouseenter/leave handlers flicker badly on a pitched/globe 3D view: the
     // cursor constantly crosses the gaps between extruded bars (and the sky
-    // behind them), firing leave→enter in quick succession so the popup blinks
-    // or never settles. Querying the rendered features once per move — and
-    // hiding only when nothing is hit — is stable both in 2D and on the globe.
+    // behind them), firing leave→enter in quick succession. Querying the
+    // rendered features once per move — and hiding only when nothing is hit —
+    // is stable both in 2D and on the globe.
     const HOVER_LAYERS = [EXTRUSION, FILL, LINE, GEO_POINT];
 
     const tooltipHtmlFor = (f: maplibregl.MapGeoJSONFeature): string => {
@@ -730,12 +748,15 @@ export function MapPreview({
     const hideTooltip = () => {
       map.getCanvas().style.cursor = "";
       clearHoverState();
-      popup.remove();
+      hideTip();
     };
 
     const onHoverMove = (e: maplibregl.MapMouseEvent) => {
       // Drawing an annotation owns the cursor: never tooltip while a tool is armed.
-      if (annotToolRef.current) return;
+      if (annotToolRef.current) {
+        hideTooltip();
+        return;
+      }
       if (!tooltipEnabledRef.current) {
         hideTooltip();
         return;
@@ -760,14 +781,7 @@ export function MapPreview({
           map.setFeatureState({ source: SRC, id: f.id }, { hover: true });
         }
       }
-      // Anchor at the footprint centre for the extrusion (with the map pitched,
-      // the ground point under the cursor drifts far from a tall bar); at the
-      // cursor for the flat layers.
-      const anchor: [number, number] =
-        f.layer?.id === EXTRUSION
-          ? (featureCenter(f.geometry) ?? [e.lngLat.lng, e.lngLat.lat])
-          : [e.lngLat.lng, e.lngLat.lat];
-      popup.setLngLat(anchor).setHTML(tooltipHtmlFor(f)).addTo(map);
+      showTip(tooltipHtmlFor(f), e.point.x, e.point.y);
     };
 
     map.on("mousemove", onHoverMove);
@@ -1019,10 +1033,15 @@ export function MapPreview({
 
   // Hide the tooltip immediately when it is turned off.
   useEffect(() => {
-    if (!tooltip) popupRef.current?.remove();
+    if (!tooltip) tipHideRef.current?.();
   }, [tooltip]);
 
-  return <div ref={containerRef} className="h-full w-full" />;
+  return (
+    <div className="relative h-full w-full">
+      <div ref={containerRef} className="h-full w-full" />
+      <div ref={tipRef} className="studio-chart-tip" style={{ opacity: 0 }} />
+    </div>
+  );
 }
 
 /** Minimal HTML escaping for tooltip content. */

@@ -650,6 +650,7 @@ ${oembedLinks}
 </head>
 <body>
 <div id="map"></div>
+<div id="tip"></div>
 ${spec.design.showTitle && title ? `<div class="ttl"><h1 style="font-family:${titleFont}">${title}</h1>${subtitle ? `<p style="font-family:${titleFont}">${subtitle}</p>` : ""}</div>` : ""}
 ${spec.design.showSource && source ? `<div class="src">${source}</div>` : ""}
 <div class="attr"><a href="https://zornade.com/studio" target="_blank" rel="noopener">Fatto con Zornade Studio</a> · Dati © OpenStreetMap</div>
@@ -693,6 +694,12 @@ const EMBED_CSS = `
   .studio-tooltip-name{font-weight:600;font-size:13px;color:#0f172a}
   .studio-tooltip-value{margin-top:2px;font-size:12px;color:#334155}
   .studio-tooltip-value span{color:#64748b;text-transform:capitalize}
+  /* Cursor-following tooltip (area embed): screen-anchored so it never drifts
+     behind tall bars on a pitched/globe 3D extrusion. */
+  #tip{position:absolute;top:0;left:0;z-index:4;pointer-events:none;max-width:220px;
+    padding:8px 10px;border-radius:10px;background:#fff;opacity:0;
+    box-shadow:0 4px 14px rgba(15,23,42,.18);font-family:system-ui,-apple-system,sans-serif;
+    transition:opacity .12s ease}
   .tsl{position:absolute;left:50%;bottom:46px;transform:translateX(-50%);
     width:min(440px,82%);display:flex;align-items:center;gap:10px;
     background:rgba(255,255,255,.92);padding:7px 12px;border-radius:12px;
@@ -737,13 +744,6 @@ function beforeId(){var ls=(map.getStyle().layers||[]),lg=-1,i,t;
     if(t==="fill"||t==="line"||t==="fill-extrusion"||t==="raster")lg=i;}
   for(i=lg+1;i<ls.length;i++){if(ls[i].id.indexOf("d-")!==0)return ls[i].id;}
   return undefined;}
-// Bounding-box centre of a feature geometry, used to anchor the extrusion
-// tooltip to the footprint (the event lngLat drifts when the map is pitched).
-function centerOf(g){if(!g||!g.coordinates)return null;
-  var mnx=1/0,mny=1/0,mxx=-1/0,mxy=-1/0;
-  (function v(c){if(typeof c[0]==="number"){if(c[0]<mnx)mnx=c[0];if(c[0]>mxx)mxx=c[0];
-    if(c[1]<mny)mny=c[1];if(c[1]>mxy)mxy=c[1];}else{for(var i=0;i<c.length;i++)v(c[i]);}})(g.coordinates);
-  if(!isFinite(mnx))return null;return[(mnx+mxx)/2,(mny+mxy)/2];}
 // Subtle sky + atmospheric haze, serialised from the shared map-style source.
 function sky(){try{map.setSky(E.globe?${SKY_GLOBE_JSON}:${SKY_FLAT_JSON});}catch(e){}}
 // Directional light anchored to the map: shades the sides of the 3D extrusion
@@ -1019,11 +1019,19 @@ function hoverFx(){var hid=null;
     hid=f.id;map.setFeatureState({source:"d",id:hid},{hover:true});});
   map.on("mouseleave","d-fill",function(){if(hid!==null)map.setFeatureState({source:"d",id:hid},{hover:false});hid=null;});}
 function tooltip(){
-  var pop=new maplibregl.Popup({closeButton:false,closeOnClick:false,className:"studio-tooltip"});
+  var tip=document.getElementById("tip");
   function tplRender(tpl,vals){return tpl.replace(/\{([^{}]+)\}/g,function(_,t){
     var v=vals[String(t).replace(/^\s+|\s+$/g,"")];return v==null?"":esc(String(v));});}
-  map.on("mousemove","d-fill",function(e){var f=e.features&&e.features[0];if(!f)return;
-    var p=f.properties||{};if(p.__value==null){pop.remove();map.getCanvas().style.cursor="";return;}
+  function hide(){if(tip)tip.style.opacity="0";map.getCanvas().style.cursor="";}
+  // A single map-level handler with queryRenderedFeatures + a cursor-following
+  // div (not a geo-anchored popup): on a pitched/globe 3D extrusion the ground
+  // lngLat under the cursor projects far from the tall bar, so a popup drifts
+  // and the per-layer mouseleave fires across the gaps between bars, flickering.
+  map.on("mousemove",function(e){
+    if(!map.getLayer("d-fill")){hide();return;}
+    var f=map.queryRenderedFeatures(e.point,{layers:["d-fill"]})[0];
+    if(!f){hide();return;}
+    var p=f.properties||{};if(p.__value==null){hide();return;}
     var nm=(p.__name!=null?p.__name:p[E.nameField])||"";var html;
     // The painted value, formatted per render: a number, a category string, or
     // the two raw values of a bivariate map.
@@ -1036,10 +1044,12 @@ function tooltip(){
       html=tplRender(E.tooltipTemplate,vals);}
     else{html='<div class="studio-tooltip-name">'+esc(nm)+'</div>'+
       '<div class="studio-tooltip-value"><span>'+esc(E.valueLabel)+'</span> '+esc(vtxt)+'</div>';}
-    var at=(E.render==="extrusion"&&centerOf(f.geometry))||e.lngLat;
-    pop.setLngLat(at).setHTML(html).addTo(map);
+    if(tip){tip.innerHTML=html;
+      var x=e.point.x,y=e.point.y,flip=x>map.getCanvas().clientWidth-180;
+      tip.style.left=(flip?x-14:x+14)+"px";tip.style.top=(y+14)+"px";
+      tip.style.transform=flip?"translateX(-100%)":"none";tip.style.opacity="1";}
     map.getCanvas().style.cursor="pointer";});
-  map.on("mouseleave","d-fill",function(){pop.remove();map.getCanvas().style.cursor="";});
+  map.on("mouseout",hide);
 }
 })();`;
 

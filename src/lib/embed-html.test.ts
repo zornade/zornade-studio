@@ -181,10 +181,12 @@ describe("buildEmbedHtml", () => {
   });
 
   it("renders a styled tooltip matching the editor (name + value, no <strong>)", () => {
-    expect(html).toContain('className:"studio-tooltip"');
+    // Area embeds use a cursor-following div (#tip) instead of a geo-anchored
+    // popup, so the tooltip stays put on a pitched/globe 3D extrusion.
+    expect(html).toContain('id="tip"');
+    expect(html).toContain('document.getElementById("tip")');
     expect(html).toContain("studio-tooltip-name");
     expect(html).toContain("studio-tooltip-value");
-    expect(html).toContain(".studio-tooltip .maplibregl-popup-tip{display:none}");
   });
 
   it("uses injected canonical classes instead of recomputing (parity)", () => {
