@@ -1284,6 +1284,9 @@ function AdsbSource() {
   const geojsonUrl = `/embed/adsb/${jobId}.geojson`;
 
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pollTickRef = useRef(0);
+  // 15 min / 5 s = 180 tick max (limite background function Netlify)
+  const POLL_MAX_TICKS = 180;
 
   const stopPolling = () => {
     if (pollRef.current) {
@@ -1329,11 +1332,25 @@ function AdsbSource() {
 
   const startPolling = () => {
     setPhase("polling");
+    pollTickRef.current = 0;
     pollRef.current = setInterval(() => {
       void (async () => {
+        pollTickRef.current += 1;
+
+        // Timeout di sicurezza: 15 min = 180 tick a 5 s
+        if (pollTickRef.current > POLL_MAX_TICKS) {
+          stopPolling();
+          setError(
+            "Timeout: l'elaborazione ha superato 15 minuti. " +
+            "Controlla i log della funzione Netlify per i dettagli.",
+          );
+          setPhase("error");
+          return;
+        }
+
         try {
           const resp = await fetch(statusUrl, { cache: "no-store" });
-          if (!resp.ok) return;
+          if (!resp.ok) return; // status.json non ancora scritto: riprova
           const st = (await resp.json()) as {
             status: string;
             count?: number;
@@ -1348,6 +1365,7 @@ function AdsbSource() {
             setError(st.message ?? "Errore sconosciuto.");
             setPhase("error");
           }
+          // status === "running": continua a fare polling
         } catch {
           // errore di rete transitorio: riprova al prossimo tick
         }
@@ -1489,9 +1507,12 @@ function AdsbSource() {
       </Button>
 
       {phase === "polling" && (
-        <p className="text-center text-[11px] text-slate-400">
-          Streaming ~4 GB di dati ADS-B · aggiornamento ogni 5 s
-        </p>
+        <div className="space-y-1 text-center text-[11px] text-slate-400">
+          <p>Streaming ~4 GB di dati ADS-B · aggiornamento ogni 5 s</p>
+          <p className="font-mono text-[10px] text-slate-300 select-all">
+            job: {jobId}
+          </p>
+        </div>
       )}
 
       {phase === "done" && count != null && (
