@@ -337,6 +337,29 @@ export function DesignPanel() {
         </PanelSection>
       )}
 
+      {/* ---- Esagerazione altezze (estrusione 3D) ---- */}
+      {vizType === "extrusion" && (
+        <PanelSection
+          title="Altezza 3D"
+          hint="Esagera o attenua le differenze di altezza delle aree."
+        >
+          <Field label={`Esagerazione · ${(design.extrusionScale ?? 1).toFixed(1)}×`}>
+            <input
+              type="range"
+              min={0.2}
+              max={3}
+              step={0.1}
+              value={design.extrusionScale ?? 1}
+              onChange={(e) => updateDesign({ extrusionScale: Number(e.target.value) })}
+              className="w-full accent-zornade"
+            />
+            <p className="mt-1 text-[11px] text-slate-400">
+              Sotto 1× attenua, sopra 1× amplifica le differenze di altezza.
+            </p>
+          </Field>
+        </PanelSection>
+      )}
+
       {/* ---- Flussi: origine e destinazione ---- */}
       {caps.has("flowBinding") && data && (
         <PanelSection

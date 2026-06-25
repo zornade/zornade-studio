@@ -56,7 +56,11 @@ const RENDER_PRELUDE = String.raw`
 function esc(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;")
   .replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");}
 var NF=new Intl.NumberFormat("it-IT",{maximumFractionDigits:2});
-function fmt(n){var s=NF.format(n);return E.valueUnit?(s+"\u00a0"+E.valueUnit):s;}`;
+function fmt(n){var s=NF.format(n);return E.valueUnit?(s+"\u00a0"+E.valueUnit):s;}
+// Move every basemap label (symbol) layer above the data so place names stay
+// readable on top of the overlay. 2D renders only (callers skip 3D extrusion).
+function raiseLabels(){try{(map.getStyle().layers||[]).forEach(function(l){
+  if(l.type==="symbol"&&l.id.indexOf("d-")!==0)map.moveLayer(l.id);});}catch(e){}}`;
 
 /** Pinned MapLibre version for embeds (matches the app's maplibre-gl).
  *  Must be v5+: the globe projection (`setProjection`) and `setSky` used by
@@ -760,7 +764,7 @@ function build(){
     map.addLayer({id:"d-fill",type:"fill-extrusion",source:"d",
       paint:{"fill-extrusion-color":E.fill,
         "fill-extrusion-height":["interpolate",["linear"],
-          ["coalesce",["to-number",["get","__value"]],E.min],E.min,4800,E.max,120000],
+          ["coalesce",["to-number",["get","__value"]],E.min],E.min,4800*(E.extrusionScale||1),E.max,120000*(E.extrusionScale||1)],
         "fill-extrusion-base":0,"fill-extrusion-opacity":0.95,
         "fill-extrusion-vertical-gradient":true}},before);
   }else if(E.render==="symbol"||E.render==="spike"){
@@ -794,6 +798,7 @@ function build(){
         "line-opacity":0.55}},before);
     hoverFx();
   }
+  if(E.render!=="extrusion")raiseLabels();
   if(!E.hasCamera&&!E.globe){fit();}else if(E.bounds){map.fitBounds(E.bounds,{pitch:E.pitch,bearing:E.bearing,duration:0,padding:0});}
   if(E.showLegend)legend(noData);
   if(E.tooltip)tooltip();
@@ -1303,6 +1308,7 @@ function build(){
         "text-anchor":"top","text-offset":[0,0.8],"text-max-width":10},
       paint:{"text-color":"#0f172a","text-halo-color":"#fff","text-halo-width":1.4}});
   }
+  raiseLabels();
   if(!E.hasCamera&&!E.globe){fit();}else if(E.bounds){map.fitBounds(E.bounds,{pitch:E.pitch,bearing:E.bearing,duration:0,padding:0});}
   if(E.showLegend)legend();
   if(E.tooltip)tooltip();
@@ -1580,6 +1586,7 @@ function build(){
   map.addLayer({id:"d-point",type:"circle",source:"d",
     paint:{"circle-color":E.circleColor,"circle-radius":E.circleRadius||5,
       "circle-stroke-color":"#fff","circle-stroke-width":1,"circle-opacity":0.9}},before);
+  raiseLabels();
   if(!E.hasCamera&&!E.globe){fit();}else if(E.bounds){map.fitBounds(E.bounds,{pitch:E.pitch,bearing:E.bearing,duration:0,padding:0});}
   if(E.showLegend)legend();
   if(E.tooltip)tooltip();

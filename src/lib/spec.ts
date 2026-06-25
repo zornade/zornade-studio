@@ -102,6 +102,8 @@ export interface SpecDesign {
   pointSize: number;
   /** Custom raster basemap tile URL (XYZ/WMS), used when basemap = "custom-raster". */
   customBasemapUrl?: string;
+  /** Vertical exaggeration of the 3D extrusion. Absent = 1 (no exaggeration). */
+  extrusionScale?: number;
 }
 
 export interface ChoroplethSpec {
@@ -478,6 +480,11 @@ function makeAreaSpec(
       pointColor: design.pointColor,
       pointSize: design.pointSize,
       customBasemapUrl: design.customBasemapUrl ?? "",
+      // Only for the 3D extrusion, and only when actually exaggerated, so plain
+      // choropleth/cartogram specs and unscaled extrusions stay byte-identical.
+      ...(render === "extrusion" && (design.extrusionScale ?? 1) !== 1
+        ? { extrusionScale: design.extrusionScale }
+        : {}),
     },
     ...(state.camera ? { camera: state.camera } : {}),
   };

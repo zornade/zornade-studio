@@ -146,7 +146,7 @@ export function buildDataLayer(args: BuildDataLayerArgs): DataLayer | null {
       geojson: joined.geojson,
       fillColor: buildFillColorExpression(joined.classes, scaleColors, NO_DATA_COLOR),
       extrusionRange: { min: joined.classes.min, max: joined.classes.max },
-      extrusionMaxHeight: 120000,
+      extrusionMaxHeight: Math.round(120000 * (design.extrusionScale ?? 1)),
       nameField:
         data?.kind === "area" ? GEO_LEVELS[data.geoLevel].nameField : undefined,
       valueLabel,

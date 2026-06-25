@@ -79,6 +79,12 @@ export interface DesignSettings {
   customBasemapUrl: string;
   /** Render the map on a 3D globe (spherical projection). Default false. */
   globe: boolean;
+  /**
+   * Vertical exaggeration of the 3D extrusion (kind "extrusion"). A multiplier
+   * on the bar height: <1 attenuates the height differences, >1 exaggerates
+   * them. Default 1 (no exaggeration).
+   */
+  extrusionScale?: number;
 }
 
 /**

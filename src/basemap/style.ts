@@ -3,8 +3,8 @@
  * Studio flavor.
  *
  * Licensing note: the only mandatory credit for OSM-derived Protomaps tiles is
- * the OpenStreetMap attribution (ODbL). We bundle it together with the Zornade
- * credit. No CARTO / MapTiler / OpenMapTiles attribution is involved.
+ * the OpenStreetMap attribution (ODbL). No CARTO / MapTiler / OpenMapTiles
+ * attribution is involved.
  *
  * Runtime note: the PMTiles protocol must be registered with MapLibre before a
  * style using `pmtiles://` is loaded, e.g.:
@@ -18,9 +18,8 @@
 import { type StyleSpecification } from "@maplibre/maplibre-gl-style-spec";
 import { type Flavor, layers } from "@protomaps/basemaps";
 
-const OSM_ZORNADE_ATTRIBUTION =
-  '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>' +
-  ' · Fatto con <a href="https://zornade.com/studio" target="_blank" rel="noopener">Zornade Studio</a>';
+const OSM_ATTRIBUTION =
+  '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>';
 
 /** Default fonts/sprite endpoints. Self-host these on R2 for production. */
 const DEFAULT_GLYPHS =
@@ -39,7 +38,7 @@ export interface BuildStyleOptions {
   glyphsUrl?: string;
   /** Sprite base URL. Default: Protomaps light sprite. */
   spriteUrl?: string;
-  /** Extra attribution appended after the mandatory OSM + Zornade credit. */
+  /** Extra attribution appended after the mandatory OSM credit. */
   attribution?: string;
   /**
    * Render the basemap. When false, the style has no basemap source/layers and
@@ -53,12 +52,11 @@ export interface BuildStyleOptions {
 export function buildStyle(opts: BuildStyleOptions): StyleSpecification {
   const lang = opts.lang ?? "it";
   const attribution = opts.attribution
-    ? `${OSM_ZORNADE_ATTRIBUTION} · ${opts.attribution}`
-    : OSM_ZORNADE_ATTRIBUTION;
+    ? `${OSM_ATTRIBUTION} · ${opts.attribution}`
+    : OSM_ATTRIBUTION;
 
   // Basemap-less style: no Protomaps source/layers → transparent background.
-  // Only the Zornade credit is kept (no OSM tiles are shown, so the ODbL OSM
-  // attribution is not required here).
+  // No OSM tiles are shown, so no attribution is required here.
   if (opts.basemap === false) {
     return {
       version: 8,

@@ -119,6 +119,7 @@ const INITIAL_DESIGN: DesignSettings = {
   flowValue: "",
   customBasemapUrl: "",
   globe: false,
+  extrusionScale: 1,
 };
 
 /** localStorage key for the best-effort session autosave. */

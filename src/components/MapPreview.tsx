@@ -187,6 +187,33 @@ function dataInsertBeforeId(map: maplibregl.Map): string | undefined {
 }
 
 /**
+ * Move every basemap label (symbol) layer above the data layers so place names
+ * stay readable on top of the overlay. 2D renders only — callers skip the 3D
+ * extrusion path. Mirrors the embed's `raiseLabels`. Annotations (the topmost
+ * overlay) are kept above the labels by anchoring them just below the first
+ * annotation layer, since syncData can run without re-syncing annotations.
+ */
+function raiseBasemapLabels(map: maplibregl.Map): void {
+  const layers = map.getStyle().layers ?? [];
+  const annotAnchor = layers.find(
+    (l) =>
+      l.id === ANNOT_FILL ||
+      l.id === ANNOT_LINE ||
+      l.id === ANNOT_PREVIEW_FILL ||
+      l.id === ANNOT_PREVIEW_LINE,
+  )?.id;
+  for (const l of layers) {
+    if (l.type === "symbol" && !OWN_LAYER_IDS.has(l.id)) {
+      try {
+        map.moveLayer(l.id, annotAnchor);
+      } catch {
+        /* layer removed during a concurrent restyle — ignore. */
+      }
+    }
+  }
+}
+
+/**
  * Add a subtle sky + atmospheric haze. On a pitched 2D map it draws a soft
  * horizon; on the globe it gives the planet a blue atmosphere halo. The
  * atmosphere fades out as the camera zooms in so it never washes out the data.
@@ -319,6 +346,7 @@ export function MapPreview({
         },
         firstSymbol,
       );
+      raiseBasemapLabels(map);
       return;
     }
 
@@ -405,6 +433,7 @@ export function MapPreview({
           },
         });
       }
+      raiseBasemapLabels(map);
       return;
     }
 
@@ -462,6 +491,7 @@ export function MapPreview({
         firstSymbol,
       );
       applyDataFilter(map);
+      raiseBasemapLabels(map);
       return;
     }
 
@@ -504,6 +534,7 @@ export function MapPreview({
       firstSymbol,
     );
     applyDataFilter(map);
+    raiseBasemapLabels(map);
   };
 
   /** Apply the reader-facing class filter to the data layers (if present). */
@@ -646,8 +677,6 @@ export function MapPreview({
     map.addControl(
       new maplibregl.AttributionControl({
         compact: true,
-        customAttribution:
-          'Fatto con <a href="https://zornade.com/studio" target="_blank" rel="noopener">Zornade Studio</a>',
       }),
       "bottom-right",
     );
@@ -661,21 +690,17 @@ export function MapPreview({
     });
     popupRef.current = popup;
 
-    map.on("mousemove", FILL, (e) => {
-      if (annotToolRef.current) return;
-      if (!tooltipEnabledRef.current) return;
-      const f = e.features?.[0];
-      if (!f) return;
-      map.getCanvas().style.cursor = "pointer";
-      // Hover highlight: move the `hover` feature-state to the polygon under the
-      // cursor (read by the fill-opacity / line-width paint expressions).
-      if (hoveredIdRef.current != null) {
-        map.setFeatureState({ source: SRC, id: hoveredIdRef.current }, { hover: false });
-      }
-      if (f.id != null) {
-        hoveredIdRef.current = f.id;
-        map.setFeatureState({ source: SRC, id: f.id }, { hover: true });
-      }
+    // --- Hover tooltip ------------------------------------------------------
+    // A SINGLE map-level mousemove drives the tooltip for every data layer
+    // (choropleth fill, geo lines/points and the 3D extrusion). Per-layer
+    // mouseenter/leave handlers flicker badly on a pitched/globe 3D view: the
+    // cursor constantly crosses the gaps between extruded bars (and the sky
+    // behind them), firing leave→enter in quick succession so the popup blinks
+    // or never settles. Querying the rendered features once per move — and
+    // hiding only when nothing is hit — is stable both in 2D and on the globe.
+    const HOVER_LAYERS = [EXTRUSION, FILL, LINE, GEO_POINT];
+
+    const tooltipHtmlFor = (f: maplibregl.MapGeoJSONFeature): string => {
       const layer = dataLayerRef.current;
       const props = (f.properties ?? {}) as Record<string, unknown>;
       const name = layer?.nameField ? props[layer.nameField] : undefined;
@@ -689,94 +714,65 @@ export function MapPreview({
             : "n/d";
       const label = layer?.valueLabel ?? "Valore";
       const tpl = layer?.tooltipTemplate?.trim();
-      const html = tpl
+      return tpl
         ? renderTooltipTemplate(tpl, tooltipValues(props, String(name ?? ""), value))
         : `<div class="studio-tooltip-name">${escapeHtml(String(name ?? ""))}</div>` +
           `<div class="studio-tooltip-value"><span>${escapeHtml(label)}</span> ${escapeHtml(value)}</div>`;
-      popup
-        .setLngLat(e.lngLat)
-        .setHTML(html)
-        .addTo(map);
-    });
-    map.on("mouseleave", FILL, () => {
-      if (annotToolRef.current) return;
-      map.getCanvas().style.cursor = "";
+    };
+
+    const clearHoverState = () => {
       if (hoveredIdRef.current != null) {
         map.setFeatureState({ source: SRC, id: hoveredIdRef.current }, { hover: false });
         hoveredIdRef.current = null;
       }
-      popup.remove();
-    });
+    };
 
-    // Geo datasets also draw lines and points; bind the same hover handlers so
-    // the tooltip works on every primitive (a single popup, last layer wins).
-    const showOnLayer = (
-      e: maplibregl.MapLayerMouseEvent,
-    ) => {
-      if (annotToolRef.current) return;
-      if (!tooltipEnabledRef.current) return;
-      const f = e.features?.[0];
-      if (!f) return;
-      map.getCanvas().style.cursor = "pointer";
-      const layer = dataLayerRef.current;
-      const props = (f.properties ?? {}) as Record<string, unknown>;
-      const name = layer?.nameField ? props[layer.nameField] : undefined;
-      const raw = props.__value;
-      const unit = layer?.valueUnit ? `\u00a0${layer.valueUnit}` : "";
-      const value =
-        typeof raw === "number"
-          ? `${fmt.format(raw)}${unit}`
-          : raw != null
-            ? `${String(raw)}${unit}`
-            : "n/d";
-      const label = layer?.valueLabel ?? "Valore";
-      const tpl = layer?.tooltipTemplate?.trim();
-      const html = tpl
-        ? renderTooltipTemplate(tpl, tooltipValues(props, String(name ?? ""), value))
-        : `<div class="studio-tooltip-name">${escapeHtml(String(name ?? ""))}</div>` +
-          `<div class="studio-tooltip-value"><span>${escapeHtml(label)}</span> ${escapeHtml(value)}</div>`;
-      popup.setLngLat(e.lngLat).setHTML(html).addTo(map);
-    };
-    const hideOnLayer = () => {
+    const hideTooltip = () => {
       map.getCanvas().style.cursor = "";
+      clearHoverState();
       popup.remove();
     };
-    for (const id of [LINE, GEO_POINT]) {
-      map.on("mousemove", id, showOnLayer);
-      map.on("mouseleave", id, hideOnLayer);
-    }
-    // The 3D extrusion uses its own layer id. Anchor the tooltip at the
-    // feature's footprint centre, not the event lngLat: with the map pitched
-    // the ground point under the cursor drifts far from a tall bar, making the
-    // popup jump around or point at the wrong area.
-    const showOnExtrusion = (e: maplibregl.MapLayerMouseEvent) => {
+
+    const onHoverMove = (e: maplibregl.MapMouseEvent) => {
+      // Drawing an annotation owns the cursor: never tooltip while a tool is armed.
       if (annotToolRef.current) return;
-      if (!tooltipEnabledRef.current) return;
-      const f = e.features?.[0];
-      if (!f) return;
+      if (!tooltipEnabledRef.current) {
+        hideTooltip();
+        return;
+      }
+      const layers = HOVER_LAYERS.filter((id) => map.getLayer(id));
+      const f = layers.length
+        ? map.queryRenderedFeatures(e.point, { layers })[0]
+        : undefined;
+      if (!f) {
+        hideTooltip();
+        return;
+      }
       map.getCanvas().style.cursor = "pointer";
-      const layer = dataLayerRef.current;
-      const props = (f.properties ?? {}) as Record<string, unknown>;
-      const name = layer?.nameField ? props[layer.nameField] : undefined;
-      const raw = props.__value;
-      const unit = layer?.valueUnit ? `\u00a0${layer.valueUnit}` : "";
-      const value =
-        typeof raw === "number"
-          ? `${fmt.format(raw)}${unit}`
-          : raw != null
-            ? `${String(raw)}${unit}`
-            : "n/d";
-      const label = layer?.valueLabel ?? "Valore";
-      const tpl = layer?.tooltipTemplate?.trim();
-      const html = tpl
-        ? renderTooltipTemplate(tpl, tooltipValues(props, String(name ?? ""), value))
-        : `<div class="studio-tooltip-name">${escapeHtml(String(name ?? ""))}</div>` +
-          `<div class="studio-tooltip-value"><span>${escapeHtml(label)}</span> ${escapeHtml(value)}</div>`;
-      const anchor = featureCenter(f.geometry) ?? [e.lngLat.lng, e.lngLat.lat];
-      popup.setLngLat(anchor).setHTML(html).addTo(map);
+      // Hover highlight: move the `hover` feature-state to the feature under the
+      // cursor (read by the choropleth fill-opacity / line-width expressions;
+      // a no-op for the other layers). Keyed by the source feature id, which is
+      // shared across FILL/LINE/EXTRUSION for the same polygon.
+      if (f.id !== hoveredIdRef.current) {
+        clearHoverState();
+        if (f.id != null) {
+          hoveredIdRef.current = f.id;
+          map.setFeatureState({ source: SRC, id: f.id }, { hover: true });
+        }
+      }
+      // Anchor at the footprint centre for the extrusion (with the map pitched,
+      // the ground point under the cursor drifts far from a tall bar); at the
+      // cursor for the flat layers.
+      const anchor: [number, number] =
+        f.layer?.id === EXTRUSION
+          ? (featureCenter(f.geometry) ?? [e.lngLat.lng, e.lngLat.lat])
+          : [e.lngLat.lng, e.lngLat.lat];
+      popup.setLngLat(anchor).setHTML(tooltipHtmlFor(f)).addTo(map);
     };
-    map.on("mousemove", EXTRUSION, showOnExtrusion);
-    map.on("mouseleave", EXTRUSION, hideOnLayer);
+
+    map.on("mousemove", onHoverMove);
+    // Hide when the pointer leaves the map canvas entirely.
+    map.on("mouseout", hideTooltip);
 
     // Annotation placement: a click with a tool armed adds the annotation.
     // marker/text are one-shot single clicks; line/area take two clicks (a
