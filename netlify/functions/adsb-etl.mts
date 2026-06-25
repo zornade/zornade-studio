@@ -264,8 +264,10 @@ async function runEtl(
 
   ex.on("entry", (header, stream, next) => {
     if (!header.name.includes("trace_full_")) {
+      // CRITICO: next() va chiamato SOLO dopo che lo stream è svuotato.
+      // Chiamarlo prima (stream.resume(); next()) corrompe lo stato di tar-stream.
+      stream.on("end", next);
       stream.resume();
-      next();
       return;
     }
     const chunks: Buffer[] = [];
@@ -276,33 +278,49 @@ async function runEtl(
           Buffer.concat(chunks), bbox, tFrom, tTo, minPoints, noMilitary,
         );
         if (feat) features.push(feat);
-      } catch {
-        // entry malformata: ignora
+      } catch (e) {
+        console.error("[adsb-etl] parseTrace error:", e);
       }
       next();
     });
-    stream.on("error", () => next());
+    stream.on("error", (e) => {
+      console.error("[adsb-etl] entry stream error:", e);
+      next();
+    });
   });
 
   pass.pipe(ex);
 
   const extractDone = new Promise<void>((resolve, reject) => {
     ex.on("finish", resolve);
-    ex.on("error", reject);
+    ex.on("error", (e) => {
+      console.error("[adsb-etl] tar extract error:", e);
+      reject(e as Error);
+    });
+    // Errori sul PassThrough (es. fetch fallisce a metà) devono rigettare
+    pass.on("error", (e) => {
+      console.error("[adsb-etl] passthrough error:", e);
+      reject(e as Error);
+    });
   });
 
   for (const url of urls) {
+    const label = url.split("/").pop() ?? url;
+    console.log(`[adsb-etl] fetch ${label}`);
     const resp = await fetch(url, { signal: AbortSignal.timeout(600_000) });
     if (!resp.ok || !resp.body)
-      throw new Error(`HTTP ${resp.status} su ${url.split("/").pop()}`);
+      throw new Error(`HTTP ${resp.status} su ${label}`);
     const reader = resp.body.getReader();
+    let mb = 0;
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
+      mb += value.length / 1e6;
       if (!pass.write(value)) {
         await new Promise<void>((resolve) => pass.once("drain", resolve));
       }
     }
+    console.log(`[adsb-etl] ${label} OK (${mb.toFixed(0)} MB), ${features.length} feat finora`);
   }
 
   pass.end();
