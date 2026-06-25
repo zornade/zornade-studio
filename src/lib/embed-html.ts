@@ -809,7 +809,7 @@ function build(){
     hoverFx();
   }
   if(E.render!=="extrusion")raiseLabels();
-  if(!E.hasCamera&&!E.globe){fit();}else if(E.pitch>0){fit(E.pitch);}else if(E.bounds){map.fitBounds(E.bounds,{pitch:E.pitch,bearing:E.bearing,duration:0,padding:0});}
+  if(!E.hasCamera){if(E.globe||E.pitch>0){fit(E.pitch);}else{fit();}}
   if(E.showLegend)legend(noData);
   if(E.tooltip)tooltip();
   if(E.frames&&E.frames.length>1)timeUI();
@@ -1332,16 +1332,17 @@ function build(){
       paint:{"text-color":"#0f172a","text-halo-color":"#fff","text-halo-width":1.4}});
   }
   raiseLabels();
-  if(!E.hasCamera&&!E.globe){fit();}else if(E.bounds){map.fitBounds(E.bounds,{pitch:E.pitch,bearing:E.bearing,duration:0,padding:0});}
+  if(!E.hasCamera){if(E.globe){fit(E.pitch);}else{fit();}}
   if(E.showLegend)legend();
   if(E.tooltip)tooltip();
   annotations();
 }
-function fit(){try{var b=new maplibregl.LngLatBounds();
+function fit(pitch){try{var b=new maplibregl.LngLatBounds();
   (E.geojson.features||[]).forEach(function(f){var g=f.geometry;if(!g)return;
     if(g.type==="Point")b.extend(g.coordinates);
     else if(g.type==="Polygon")g.coordinates[0].forEach(function(pt){b.extend(pt);});});
-  if(!b.isEmpty())map.fitBounds(b,{padding:48,duration:0,maxZoom:9});}catch(e){}}
+  var opt={padding:48,duration:0,maxZoom:9};if(pitch!=null)opt.pitch=pitch;
+  if(!b.isEmpty())map.fitBounds(b,opt);}catch(e){}}
 function legend(){
   if(E.legendKind==="none")return;
   var box=document.createElement("div");box.className="lgd";
@@ -1609,15 +1610,16 @@ function build(){
     paint:{"circle-color":E.circleColor,"circle-radius":E.circleRadius||5,
       "circle-stroke-color":"#fff","circle-stroke-width":1,"circle-opacity":0.9}},before);
   raiseLabels();
-  if(!E.hasCamera&&!E.globe){fit();}else if(E.bounds){map.fitBounds(E.bounds,{pitch:E.pitch,bearing:E.bearing,duration:0,padding:0});}
+  if(!E.hasCamera){if(E.globe){fit(E.pitch);}else{fit();}}
   if(E.showLegend)legend();
   if(E.tooltip)tooltip();
   annotations();
 }
-function fit(){try{var b=new maplibregl.LngLatBounds();
+function fit(pitch){try{var b=new maplibregl.LngLatBounds();
   function ext(c){if(typeof c[0]==="number"){b.extend(c);}else{c.forEach(ext);}}
   (E.geojson.features||[]).forEach(function(f){if(f.geometry&&f.geometry.coordinates)ext(f.geometry.coordinates);});
-  if(!b.isEmpty())map.fitBounds(b,{padding:48,duration:0,maxZoom:9});}catch(e){}}
+  var opt={padding:48,duration:0,maxZoom:9};if(pitch!=null)opt.pitch=pitch;
+  if(!b.isEmpty())map.fitBounds(b,opt);}catch(e){}}
 function legend(){
   if(E.legendKind==="none")return;
   var box=document.createElement("div");box.className="lgd";
