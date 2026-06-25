@@ -809,7 +809,7 @@ function build(){
     hoverFx();
   }
   if(E.render!=="extrusion")raiseLabels();
-  if(!E.hasCamera){if(E.globe||E.pitch>0){fit(E.pitch);}else{fit();}}
+  fit(E.pitch);
   if(E.showLegend)legend(noData);
   if(E.tooltip)tooltip();
   if(E.frames&&E.frames.length>1)timeUI();
@@ -1332,7 +1332,7 @@ function build(){
       paint:{"text-color":"#0f172a","text-halo-color":"#fff","text-halo-width":1.4}});
   }
   raiseLabels();
-  if(!E.hasCamera){if(E.globe){fit(E.pitch);}else{fit();}}
+  fit(E.pitch);
   if(E.showLegend)legend();
   if(E.tooltip)tooltip();
   annotations();
@@ -1610,7 +1610,7 @@ function build(){
     paint:{"circle-color":E.circleColor,"circle-radius":E.circleRadius||5,
       "circle-stroke-color":"#fff","circle-stroke-width":1,"circle-opacity":0.9}},before);
   raiseLabels();
-  if(!E.hasCamera){if(E.globe){fit(E.pitch);}else{fit();}}
+  fit(E.pitch);
   if(E.showLegend)legend();
   if(E.tooltip)tooltip();
   annotations();
