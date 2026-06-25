@@ -81,7 +81,7 @@ const NEED_GEO_AREA_VALUE: Rule = (s) =>
     : {
         ok: false,
         reason: !s.hasGeoArea
-          ? "serve una colonna geografica (regione/provincia/comune/paese)"
+          ? "serve una colonna geografica"
           : "serve una colonna numerica da mappare",
       };
 

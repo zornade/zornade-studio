@@ -940,7 +940,7 @@ function fit(){try{var b=new maplibregl.LngLatBounds();
   GEO.features.forEach(function(f){var g=f.geometry;if(!g)return;
     var cc=g.type==="Polygon"?[g.coordinates]:g.type==="MultiPolygon"?g.coordinates:null;
     if(!cc)return;cc.forEach(function(poly){poly[0].forEach(function(pt){b.extend(pt);});});});
-  if(!b.isEmpty())map.fitBounds(b,{padding:24,duration:0,maxZoom:9});}catch(e){}}
+  if(!b.isEmpty())map.fitBounds(b,{padding:48,duration:0,maxZoom:9});}catch(e){}}
 function legend(noData){
   var box=document.createElement("div");box.className="lgd";
   var t=document.createElement("p");t.className="lgd-t";t.textContent=E.valueLabel||"Legenda";box.appendChild(t);
@@ -1312,7 +1312,7 @@ function fit(){try{var b=new maplibregl.LngLatBounds();
   (E.geojson.features||[]).forEach(function(f){var g=f.geometry;if(!g)return;
     if(g.type==="Point")b.extend(g.coordinates);
     else if(g.type==="Polygon")g.coordinates[0].forEach(function(pt){b.extend(pt);});});
-  if(!b.isEmpty())map.fitBounds(b,{padding:36,duration:0,maxZoom:12});}catch(e){}}
+  if(!b.isEmpty())map.fitBounds(b,{padding:48,duration:0,maxZoom:9});}catch(e){}}
 function legend(){
   if(E.legendKind==="none")return;
   var box=document.createElement("div");box.className="lgd";
@@ -1588,7 +1588,7 @@ function build(){
 function fit(){try{var b=new maplibregl.LngLatBounds();
   function ext(c){if(typeof c[0]==="number"){b.extend(c);}else{c.forEach(ext);}}
   (E.geojson.features||[]).forEach(function(f){if(f.geometry&&f.geometry.coordinates)ext(f.geometry.coordinates);});
-  if(!b.isEmpty())map.fitBounds(b,{padding:36,duration:0,maxZoom:12});}catch(e){}}
+  if(!b.isEmpty())map.fitBounds(b,{padding:48,duration:0,maxZoom:9});}catch(e){}}
 function legend(){
   if(E.legendKind==="none")return;
   var box=document.createElement("div");box.className="lgd";
