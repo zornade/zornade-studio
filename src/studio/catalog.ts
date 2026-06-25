@@ -203,22 +203,22 @@ export const SOURCE_GROUPS: SourceGroup[] = [
     items: [
       {
         id: "catalog",
-        label: "Catalogo open data",
-        desc: "ISTAT, ISPRA, Agenzia Entrate, INGV… cerca per tema",
+        label: "Italia",
+        desc: "Fonti ufficiali",
         icon: Sparkles,
         status: "ready",
       },
       {
         id: "eurostat",
         label: "Eurostat",
-        desc: "23 dataset europei curati: demografica, PIL, lavoro, ambiente, turismo…",
+        desc: "Dataset europei curati",
         icon: Flag,
         status: "ready",
       },
       {
         id: "osm",
         label: "OpenStreetMap",
-        desc: "Porti, scuole, ospedali, musei… in tutta Italia",
+        desc: "Accedi al database osm completo",
         icon: Globe2,
         status: "ready",
       },
