@@ -1,27 +1,25 @@
 /**
  * POST /api/adsb-etl  { date, bbox, from, to, minPoints?, noMilitary? }
  *
- * Background function (timeout 15 min): scarica i tar giornalieri di
- * adsblol/globe_history_{year}, filtra le traiettorie per area geografica e
- * finestra temporale, e pubblica il GeoJSON risultante su DO Spaces sotto
- * `embed/adsb/{jobId}.geojson`. Lo stato di avanzamento è scritto in
- * `embed/adsb/{jobId}.status.json` (polling via /embed/* Netlify proxy).
+ * Background function (Netlify, timeout 15 min). Con `config.background = true`
+ * Netlify invia il 202 al client AUTOMATICAMENTE prima che il body esegua.
+ * NON usare return/async-IIFE: tutto il lavoro va fatto nel body direttamente.
  *
- * Il jobId è deterministico (slug dai parametri): il client può calcolarlo
- * prima di chiamare questo endpoint e iniziare a fare polling immediatamente.
+ * Flusso:
+ *  1. Parse params (prima dell'auth: serve per scrivere errori al jobId)
+ *  2. Resolve S3 credentials
+ *  3. Auth check (scrive error status su S3 se fallisce)
+ *  4. Idempotency: se status=done gia' esiste, esce
+ *  5. Scrive status "running" su S3
+ *  6. ETL: stream tar -> parse traiettorie -> GeoJSON su S3
+ *  7. Scrive status "done" (o "error") su S3
  *
- * Architettura dati:
- *   - Fonte: https://github.com/adsblol/globe_history_{year} (ODbL 1.0)
- *   - Attribuzione obbligatoria: "© adsb.lol contributors (ODbL)"
- *   - Bucket: SPACES_BUCKET (zornade-studio-embed), path: embed/adsb/
- *   - Proxy CDN: /embed/* → Spaces CDN (vedi netlify.toml)
+ * Il jobId e' deterministico (stessa logica di adsbJobId() in DataPanel.tsx).
+ * Il client fa polling su /embed/adsb/{jobId}.status.json (proxy Netlify -> Spaces).
  *
- * Environment variables (stesse di publish.mts):
+ * Env vars (stesse di publish.mts):
  *   SPACES_KEY, SPACES_SECRET, SPACES_BUCKET, SPACES_REGION
  *   STUDIO_SESSION_SECRET
- *
- * Netlify background function: Netlify invia 202 al client PRIMA che la
- * funzione inizi a girare. La funzione gira in background fino a 15 minuti.
  */
 
 import { gunzipSync } from "node:zlib";
@@ -30,7 +28,7 @@ import { S3Client, PutObjectCommand, GetObjectCommand } from "@aws-sdk/client-s3
 import { extract as tarExtract } from "tar-stream";
 import { verifyToken, readCookie } from "./_session.mts";
 
-// ── Bounding box (lat_min, lat_max, lon_min, lon_max) ────────────────────────
+// -- Bounding box (lat_min, lat_max, lon_min, lon_max) ------------------------
 const BBOXES: Record<string, [number, number, number, number]> = {
   italy:         [36.0,  47.5,   6.0,  18.5],
   europe:        [35.0,  72.0, -10.0,  35.0],
@@ -44,11 +42,11 @@ const BBOXES: Record<string, [number, number, number, number]> = {
   sicily:        [36.5,  38.5,  12.0,  15.5],
 };
 
-// Colonne trace array readsb (verificate su dati reali, vedi adsb_etl.py)
+// Colonne trace array readsb (verificate su dati reali)
 const I_DT = 0, I_LAT = 1, I_LON = 2, I_ALT = 3, I_GS = 4, I_TRACK = 5,
-              I_FLAGS = 6, I_VRATE = 7, I_EXTRA = 8;
+              I_EXTRA = 8;
 
-// ── Helpers S3 ───────────────────────────────────────────────────────────────
+// -- Helpers S3 ---------------------------------------------------------------
 function makeS3(key: string, secret: string, region: string): S3Client {
   return new S3Client({
     endpoint: `https://${region}.digitaloceanspaces.com`,
@@ -77,7 +75,7 @@ async function putJson(
   );
 }
 
-// ── JobId deterministico ─────────────────────────────────────────────────────
+/** JobId deterministico -- stessa logica di adsbJobId() in DataPanel.tsx. */
 export function makeJobId(
   bbox: string,
   date: string,
@@ -91,7 +89,7 @@ export function makeJobId(
   return `adsb-${bbox}-${date}-${f}-${t}${mil}`;
 }
 
-// ── Resolve URL tar dalla PREFERRED_RELEASES.txt ─────────────────────────────
+// -- Resolve URL tar dalla PREFERRED_RELEASES.txt -----------------------------
 async function resolveTarUrls(date: string): Promise<string[]> {
   const year = date.slice(0, 4);
   const tagDate = date.replace(/-/g, ".");
@@ -114,7 +112,7 @@ async function resolveTarUrls(date: string): Promise<string[]> {
   );
 }
 
-// ── Parser singola traccia (portato da adsb_etl.py) ──────────────────────────
+// -- Parser singola traccia ---------------------------------------------------
 interface GeoFeature {
   type: "Feature";
   properties: Record<string, unknown>;
@@ -164,7 +162,6 @@ function parseTrace(
   const isMilitary = Boolean(dbFlags & 1);
   if (noMilitary && isMilitary) return null;
 
-  // Estrai callsign dal primo extra con {flight: ...}
   let flight = "";
   for (const entry of trace) {
     const extra = entry[I_EXTRA];
@@ -186,22 +183,17 @@ function parseTrace(
 
   for (const entry of trace) {
     if (entry.length < 3) continue;
-    const dtS = Number(entry[I_DT]);
     const lat = entry[I_LAT];
     const lon = entry[I_LON];
     if (lat == null || lon == null) continue;
 
-    const tAbs = tsBase + dtS;
+    const tAbs = tsBase + Number(entry[I_DT]);
     if (tAbs < tFrom || tAbs > tTo) continue;
     if (!inBbox(Number(lat), Number(lon), bbox)) continue;
 
     const altRaw = entry.length > I_ALT ? entry[I_ALT] : null;
     const alt: number | null =
-      altRaw === "ground"
-        ? 0
-        : typeof altRaw === "number"
-          ? altRaw
-          : null;
+      altRaw === "ground" ? 0 : typeof altRaw === "number" ? altRaw : null;
 
     const gsRaw = entry.length > I_GS ? entry[I_GS] : null;
     const gs: number | null = typeof gsRaw === "number" ? gsRaw : null;
@@ -218,8 +210,8 @@ function parseTrace(
     }
 
     coords.push([
-      Math.round(Number(lon) * 100000) / 100000,
-      Math.round(Number(lat) * 100000) / 100000,
+      Math.round(Number(lon) * 1e5) / 1e5,
+      Math.round(Number(lat) * 1e5) / 1e5,
     ]);
     timestamps.push(Math.round(tAbs * 10) / 10);
     alts.push(alt != null ? Math.round(alt) : null);
@@ -239,11 +231,7 @@ function parseTrace(
   return {
     type: "Feature",
     properties: {
-      icao,
-      r: reg,
-      t: aType,
-      flight,
-      dbFlags,
+      icao, r: reg, t: aType, flight, dbFlags,
       is_military: isMilitary,
       is_emergency: hasEmergency,
       n_points: coords.length,
@@ -255,16 +243,13 @@ function parseTrace(
       gs_avg_kts: gsNums.length
         ? Math.round(gsNums.reduce((a, b) => a + b, 0) / gsNums.length)
         : null,
-      __t: timestamps,
-      __alt: alts,
-      __track: tracks,
-      __gs: gsVals,
+      __t: timestamps, __alt: alts, __track: tracks, __gs: gsVals,
     },
     geometry: { type: "LineString", coordinates: coords },
   };
 }
 
-// ── Core ETL: stream tar → features ─────────────────────────────────────────
+// -- ETL: stream tar sequenzialmente -> array di features ---------------------
 async function runEtl(
   urls: string[],
   bbox: [number, number, number, number],
@@ -274,58 +259,46 @@ async function runEtl(
   noMilitary: boolean,
 ): Promise<GeoFeature[]> {
   const features: GeoFeature[] = [];
-
-  // PassThrough concatena le parti tar in sequenza verso l'estrattore
   const pass = new PassThrough();
   const ex = tarExtract();
 
-  // Processo ogni entry del tar
   ex.on("entry", (header, stream, next) => {
     if (!header.name.includes("trace_full_")) {
       stream.resume();
       next();
       return;
     }
-
     const chunks: Buffer[] = [];
     stream.on("data", (chunk: Buffer) => chunks.push(chunk));
     stream.on("end", () => {
       try {
-        const raw = Buffer.concat(chunks);
-        const feat = parseTrace(raw, bbox, tFrom, tTo, minPoints, noMilitary);
+        const feat = parseTrace(
+          Buffer.concat(chunks), bbox, tFrom, tTo, minPoints, noMilitary,
+        );
         if (feat) features.push(feat);
       } catch {
-        // entry malformata: ignora, continua
+        // entry malformata: ignora
       }
       next();
     });
-    stream.on("error", () => {
-      next(); // non bloccare l'estrazione per errori su singola entry
-    });
+    stream.on("error", () => next());
   });
 
   pass.pipe(ex);
 
-  // Estrazione terminata
   const extractDone = new Promise<void>((resolve, reject) => {
     ex.on("finish", resolve);
     ex.on("error", reject);
   });
 
-  // Piped HTTP response sequenzialmente nel PassThrough
   for (const url of urls) {
-    const resp = await fetch(url, {
-      signal: AbortSignal.timeout(600_000), // 10 min per parte
-    });
-    if (!resp.ok || !resp.body) {
+    const resp = await fetch(url, { signal: AbortSignal.timeout(600_000) });
+    if (!resp.ok || !resp.body)
       throw new Error(`HTTP ${resp.status} su ${url.split("/").pop()}`);
-    }
-
     const reader = resp.body.getReader();
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
-      // Backpressure: aspetta drain se il buffer è pieno
       if (!pass.write(value)) {
         await new Promise<void>((resolve) => pass.once("drain", resolve));
       }
@@ -334,56 +307,26 @@ async function runEtl(
 
   pass.end();
   await extractDone;
-
   return features;
 }
 
-// ── Handler principale ───────────────────────────────────────────────────────
-export default async (req: Request): Promise<Response> => {
-  if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
-
-  // 1. Auth (stessa sessione firmata di publish.mts / db.mts)
-  const secret = process.env.STUDIO_SESSION_SECRET;
-  if (!secret) return json({ error: "Auth non configurata." }, 500);
-  const token = readCookie(req.headers.get("cookie"));
-  if (!token || !verifyToken(token, secret)) {
-    return json({ error: "Non autenticato." }, 401);
-  }
-
-  // 2. Storage
-  const spacesKey = process.env.SPACES_KEY;
-  const spacesSecret = process.env.SPACES_SECRET;
-  const bucket = process.env.SPACES_BUCKET;
-  const region = process.env.SPACES_REGION;
-  if (!spacesKey || !spacesSecret || !bucket || !region) {
-    const missing = [
-      !spacesKey && "SPACES_KEY",
-      !spacesSecret && "SPACES_SECRET",
-      !bucket && "SPACES_BUCKET",
-      !region && "SPACES_REGION",
-    ].filter(Boolean);
-    return json({ error: `Storage non configurato: ${missing.join(", ")}.` }, 500);
-  }
-
-  // 3. Parametri
-  let params: {
-    date?: unknown;
-    bbox?: unknown;
-    from?: unknown;
-    to?: unknown;
-    minPoints?: unknown;
-    noMilitary?: unknown;
-  };
+// -- Handler principale (BACKGROUND FUNCTION) ---------------------------------
+//
+// CON background:true Netlify invia il 202 automaticamente PRIMA che questo
+// body esegua. Il valore di ritorno e' ignorato. NON usare async IIFE ne'
+// return intermedi con Response: tutto il lavoro va svolto qui direttamente.
+//
+export default async (req: Request): Promise<void> => {
+  // 1. Parse params (prima dell'auth: serve il jobId per scrivere error status)
+  let params: Record<string, unknown> = {};
   try {
-    params = (await req.json()) as typeof params;
+    params = (await req.json()) as Record<string, unknown>;
   } catch {
-    return json({ error: "Corpo della richiesta non valido (JSON atteso)." }, 400);
+    return;
   }
 
   const date = typeof params.date === "string" ? params.date : "";
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-    return json({ error: "Parametro date mancante o non valido (YYYY-MM-DD)." }, 400);
-  }
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return;
 
   const bboxKey = typeof params.bbox === "string" ? params.bbox : "italy";
   let bbox: [number, number, number, number];
@@ -396,46 +339,60 @@ export default async (req: Request): Promise<Response> => {
       parts.some((n) => !isFinite(n)) ||
       parts[0] < -90 || parts[1] > 90 ||
       parts[2] < -180 || parts[3] > 180
-    ) {
-      return json({
-        error: `bbox non valida: usa un preset (${Object.keys(BBOXES).join(", ")}) o lat_min,lat_max,lon_min,lon_max.`,
-      }, 400);
-    }
+    ) return;
     bbox = [parts[0], parts[1], parts[2], parts[3]];
   }
 
   const fromStr = typeof params.from === "string" ? params.from : "00:00";
-  const toStr = typeof params.to === "string" ? params.to : "23:59";
-  if (!/^\d{2}:\d{2}$/.test(fromStr) || !/^\d{2}:\d{2}$/.test(toStr)) {
-    return json({ error: "Parametri from/to non validi (HH:MM)." }, 400);
-  }
+  const toStr   = typeof params.to   === "string" ? params.to   : "23:59";
+  if (!/^\d{2}:\d{2}$/.test(fromStr) || !/^\d{2}:\d{2}$/.test(toStr)) return;
 
   const minPoints = typeof params.minPoints === "number"
     ? Math.max(1, Math.floor(params.minPoints))
     : 5;
   const noMilitary = params.noMilitary === true;
 
-  // Converti finestra temporale in Unix epoch
-  const [yStr, mStr, dStr] = date.split("-");
+  const [yS, mS, dS] = date.split("-");
   const dayStart = Date.UTC(
-    parseInt(yStr, 10),
-    parseInt(mStr, 10) - 1,
-    parseInt(dStr, 10),
+    parseInt(yS, 10), parseInt(mS, 10) - 1, parseInt(dS, 10),
   ) / 1000;
-  const [fhStr, fmStr] = fromStr.split(":");
-  const [thStr, tmStr] = toStr.split(":");
-  const tFrom = dayStart + parseInt(fhStr, 10) * 3600 + parseInt(fmStr, 10) * 60;
-  const tTo   = dayStart + parseInt(thStr, 10) * 3600 + parseInt(tmStr, 10) * 60 + 59;
+  const [fh, fm] = fromStr.split(":");
+  const [th, tm] = toStr.split(":");
+  const tFrom = dayStart + parseInt(fh, 10) * 3600 + parseInt(fm, 10) * 60;
+  const tTo   = dayStart + parseInt(th, 10) * 3600 + parseInt(tm, 10) * 60 + 59;
 
-  // 4. JobId deterministico (calcolo identico nel client)
   const jobId = makeJobId(bboxKey, date, fromStr, toStr, noMilitary);
   const statusKey = `embed/adsb/${jobId}.status.json`;
   const geojsonKey = `embed/adsb/${jobId}.geojson`;
-  const baseUrl = (process.env.EMBED_BASE_URL ?? "https://studio.zornade.com").replace(/\/$/, "");
+
+  // 2. Storage
+  const spacesKey    = process.env.SPACES_KEY;
+  const spacesSecret = process.env.SPACES_SECRET;
+  const bucket       = process.env.SPACES_BUCKET;
+  const region       = process.env.SPACES_REGION;
+  if (!spacesKey || !spacesSecret || !bucket || !region) return;
 
   const s3 = makeS3(spacesKey, spacesSecret, region);
 
-  // 5. Controlla se il job è già completato (idempotenza: evita riesecuzioni)
+  // 3. Auth (scrive error status su S3 se fallisce, cosi' il client lo vede)
+  const secret = process.env.STUDIO_SESSION_SECRET;
+  if (!secret) {
+    await putJson(s3, bucket, statusKey, {
+      status: "error", message: "Auth non configurata.",
+      finishedAt: new Date().toISOString(),
+    }).catch(() => {});
+    return;
+  }
+  const token = readCookie(req.headers.get("cookie"));
+  if (!token || !verifyToken(token, secret)) {
+    await putJson(s3, bucket, statusKey, {
+      status: "error", message: "Non autenticato.",
+      finishedAt: new Date().toISOString(),
+    }).catch(() => {});
+    return;
+  }
+
+  // 4. Idempotency: se gia' done, non rieseguire
   try {
     const existing = await s3.send(
       new GetObjectCommand({ Bucket: bucket, Key: statusKey }),
@@ -443,135 +400,77 @@ export default async (req: Request): Promise<Response> => {
     const body = await existing.Body?.transformToString("utf-8");
     if (body) {
       const st = JSON.parse(body) as { status: string };
-      if (st.status === "done") {
-        // Già completato: risposta 202 (il client farà polling e lo troverà)
-        return json({ jobId, cached: true }, 202);
-      }
+      if (st.status === "done") return;
     }
   } catch {
-    // Non esiste ancora → procedi normalmente
+    // Non esiste ancora: procedi
   }
 
-  // 6. Scrivi status "running" su Spaces (il client fa polling su questo)
+  // 5. Scrivi "running"
   try {
     await putJson(s3, bucket, statusKey, {
       status: "running",
       startedAt: new Date().toISOString(),
-      date,
-      bbox: bboxKey,
-      from: fromStr,
-      to: toStr,
-      noMilitary,
+      date, bbox: bboxKey, from: fromStr, to: toStr, noMilitary,
     });
-  } catch (e) {
-    return json({ error: `Errore storage (running): ${String(e)}` }, 500);
+  } catch {
+    return;
   }
 
-  // Restituisci 202 immediatamente al client con il jobId.
-  // Netlify invia la risposta PRIMA dell'esecuzione del codice successivo
-  // (background function): il codice sotto gira in background fino a 15 min.
-  const response = json({ jobId, statusUrl: `${baseUrl}/embed/adsb/${jobId}.status.json` }, 202);
+  // 6. ETL
+  console.log(`[adsb-etl] start ${jobId}`);
+  try {
+    const urls = await resolveTarUrls(date);
+    console.log(`[adsb-etl] ${jobId}: ${urls.length} parti tar`);
 
-  // 7. ETL in background ─────────────────────────────────────────────────────
-  (async () => {
-    try {
-      // Risolvi URL tar da PREFERRED_RELEASES.txt
-      let urls: string[];
-      try {
-        urls = await resolveTarUrls(date);
-      } catch (e) {
-        await putJson(s3, bucket, statusKey, {
-          status: "error",
-          message: String(e),
-          finishedAt: new Date().toISOString(),
-        });
-        return;
-      }
+    const features = await runEtl(urls, bbox, tFrom, tTo, minPoints, noMilitary);
+    console.log(`[adsb-etl] ${jobId}: ${features.length} aerei`);
 
-      console.log(
-        `[adsb-etl] ${jobId}: ${urls.length} parti tar, ` +
-        `bbox=${bboxKey} ${fromStr}-${toStr} UTC`,
-      );
+    const fc = {
+      type: "FeatureCollection",
+      metadata: {
+        source: "adsb.lol/globe_history",
+        license: "ODbL 1.0",
+        attribution:
+          "\u00a9 adsb.lol contributors (ODbL) \u2014 " +
+          "opendatacommons.org/licenses/odbl/1.0/",
+        date, bbox: Array.from(bbox), bbox_name: bboxKey,
+        time_from_utc: fromStr, time_to_utc: toStr,
+        military_excluded: noMilitary,
+        aircraft_count: features.length,
+        generated_at: new Date().toISOString(),
+      },
+      features,
+    };
 
-      // Stream ETL
-      const features = await runEtl(
-        urls, bbox, tFrom, tTo, minPoints, noMilitary,
-      );
+    await s3.send(
+      new PutObjectCommand({
+        Bucket: bucket,
+        Key: geojsonKey,
+        Body: JSON.stringify(fc),
+        ContentType: "application/geo+json; charset=utf-8",
+        CacheControl: "public, max-age=86400",
+        ACL: "public-read",
+      }),
+    );
 
-      console.log(`[adsb-etl] ${jobId}: ${features.length} aerei accettati`);
+    await putJson(s3, bucket, statusKey, {
+      status: "done",
+      count: features.length,
+      url: `/embed/adsb/${jobId}.geojson`,
+      date, bbox: bboxKey, from: fromStr, to: toStr, noMilitary,
+      finishedAt: new Date().toISOString(),
+    });
 
-      // Costruisci FeatureCollection
-      const fc = {
-        type: "FeatureCollection",
-        metadata: {
-          source: "adsb.lol/globe_history",
-          license: "ODbL 1.0",
-          attribution:
-            "© adsb.lol contributors (ODbL) — " +
-            "opendatacommons.org/licenses/odbl/1.0/",
-          date,
-          bbox: Array.from(bbox),
-          bbox_name: bboxKey,
-          time_from_utc: fromStr,
-          time_to_utc: toStr,
-          military_excluded: noMilitary,
-          aircraft_count: features.length,
-          generated_at: new Date().toISOString(),
-        },
-        features,
-      };
-
-      // Upload GeoJSON su Spaces
-      await s3.send(
-        new PutObjectCommand({
-          Bucket: bucket,
-          Key: geojsonKey,
-          Body: JSON.stringify(fc),
-          ContentType: "application/geo+json; charset=utf-8",
-          CacheControl: "public, max-age=86400", // 24h — dato storico immutabile
-          ACL: "public-read",
-        }),
-      );
-
-      // Aggiorna status "done"
-      await putJson(s3, bucket, statusKey, {
-        status: "done",
-        count: features.length,
-        url: `/embed/adsb/${jobId}.geojson`,
-        date,
-        bbox: bboxKey,
-        from: fromStr,
-        to: toStr,
-        noMilitary,
-        finishedAt: new Date().toISOString(),
-      });
-
-      console.log(`[adsb-etl] ${jobId}: done`);
-    } catch (e) {
-      console.error(`[adsb-etl] ${jobId} error:`, e);
-      try {
-        await putJson(s3, bucket, statusKey, {
-          status: "error",
-          message: e instanceof Error ? e.message : String(e),
-          finishedAt: new Date().toISOString(),
-        });
-      } catch {
-        // Se anche la scrittura dell'errore fallisce, non c'è molto da fare
-      }
-    }
-  })();
-
-  return response;
+    console.log(`[adsb-etl] done ${jobId}`);
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error(`[adsb-etl] error ${jobId}:`, msg);
+    await putJson(s3, bucket, statusKey, {
+      status: "error", message: msg,
+      finishedAt: new Date().toISOString(),
+    }).catch(() => {});
+  }
 };
-
-function json(data: unknown, status: number): Response {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: {
-      "content-type": "application/json",
-      "cache-control": "no-store",
-    },
-  });
-}
 
 export const config = { path: "/api/adsb-etl", background: true };
