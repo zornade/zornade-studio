@@ -1,13 +1,16 @@
 /**
- * Compact bbox-picker map widget.
+ * Bbox-picker map widget.
  *
- * The user clicks and drags to draw a bounding box over a MapLibre mini-map.
- * The selected area is highlighted as a semi-transparent fill and the
- * coordinates are emitted via `onChange`.
+ * In fullscreen mode: pan/zoom freely; click the "Disegna area" toggle to
+ * enter draw mode, then drag a rectangle. After a successful draw the tool
+ * auto-exits draw mode so the user can inspect/pan without re-activating.
+ *
+ * In mini-map (sidebar) mode: draw mode is always on (compact UX).
  *
  * No extra dependencies beyond maplibre-gl (already in the bundle).
  */
 import { useEffect, useRef, useState } from "react";
+import { Pencil, Move } from "lucide-react";
 import maplibregl from "maplibre-gl";
 import type { BboxValue } from "../studio/types";
 
@@ -35,6 +38,13 @@ export function BboxPickerMap({ value, onChange, fullscreen = false }: Props) {
   const startPx = useRef<{ x: number; y: number } | null>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
   const [hint, setHint] = useState<string | null>(null);
+
+  /**
+   * In fullscreen mode the user starts with pan/zoom free and must explicitly
+   * activate draw mode via the toggle button.
+   * In mini-map mode draw mode is always on.
+   */
+  const [drawActive, setDrawActive] = useState(!fullscreen);
 
   // Sync the GeoJSON bbox rectangle when `value` changes externally
   const syncRect = (map: maplibregl.Map, bbox: BboxValue | null) => {
@@ -134,15 +144,11 @@ export function BboxPickerMap({ value, onChange, fullscreen = false }: Props) {
   // Pointer event handlers on the canvas overlay
   const onPointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     const map = mapRef.current;
-    if (!map || e.button !== 0) return;
-    // Only start drawing when Ctrl/Meta held OR when explicitly in draw mode
-    // (we intercept always — pan is still possible by not dragging)
+    if (!map || e.button !== 0 || !drawActive) return;
     dragging.current = true;
     startPx.current = { x: e.clientX, y: e.clientY };
     e.currentTarget.setPointerCapture(e.pointerId);
     setHint(null);
-
-    // Disable map panning while drawing
     map.dragPan.disable();
     map.scrollZoom.disable();
   };
@@ -203,7 +209,10 @@ export function BboxPickerMap({ value, onChange, fullscreen = false }: Props) {
 
     startPx.current = null;
     onChange(bbox);
-    setHint(`${bbox.south.toFixed(2)},${bbox.west.toFixed(2)} → ${bbox.north.toFixed(2)},${bbox.east.toFixed(2)}`);
+    setHint(`${bbox.west.toFixed(2)},${bbox.south.toFixed(2)} → ${bbox.east.toFixed(2)},${bbox.north.toFixed(2)}`);
+    // In fullscreen: auto-exit draw mode after a successful draw so the user
+    // can pan/zoom to inspect the selected area without needing to deactivate.
+    if (fullscreen) setDrawActive(false);
   };
 
   return (
@@ -215,14 +224,16 @@ export function BboxPickerMap({ value, onChange, fullscreen = false }: Props) {
         {/* MapLibre container */}
         <div ref={containerRef} className="absolute inset-0" />
 
-        {/* Transparent pointer-capture overlay for drawing */}
-        <div
-          className="absolute inset-0"
-          style={{ cursor: "crosshair", zIndex: 10 }}
-          onPointerDown={onPointerDown}
-          onPointerMove={onPointerMove}
-          onPointerUp={onPointerUp}
-        />
+        {/* Transparent pointer-capture overlay — only active in draw mode */}
+        {drawActive && (
+          <div
+            className="absolute inset-0"
+            style={{ cursor: "crosshair", zIndex: 10 }}
+            onPointerDown={onPointerDown}
+            onPointerMove={onPointerMove}
+            onPointerUp={onPointerUp}
+          />
+        )}
 
         {/* Visual selection rectangle during drag */}
         <div
@@ -231,14 +242,46 @@ export function BboxPickerMap({ value, onChange, fullscreen = false }: Props) {
           style={{ zIndex: 11 }}
         />
 
+        {/* Draw-mode toggle — visible only in fullscreen mode */}
+        {fullscreen && (
+          <div
+            className="absolute left-3 top-3 z-20"
+          >
+            <button
+              onClick={() => setDrawActive((v) => !v)}
+              title={drawActive ? "Sposta mappa" : "Disegna area"}
+              className={`flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold shadow-md transition-colors ${
+                drawActive
+                  ? "bg-zornade text-white hover:bg-zornade-700"
+                  : "bg-white text-slate-700 hover:bg-slate-50 border border-slate-200"
+              }`}
+            >
+              {drawActive
+                ? <><Pencil size={13} /> Seleziona area</>
+                : <><Move size={13} /> Sposta / zoom</>
+              }
+            </button>
+          </div>
+        )}
+
         {/* Instruction overlay when nothing drawn */}
-        {!value && (
+        {!value && !drawActive && fullscreen && (
+          <div
+            className="pointer-events-none absolute inset-x-0 bottom-4 flex justify-center"
+            style={{ zIndex: 12 }}
+          >
+            <span className="rounded-full bg-black/60 px-3 py-1.5 text-xs font-medium text-white">
+              Clicca "Seleziona area" in alto a sinistra, poi trascina sulla mappa
+            </span>
+          </div>
+        )}
+        {!value && drawActive && (
           <div
             className="pointer-events-none absolute inset-x-0 bottom-1 flex justify-center"
             style={{ zIndex: 12 }}
           >
             <span className="rounded-full bg-black/60 px-2.5 py-1 text-[11px] font-medium text-white">
-              Clicca e trascina per selezionare
+              Trascina per selezionare un'area
             </span>
           </div>
         )}

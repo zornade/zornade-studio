@@ -79,7 +79,14 @@ function Workspace() {
       </aside>
 
       <main className="min-w-0 flex-1">
-        {data ? (
+        {bboxPickMode ? (
+          /* Bbox picker: replaces any existing canvas while OSM bbox mode is active */
+          <BboxPickerMap
+            value={pendingBbox}
+            onChange={setPendingBbox}
+            fullscreen
+          />
+        ) : data ? (
           step === "structure" ? (
             <StructurePreview />
           ) : (
@@ -87,13 +94,6 @@ function Workspace() {
               {useChartCanvas ? <ChartCanvas /> : <MapCanvas />}
             </MapErrorBoundary>
           )
-        ) : bboxPickMode ? (
-          /* Full-size bbox picker — shown when OSM bbox mode is active and no data yet */
-          <BboxPickerMap
-            value={pendingBbox}
-            onChange={setPendingBbox}
-            fullscreen
-          />
         ) : (
           <MapEmptyState />
         )}
