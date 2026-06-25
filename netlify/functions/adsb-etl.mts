@@ -335,16 +335,22 @@ async function runEtl(
 // return intermedi con Response: tutto il lavoro va svolto qui direttamente.
 //
 export default async (req: Request): Promise<void> => {
+  console.log("[adsb-etl] handler invocato");
+
   // 1. Parse params (prima dell'auth: serve il jobId per scrivere error status)
   let params: Record<string, unknown> = {};
   try {
     params = (await req.json()) as Record<string, unknown>;
   } catch {
+    console.error("[adsb-etl] EARLY EXIT: req.json() fallito");
     return;
   }
 
   const date = typeof params.date === "string" ? params.date : "";
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    console.error("[adsb-etl] EARLY EXIT: date non valida:", params.date);
+    return;
+  }
 
   const bboxKey = typeof params.bbox === "string" ? params.bbox : "italy";
   let bbox: [number, number, number, number];
@@ -357,13 +363,19 @@ export default async (req: Request): Promise<void> => {
       parts.some((n) => !isFinite(n)) ||
       parts[0] < -90 || parts[1] > 90 ||
       parts[2] < -180 || parts[3] > 180
-    ) return;
+    ) {
+      console.error("[adsb-etl] EARLY EXIT: bbox non valida:", bboxKey);
+      return;
+    }
     bbox = [parts[0], parts[1], parts[2], parts[3]];
   }
 
   const fromStr = typeof params.from === "string" ? params.from : "00:00";
   const toStr   = typeof params.to   === "string" ? params.to   : "23:59";
-  if (!/^\d{2}:\d{2}$/.test(fromStr) || !/^\d{2}:\d{2}$/.test(toStr)) return;
+  if (!/^\d{2}:\d{2}$/.test(fromStr) || !/^\d{2}:\d{2}$/.test(toStr)) {
+    console.error("[adsb-etl] EARLY EXIT: from/to non validi:", fromStr, toStr);
+    return;
+  }
 
   const minPoints = typeof params.minPoints === "number"
     ? Math.max(1, Math.floor(params.minPoints))
@@ -383,12 +395,18 @@ export default async (req: Request): Promise<void> => {
   const statusKey = `embed/adsb/${jobId}.status.json`;
   const geojsonKey = `embed/adsb/${jobId}.geojson`;
 
+  console.log(`[adsb-etl] jobId=${jobId}`);
+
   // 2. Storage
   const spacesKey    = process.env.SPACES_KEY;
   const spacesSecret = process.env.SPACES_SECRET;
   const bucket       = process.env.SPACES_BUCKET;
   const region       = process.env.SPACES_REGION;
-  if (!spacesKey || !spacesSecret || !bucket || !region) return;
+  if (!spacesKey || !spacesSecret || !bucket || !region) {
+    console.error("[adsb-etl] EARLY EXIT: env vars Spaces mancanti:",
+      { SPACES_KEY: !!spacesKey, SPACES_SECRET: !!spacesSecret, SPACES_BUCKET: !!bucket, SPACES_REGION: !!region });
+    return;
+  }
 
   const s3 = makeS3(spacesKey, spacesSecret, region);
 
@@ -431,7 +449,9 @@ export default async (req: Request): Promise<void> => {
       startedAt: new Date().toISOString(),
       date, bbox: bboxKey, from: fromStr, to: toStr, noMilitary,
     });
-  } catch {
+    console.log(`[adsb-etl] status "running" scritto per ${jobId}`);
+  } catch (e) {
+    console.error(`[adsb-etl] EARLY EXIT: putJson "running" fallito:`, e);
     return;
   }
 
