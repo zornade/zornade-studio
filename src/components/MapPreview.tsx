@@ -962,9 +962,20 @@ export function MapPreview({
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
+    // On the globe, entering 3D extrusion re-frames the data with the tilt (the
+    // same as the globe-toggle path) so the bars are not lost in the whole-world
+    // view; on the flat map a plain pitch ease is enough.
+    if (globeRef.current && pitch > 0 && dataLayer) {
+      const bounds = computeBounds(dataLayer.geojson);
+      if (bounds) {
+        map.fitBounds(bounds, { padding: 48, maxZoom: 9, pitch, duration: 500 });
+        return;
+      }
+    }
     if (Math.abs(map.getPitch() - pitch) > 0.5) {
       map.easeTo({ pitch, duration: 500 });
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pitch]);
 
   // Switch between mercator and globe projection.
@@ -976,7 +987,20 @@ export function MapPreview({
       applySky(map, globe);
       applyLight(map);
       if (globe) {
-        map.easeTo({ zoom: 1.5, center: [0, 20], duration: 400 });
+        // For a tilted 3D extrusion, frame the data with the tilt (like the
+        // published embed) instead of zooming out to the whole planet: at the
+        // whole-world zoom the extruded bars shrink to specks and the tilt
+        // reads as broken. The pitch must be passed explicitly — fitBounds /
+        // easeTo only carry the camera fields you give them, so without it the
+        // globe transition would drop the tilt. For flat globe maps (pitch 0)
+        // keep the classic whole-planet view centred on [0, 20].
+        const bounds =
+          pitch > 0 && dataLayer ? computeBounds(dataLayer.geojson) : null;
+        if (bounds) {
+          map.fitBounds(bounds, { padding: 48, maxZoom: 9, pitch, duration: 600 });
+        } else {
+          map.easeTo({ zoom: 1.5, center: [0, 20], pitch, duration: 400 });
+        }
       }
       // Re-sync data layers after projection change so they are visible on the globe.
       syncData(map);
