@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
   Upload,
@@ -99,6 +99,7 @@ export function DataPanel() {
           {dataSource === "upload" && <UploadSource />}
           {dataSource === "osm" && <OsmSource />}
           {dataSource === "zornade-db" && <ZornadeDbSource />}
+          {dataSource === "adsb" && <AdsbSource />}
           {(dataSource === "paste" ||
             dataSource === "url" ||
             dataSource === "api") && <ComingSoon />}
@@ -1221,6 +1222,295 @@ function ComingSoon() {
       <p className="text-sm font-medium text-slate-600">In arrivo</p>
       <p className="mt-1 text-xs text-slate-500">
         Questa sorgente è nella roadmap. Per ora usa “Carica file”.
+      </p>
+    </div>
+  );
+}
+
+/* ----------------------------- ADS-B source ------------------------------ */
+
+function adsbJobId(
+  bbox: string,
+  date: string,
+  from: string,
+  to: string,
+  noMilitary: boolean,
+): string {
+  const f = from.replace(":", "");
+  const t = to.replace(":", "");
+  const mil = noMilitary ? "-nomil" : "";
+  return `adsb-${bbox}-${date}-${f}-${t}${mil}`;
+}
+
+type AdsbPhase = "idle" | "triggering" | "polling" | "importing" | "done" | "error";
+
+const ADSB_BBOX_OPTIONS: { value: string; label: string }[] = [
+  { value: "italy",         label: "Italia" },
+  { value: "alps",          label: "Alpi" },
+  { value: "sicily",        label: "Sicilia" },
+  { value: "europe",        label: "Europa" },
+  { value: "mediterranean", label: "Mediterraneo" },
+  { value: "france",        label: "Francia" },
+  { value: "germany",       label: "Germania" },
+  { value: "spain",         label: "Spagna" },
+  { value: "uk",            label: "UK" },
+  { value: "balkans",       label: "Balcani" },
+];
+
+function etaMinutes(from: string, to: string): number {
+  const [fh, fm] = from.split(":").map(Number);
+  const [th, tm] = to.split(":").map(Number);
+  const windowH = (th * 60 + tm - (fh * 60 + fm)) / 60;
+  return Math.max(2, Math.round(windowH * 0.55));
+}
+
+function AdsbSource() {
+  const { setData, setStep } = useStudio();
+
+  const yesterday = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
+
+  const [bbox, setBbox] = useState("italy");
+  const [date, setDate] = useState(yesterday);
+  const [from, setFrom] = useState("00:00");
+  const [to, setTo] = useState("23:59");
+  const [noMilitary, setNoMilitary] = useState(false);
+
+  const [phase, setPhase] = useState<AdsbPhase>("idle");
+  const [error, setError] = useState<string | null>(null);
+  const [count, setCount] = useState<number | null>(null);
+
+  const jobId = adsbJobId(bbox, date, from, to, noMilitary);
+  const statusUrl = `/embed/adsb/${jobId}.status.json`;
+  const geojsonUrl = `/embed/adsb/${jobId}.geojson`;
+
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const stopPolling = () => {
+    if (pollRef.current) {
+      clearInterval(pollRef.current);
+      pollRef.current = null;
+    }
+  };
+
+  useEffect(() => {
+    setPhase("idle");
+    setError(null);
+    setCount(null);
+    stopPolling();
+  // stopPolling usa solo il ref interno, nessuna dep esterna
+  }, [jobId]);
+
+  useEffect(() => () => stopPolling(), []);
+
+  const importGeojson = async () => {
+    setPhase("importing");
+    try {
+      const resp = await fetch(geojsonUrl);
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      const text = await resp.text();
+      const fc = JSON.parse(text) as GeoJSON.FeatureCollection;
+      const { buildGeoDataset } = await import("../../lib/geo-dataset");
+      const out = buildGeoDataset(
+        fc,
+        `voli-${bbox}-${date}-${from.replace(":", "")}-${to.replace(":", "")}.geojson`,
+      );
+      if ("error" in out) {
+        setError(out.error);
+        setPhase("error");
+        return;
+      }
+      setData(out.dataset);
+      setStep("design");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Errore caricamento GeoJSON.");
+      setPhase("error");
+    }
+  };
+
+  const startPolling = () => {
+    setPhase("polling");
+    pollRef.current = setInterval(() => {
+      void (async () => {
+        try {
+          const resp = await fetch(statusUrl, { cache: "no-store" });
+          if (!resp.ok) return;
+          const st = (await resp.json()) as {
+            status: string;
+            count?: number;
+            message?: string;
+          };
+          if (st.status === "done") {
+            stopPolling();
+            setCount(st.count ?? null);
+            void importGeojson();
+          } else if (st.status === "error") {
+            stopPolling();
+            setError(st.message ?? "Errore sconosciuto.");
+            setPhase("error");
+          }
+        } catch {
+          // errore di rete transitorio: riprova al prossimo tick
+        }
+      })();
+    }, 5_000);
+  };
+
+  const handleGenerate = async () => {
+    setError(null);
+    setPhase("triggering");
+
+    // Cache hit: dataset gia' generato
+    try {
+      const resp = await fetch(statusUrl, { cache: "no-store" });
+      if (resp.ok) {
+        const st = (await resp.json()) as { status: string; count?: number };
+        if (st.status === "done") {
+          setCount(st.count ?? null);
+          void importGeojson();
+          return;
+        }
+        if (st.status === "running") {
+          startPolling();
+          return;
+        }
+      }
+    } catch {
+      // Non esiste ancora
+    }
+
+    // Avvia ETL background
+    try {
+      const resp = await fetch("/api/adsb-etl", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ date, bbox, from, to, noMilitary, minPoints: 5 }),
+      });
+      if (!resp.ok) {
+        const body = (await resp.json().catch(() => ({}))) as { error?: string };
+        setError(body.error ?? `Errore server ${resp.status}.`);
+        setPhase("error");
+        return;
+      }
+      startPolling();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Errore di rete.");
+      setPhase("error");
+    }
+  };
+
+  const busy = phase === "triggering" || phase === "polling" || phase === "importing";
+  const eta = etaMinutes(from, to);
+
+  return (
+    <div className="space-y-4">
+      <Field label="Area">
+        <select
+          value={bbox}
+          disabled={busy}
+          onChange={(e) => setBbox(e.target.value)}
+          className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"
+        >
+          {ADSB_BBOX_OPTIONS.map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
+        </select>
+      </Field>
+
+      <Field label="Data (UTC)">
+        <input
+          type="date"
+          value={date}
+          disabled={busy}
+          max={yesterday}
+          onChange={(e) => setDate(e.target.value)}
+          className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"
+        />
+      </Field>
+
+      <div className="grid grid-cols-2 gap-2">
+        <Field label="Dalle (UTC)">
+          <input
+            type="time"
+            value={from}
+            disabled={busy}
+            onChange={(e) => setFrom(e.target.value)}
+            className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"
+          />
+        </Field>
+        <Field label="Alle (UTC)">
+          <input
+            type="time"
+            value={to}
+            disabled={busy}
+            onChange={(e) => setTo(e.target.value)}
+            className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"
+          />
+        </Field>
+      </div>
+
+      <label className="flex items-center gap-2 text-xs text-slate-600">
+        <input
+          type="checkbox"
+          checked={noMilitary}
+          disabled={busy}
+          onChange={(e) => setNoMilitary(e.target.checked)}
+          className="rounded"
+        />
+        Escludi militari
+      </label>
+
+      <Button
+        variant="primary"
+        disabled={busy || !date}
+        onClick={() => void handleGenerate()}
+        className="w-full"
+      >
+        {phase === "triggering" && (
+          <span className="flex items-center justify-center gap-2">
+            <Loader2 size={15} className="animate-spin" />
+            Avvio elaborazione…
+          </span>
+        )}
+        {phase === "polling" && (
+          <span className="flex items-center justify-center gap-2">
+            <Loader2 size={15} className="animate-spin" />
+            Elaborazione (~{eta} min)…
+          </span>
+        )}
+        {phase === "importing" && (
+          <span className="flex items-center justify-center gap-2">
+            <Loader2 size={15} className="animate-spin" />
+            Importazione…
+          </span>
+        )}
+        {!busy && "Genera dataset voli"}
+      </Button>
+
+      {phase === "polling" && (
+        <p className="text-center text-[11px] text-slate-400">
+          Streaming ~4 GB di dati ADS-B · aggiornamento ogni 5 s
+        </p>
+      )}
+
+      {phase === "done" && count != null && (
+        <p className="flex items-start gap-1.5 rounded-lg bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
+          <CheckCircle2 size={13} className="mt-0.5 flex-shrink-0" />
+          {count} aerei caricati · traiettorie pronte sulla mappa.
+        </p>
+      )}
+
+      {error && (
+        <p className="flex items-start gap-1.5 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700">
+          <AlertTriangle size={13} className="mt-0.5 flex-shrink-0" />
+          {error}
+        </p>
+      )}
+
+      <p className="text-[11px] text-slate-400">
+        Fonte: adsb.lol/globe_history · Licenza ODbL · Attribuzione obbligatoria
+        negli embed.
       </p>
     </div>
   );

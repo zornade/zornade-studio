@@ -13,6 +13,7 @@ export type DataSourceKind =
   | "api"
   | "osm"
   | "zornade-db"
+  | "adsb"
   | null;
 
 export interface ProjectMeta {
