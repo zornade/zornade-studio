@@ -134,11 +134,13 @@ export async function searchEurostat(
  * @param code    Codice Eurostat (es. "DEMO_R_D3DENS")
  * @param geo     "paese" | "nuts2" | "nuts3"
  * @param filters Filtri dimensionali opzionali (es. { unit: "MIO_EUR" })
+ * @param country Codice paese ISO-2 opzionale (es. "IT", "DE"). Vuoto = tutta l'UE.
  */
 export async function fetchEurostatCsv(
   code: string,
   geo: "paese" | "nuts2" | "nuts3",
   filters: Record<string, string> = {},
+  country = "",
 ): Promise<string> {
   const params = new URLSearchParams({
     mode: "data",
@@ -146,6 +148,7 @@ export async function fetchEurostatCsv(
     geo,
     filters: JSON.stringify(filters),
   });
+  if (country) params.set("country", country.toUpperCase().slice(0, 2));
   const res = await fetch(`/api/eurostat?${params.toString()}`);
   if (!res.ok) {
     const data = (await res.json().catch(() => ({}))) as { error?: string };

@@ -544,5 +544,9 @@ export function searchCurated(query: string): EurostatDataset[] {
 
 /** Label geografica leggibile per la granularità del dataset. */
 export function geoLabel(geo: EurostatGeo): string {
-  return { paese: "Livello paese (IT)", nuts2: "Regioni NUTS2 (21)", nuts3: "Province NUTS3 (107)" }[geo];
+  return {
+    paese: "Livello paese (UE+)",
+    nuts2: "NUTS2 — regioni (tutti i paesi UE)",
+    nuts3: "NUTS3 — province (tutti i paesi UE)",
+  }[geo];
 }

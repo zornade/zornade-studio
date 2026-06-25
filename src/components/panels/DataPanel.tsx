@@ -59,7 +59,6 @@ import {
   type EurostatDataset,
   type EurostatTheme,
 } from "../../lib/eurostat-catalog";
-import { BboxPickerMap } from "../BboxPickerMap";
 import {
   DB_DATASETS,
   OMI_TYPES,
@@ -824,23 +823,33 @@ function UploadSource() {
 }
 
 function OsmSource() {
-  const { setData, setStep, project, updateProject } = useStudio();
+  const { setData, setStep, project, updateProject, bboxPickMode: _bpm, setBboxPickMode, pendingBbox, setPendingBbox } = useStudio();
   const [selected, setSelected] = useState<string | null>(null);
   const [catQuery, setCatQuery] = useState("");
   const [scopeMode, setScopeMode] = useState<"place" | "bbox">("place");
   // place mode
   const [placeName, setPlaceName] = useState("");
-  // bbox mode: drawn on the mini-map or typed manually
-  const [drawnBbox, setDrawnBbox] = useState<{
-    south: number; west: number; north: number; east: number;
-  } | null>(null);
-  // raw editable string kept in sync with drawnBbox (minLon,minLat,maxLon,maxLat)
+  // raw editable string kept in sync with pendingBbox (minLon,minLat,maxLon,maxLat)
   const [bboxRaw, setBboxRaw] = useState("");
   const [resolving, setResolving] = useState(false);
   const [resolveError, setResolveError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
+
+  // Activate/deactivate full-screen bbox picker on the right canvas
+  useEffect(() => {
+    if (scopeMode === "bbox") {
+      setBboxPickMode(true);
+    } else {
+      setBboxPickMode(false);
+      setPendingBbox(null);
+    }
+    return () => {
+      setBboxPickMode(false);
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scopeMode]);
 
   const preset = OSM_PRESETS.find((p) => p.id === selected) ?? null;
 
@@ -855,25 +864,25 @@ function OsmSource() {
     return { south, west, north, east };
   };
 
-  // The effective bbox: drawn on map OR parsed from the text field
-  const effectiveBbox = drawnBbox ?? (bboxRaw ? parseBboxRaw(bboxRaw) : null);
+  // The effective bbox: drawn on map (context) OR parsed from the text field
+  const effectiveBbox = pendingBbox ?? (bboxRaw ? parseBboxRaw(bboxRaw) : null);
   const bboxValid = scopeMode === "bbox" ? effectiveBbox !== null : true;
   const canSearch =
     !!preset &&
     !loading &&
     (scopeMode === "place" ? placeName.trim() !== "" : bboxValid);
 
-  // When user draws a bbox on the map, update the text field to match
+  // When user draws a bbox on the full-screen map, update the text field to match
   const handleMapBbox = (bbox: { south: number; west: number; north: number; east: number }) => {
-    setDrawnBbox(bbox);
+    setPendingBbox(bbox);
     setBboxRaw(`${bbox.west.toFixed(4)},${bbox.south.toFixed(4)},${bbox.east.toFixed(4)},${bbox.north.toFixed(4)}`);
   };
 
-  // When user edits the text field manually, clear the drawn bbox and re-parse
+  // When user edits the text field manually, clear pendingBbox and re-parse
   const handleBboxRawChange = (s: string) => {
     setBboxRaw(s);
     const parsed = parseBboxRaw(s);
-    setDrawnBbox(parsed);
+    setPendingBbox(parsed);
   };
 
   const resolvePlaceToBbox = async () => {
@@ -1080,8 +1089,15 @@ function OsmSource() {
 
       {scopeMode === "bbox" && (
         <div className="space-y-2">
-          {/* Mini-map: draw bbox by dragging */}
-          <BboxPickerMap value={drawnBbox} onChange={handleMapBbox} />
+          {/* Status callout */}
+          <div className="flex items-start gap-2 rounded-lg border border-zornade/30 bg-zornade-50 px-3 py-2.5">
+            <span className="mt-0.5 text-base leading-none">🗺️</span>
+            <p className="text-xs text-zornade-800">
+              {effectiveBbox
+                ? `Area selezionata: ${effectiveBbox.west.toFixed(2)},\u200b${effectiveBbox.south.toFixed(2)},\u200b${effectiveBbox.east.toFixed(2)},\u200b${effectiveBbox.north.toFixed(2)}`
+                : "Clicca e trascina sulla mappa a destra per selezionare l'area."}
+            </p>
+          </div>
 
           {/* Optional: find by name to auto-zoom */}
           <div className="flex gap-2">
@@ -1384,6 +1400,8 @@ function EurostatSource() {
   const [innerStep, setInnerStep] = useState<EurostatStep>("list");
   const [selected, setSelected] = useState<EurostatDataset | null>(null);
   const [geo, setGeo] = useState<"paese" | "nuts2" | "nuts3">("nuts2");
+  // Filtro paese opzionale — ISO-2 maiuscolo (es. "IT", "DE"). Vuoto = tutta l'UE.
+  const [country, setCountry] = useState("IT");
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
 
@@ -1409,6 +1427,7 @@ function EurostatSource() {
   const pickDataset = (ds: EurostatDataset) => {
     setSelected(ds);
     setGeo(ds.geo === "paese" ? "paese" : "nuts2");
+    setCountry("IT");
     setLoadError(null);
     setInnerStep("detail");
   };
@@ -1422,6 +1441,7 @@ function EurostatSource() {
         selected.code,
         geo,
         selected.defaultFilters ?? {},
+        country,
       );
       const out = await buildDatasetFromCsv(csv, selected.label);
       if ("error" in out) {
@@ -1459,12 +1479,12 @@ function EurostatSource() {
 
   if (innerStep === "detail" && selected) {
     const geoOptions: Array<{ value: "paese" | "nuts2" | "nuts3"; label: string }> = [
-      { value: "paese", label: "Italia aggregata" },
+      { value: "paese", label: "Livello paese" },
       ...(selected.geo !== "paese"
-        ? [{ value: "nuts2" as const, label: "Regioni NUTS2 (21)" }]
+        ? [{ value: "nuts2" as const, label: "Regioni NUTS2" }]
         : []),
       ...(selected.geo === "nuts3"
-        ? [{ value: "nuts3" as const, label: "Province NUTS3 (107)" }]
+        ? [{ value: "nuts3" as const, label: "Province NUTS3" }]
         : []),
     ];
 
@@ -1491,6 +1511,19 @@ function EurostatSource() {
                 </option>
               ))}
             </select>
+          </Field>
+
+          <Field
+            label="Paese"
+            hint="Codice ISO-2 (es. IT, DE, FR). Vuoto = tutta l'UE."
+          >
+            <input
+              value={country}
+              onChange={(e) => setCountry(e.target.value.toUpperCase().slice(0, 2))}
+              placeholder="IT"
+              maxLength={2}
+              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm font-mono uppercase text-slate-700 focus:border-zornade focus:outline-none"
+            />
           </Field>
 
           <div className="rounded-lg bg-slate-50 p-3 space-y-1">

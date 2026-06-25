@@ -12,6 +12,7 @@ import { StructurePanel, StructurePreview } from "./components/panels/StructureP
 import { VisualizePanel } from "./components/panels/VisualizePanel";
 import { DesignPanel } from "./components/panels/DesignPanel";
 import { PublishPanel } from "./components/panels/PublishPanel";
+import { BboxPickerMap } from "./components/BboxPickerMap";
 import { Button } from "./components/primitives";
 import { isChartType } from "./lib/chart-data";
 import type { StepId } from "./studio/types";
@@ -39,7 +40,7 @@ function MapEmptyState() {
 }
 
 function Workspace() {
-  const { step, setStep, data, vizType } = useStudio();
+  const { step, setStep, data, vizType, bboxPickMode, pendingBbox, setPendingBbox } = useStudio();
   const idx = STEP_ORDER.indexOf(step);
 
   // Charts and the rich table render on a separate canvas (Observable Plot /
@@ -86,6 +87,13 @@ function Workspace() {
               {useChartCanvas ? <ChartCanvas /> : <MapCanvas />}
             </MapErrorBoundary>
           )
+        ) : bboxPickMode ? (
+          /* Full-size bbox picker — shown when OSM bbox mode is active and no data yet */
+          <BboxPickerMap
+            value={pendingBbox}
+            onChange={setPendingBbox}
+            fullscreen
+          />
         ) : (
           <MapEmptyState />
         )}

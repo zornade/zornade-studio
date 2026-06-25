@@ -10,6 +10,7 @@ import {
 } from "react";
 import { PRESETS, type NewsroomBrand } from "../basemap";
 import type {
+  BboxValue,
   DataSourceKind,
   DatasetState,
   DesignSettings,
@@ -80,6 +81,16 @@ interface StudioContextValue extends StudioState {
   mapApiRef: MutableRefObject<MapApi | null>;
   /** Ref to the map container node, for PNG export (set by MapCanvas). */
   exportNodeRef: MutableRefObject<HTMLElement | null>;
+  /**
+   * OSM bbox-pick mode: when true, the right-side canvas shows a full-size
+   * BboxPickerMap instead of the empty state.
+   * View state — not serialised.
+   */
+  bboxPickMode: boolean;
+  setBboxPickMode: (active: boolean) => void;
+  /** The bbox currently being drawn/confirmed by the user. */
+  pendingBbox: BboxValue | null;
+  setPendingBbox: (bbox: BboxValue | null) => void;
 }
 
 const StudioContext = createContext<StudioContextValue | null>(null);
@@ -193,6 +204,9 @@ export function StudioProvider({ children }: { children: ReactNode }) {
     initialTimeIndex(restored?.data ?? null),
   );
   const exportNodeRef = useRef<HTMLElement | null>(null);
+  // OSM bbox-pick view state (not serialised)
+  const [bboxPickMode, setBboxPickMode] = useState(false);
+  const [pendingBbox, setPendingBbox] = useState<BboxValue | null>(null);
 
   const value = useMemo<StudioContextValue>(
     () => ({
@@ -305,8 +319,12 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       timeIndex,
       setTimeIndex,
       exportNodeRef,
+      bboxPickMode,
+      setBboxPickMode,
+      pendingBbox,
+      setPendingBbox,
     }),
-    [step, project, dataSource, vizType, preset, brand, design, data, annotations, storySteps, annotationTool, timeIndex],
+    [step, project, dataSource, vizType, preset, brand, design, data, annotations, storySteps, annotationTool, timeIndex, bboxPickMode, pendingBbox],
   );
 
   // Best-effort autosave of the current session to localStorage. Wrapped so a

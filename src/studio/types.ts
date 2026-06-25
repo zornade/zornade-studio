@@ -6,6 +6,14 @@ import type { StoryStep } from "../lib/story";
 
 export type StepId = "data" | "structure" | "visualize" | "design" | "publish";
 
+/** Bounding box geografica (WGS-84 gradi decimali). */
+export interface BboxValue {
+  south: number;
+  west: number;
+  north: number;
+  east: number;
+}
+
 export type DataSourceKind =
   | "upload"
   | "paste"

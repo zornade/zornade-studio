@@ -9,19 +9,18 @@
  */
 import { useEffect, useRef, useState } from "react";
 import maplibregl from "maplibre-gl";
-
-export interface BboxValue {
-  south: number;
-  west: number;
-  north: number;
-  east: number;
-}
+import type { BboxValue } from "../studio/types";
 
 interface Props {
   /** Current bbox (controlled). Null = nothing drawn yet. */
   value: BboxValue | null;
   /** Called when the user finishes drawing a new bbox. */
   onChange: (bbox: BboxValue) => void;
+  /**
+   * When true, the map fills its parent container (h-full) instead of the
+   * fixed 180px used in the sidebar mini-map mode.
+   */
+  fullscreen?: boolean;
 }
 
 const STYLE_URL = "https://tiles.openfreemap.org/styles/liberty";
@@ -29,7 +28,7 @@ const SRC_ID = "bbox-rect";
 const FILL_ID = "bbox-fill";
 const LINE_ID = "bbox-line";
 
-export function BboxPickerMap({ value, onChange }: Props) {
+export function BboxPickerMap({ value, onChange, fullscreen = false }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const dragging = useRef(false);
@@ -208,10 +207,10 @@ export function BboxPickerMap({ value, onChange }: Props) {
   };
 
   return (
-    <div className="space-y-1">
+    <div className={fullscreen ? "h-full" : "space-y-1"}>
       <div
-        className="relative overflow-hidden rounded-lg border border-slate-200"
-        style={{ height: 180 }}
+        className={`relative overflow-hidden${fullscreen ? " h-full" : " rounded-lg border border-slate-200"}`}
+        style={fullscreen ? undefined : { height: 180 }}
       >
         {/* MapLibre container */}
         <div ref={containerRef} className="absolute inset-0" />

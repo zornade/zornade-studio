@@ -15,15 +15,10 @@
  * Cache: 6 h per i dati, 1 h per la ricerca.
  */
 
-import { IT_NUTS2 } from "../../src/lib/eurostat-catalog";
-
 const EUROSTAT_BASE =
   "https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data";
 const EUROSTAT_CATALOG =
   "https://ec.europa.eu/eurostat/api/dissemination/sdmx/2.1/dataflow/ESTAT?format=JSON&detail=allstubs&lang=EN";
-
-/** Codici NUTS3 per l'Italia (primo e ultimo: 107 province ITC11..ITG22). */
-const IT_NUTS3_PREFIX = "IT";
 
 /** Dimensioni accettate come filtro dall'utente (whitelist SSRF-safe). */
 const FILTER_WHITELIST = new Set([
@@ -75,7 +70,7 @@ interface SdmxResponse {
  * Converte la risposta SDMX-JSON in righe CSV.
  * Le osservazioni null (dati mancanti) vengono saltate.
  */
-function sdmxToCsv(data: SdmxResponse): string {
+function sdmxToCsv(data: SdmxResponse, geoFilterFn?: (geo: string) => boolean): string {
   const dims = data.id;
   const sizes = data.size;
   const dimObjs = dims.map((d) => data.dimension[d]);
@@ -113,27 +108,32 @@ function sdmxToCsv(data: SdmxResponse): string {
 
   const totalObs = sizes.reduce((a, b) => a * b, 1);
 
+  // Indice della dimensione geo (per il filtro post-fetch)
+  const geoIdx = dims.indexOf("geo");
+
   for (let idx = 0; idx < totalObs; idx++) {
     const v = data.value[String(idx)];
     if (v == null) continue;
 
     const row: string[] = [];
     let remaining = idx;
+    let geoCode: string | undefined;
     for (let di = 0; di < dims.length; di++) {
       const pos = Math.floor(remaining / strides[di]);
       remaining = remaining % strides[di];
       const entry = dimValues[di][pos];
       const d = dims[di];
+      if (di === geoIdx) geoCode = entry?.code;
       row.push(entry?.code ?? "");
       if (d === "geo" || d === "time") {
-        // geo_label: per NUTS2/NUTS3 usiamo la mappa italiana
-        if (d === "geo") {
-          row.push(IT_NUTS2[entry?.code ?? ""] ?? entry?.label ?? "");
-        } else {
-          row.push(entry?.label ?? "");
-        }
+        // geo_label: usa l'etichetta SDMX nativa (valida per tutti i paesi UE)
+        row.push(entry?.label ?? entry?.code ?? "");
       }
     }
+
+    // Applica filtro geo se specificato
+    if (geoFilterFn && geoCode !== undefined && !geoFilterFn(geoCode)) continue;
+
     row.push(String(v));
     rows.push(row);
   }
@@ -245,30 +245,39 @@ async function handleData(url: URL): Promise<Response> {
     }
   }
 
-  // Costruisci la lista dei geo da richiedere
-  const geoValues: string[] = [];
-  if (geoParam === "IT" || geoParam === "paese") {
-    geoValues.push("IT");
-  } else if (geoParam === "nuts2") {
-    geoValues.push(...Object.keys(IT_NUTS2));
-  } else if (geoParam === "nuts3") {
-    // NUTS3 italiane: prefisso IT + 5 caratteri totali
-    // Le richiediamo passando geo=IT come prefisso e lasciando che l'API
-    // restituisca tutti i geo; poi filtriamo lato server.
-    // NOTA: l'API Eurostat non supporta wildcard, quindi richiediamo senza
-    // filtro geo e filtriamo la risposta sulle chiavi che iniziano con "IT"
-    // e hanno lunghezza 5. Per evitare 413, passiamo il prefisso "IT" solo
-    // per i dataset che sappiamo essere NUTS3 (NRG_CHDDR2_A, DEMO_R_*).
-    geoValues.push(...Object.keys(IT_NUTS2)); // fallback NUTS2 se NUTS3 non disponibile
-  }
+  // Filtro paese opzionale (2 lettere ISO maiuscole, es. "IT", "DE", "FR")
+  const countryRaw = (url.searchParams.get("country") ?? "").trim().toUpperCase();
+  const country = /^[A-Z]{2}$/.test(countryRaw) ? countryRaw : "";
 
-  // Costruisci URL API Eurostat
+  // Strategia geo:
+  // - paese: se country specificato, passa ?geo=<COUNTRY>; altrimenti nessun filtro (tutti i paesi UE)
+  // - nuts2/nuts3: nessun filtro geo (l'API restituisce tutti); post-filtrare per lunghezza + prefisso paese
   const apiParams = new URLSearchParams({ format: "JSON", lang: "EN" });
-  for (const geo of geoValues) {
-    apiParams.append("geo", geo);
+  if (geoParam === "paese" && country) {
+    apiParams.append("geo", country);
   }
+  // Per nuts2/nuts3 non passiamo filtri geo: la post-filtratura avviene in sdmxToCsv
   for (const [k, v] of Object.entries(safeFilters)) {
     apiParams.append(k, v);
+  }
+
+  // Funzione di post-filtro per riga geo basata su geoParam e country
+  // NUTS2 = 4 char (es. ITC1, DE21); NUTS3 = 5 char (es. ITC11, DE211)
+  // Paese = 2 char ISO maiuscolo
+  let geoFilterFn: ((geo: string) => boolean) | undefined;
+  if (geoParam === "nuts2") {
+    geoFilterFn = (g) =>
+      g.length === 4 &&
+      /^[A-Z]{2}/.test(g) &&
+      (country ? g.startsWith(country) : true);
+  } else if (geoParam === "nuts3") {
+    geoFilterFn = (g) =>
+      g.length === 5 &&
+      /^[A-Z]{2}/.test(g) &&
+      (country ? g.startsWith(country) : true);
+  } else if (geoParam === "paese" && !country) {
+    // Senza filtro paese: includi solo codici paese ISO-2 (esclude aggregati tipo EU27_2020, EA19)
+    geoFilterFn = (g) => g.length === 2 && /^[A-Z]{2}$/.test(g);
   }
 
   const apiUrl = `${EUROSTAT_BASE}/${encodeURIComponent(code)}?${apiParams.toString()}`;
@@ -307,21 +316,21 @@ async function handleData(url: URL): Promise<Response> {
     return json({ error: "Risposta Eurostat non valida." }, 502);
   }
 
-  // Filtro post-fetch per NUTS3: mantieni solo geo che iniziano con IT e hanno len 5
-  if (geoParam === "nuts3" && data.dimension?.geo) {
+  // Filtro NUTS3 post-fetch: rimuovi geo che non corrispondono al geoParam
+  if ((geoParam === "nuts3" || geoParam === "nuts2") && data.dimension?.geo) {
     const cat = data.dimension.geo.category;
-    const nuts3Keys = Object.keys(cat.index).filter(
-      (g) => g.startsWith(IT_NUTS3_PREFIX) && g.length === 5,
+    const validKeys = Object.keys(cat.index).filter((g) =>
+      geoFilterFn ? geoFilterFn(g) : true,
     );
-    if (nuts3Keys.length === 0) {
+    if (validKeys.length === 0) {
       return json(
-        { error: "Questo dataset non ha dati a granularità NUTS3 per l'Italia." },
+        { error: `Nessun dato NUTS disponibile per i filtri selezionati (geo=${geoParam}${country ? "/" + country : ""}).` },
         404,
       );
     }
   }
 
-  const csv = sdmxToCsv(data);
+  const csv = sdmxToCsv(data, geoFilterFn);
   const rowCount = csv.split("\n").length - 1;
 
   if (rowCount === 0) {
