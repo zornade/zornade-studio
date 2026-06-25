@@ -68,7 +68,7 @@ import {
   SlidersHorizontal,
   MapPinned,
   Sparkles,
-  PlaneTakeoff,
+  Flag,
 } from "lucide-react";
 import { PRESETS, type PresetName } from "../basemap";
 
@@ -163,7 +163,6 @@ export const DATA_SOURCES: CatalogItem[] = [
   { id: "api", label: "API / Open data", desc: "ISTAT, Socrata, CKAN, JSON", icon: Plug, status: "soon" },
   { id: "osm", label: "OpenStreetMap", desc: "Porti, telecamere, scuole…", icon: Globe2, status: "ready" },
   { id: "zornade-db", label: "Database Zornade", desc: "Prezzi OMI, solare, popolazione, edifici — per comune", icon: Database, status: "ready" },
-  { id: "adsb", label: "Voli ADS-B (storico)", desc: "Traiettorie aeree per area e giorno · ODbL", icon: PlaneTakeoff, status: "ready" },
 ];
 
 /**
@@ -210,17 +209,17 @@ export const SOURCE_GROUPS: SourceGroup[] = [
         status: "ready",
       },
       {
+        id: "eurostat",
+        label: "Eurostat",
+        desc: "23 dataset europei curati: demografica, PIL, lavoro, ambiente, turismo…",
+        icon: Flag,
+        status: "ready",
+      },
+      {
         id: "osm",
         label: "OpenStreetMap",
         desc: "Porti, scuole, ospedali, musei… in tutta Italia",
         icon: Globe2,
-        status: "ready",
-      },
-      {
-        id: "adsb",
-        label: "Voli ADS-B (storico)",
-        desc: "Traiettorie giornaliere per area · adsb.lol · ODbL",
-        icon: PlaneTakeoff,
         status: "ready",
       },
     ],

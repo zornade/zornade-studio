@@ -13,7 +13,7 @@ export type DataSourceKind =
   | "api"
   | "osm"
   | "zornade-db"
-  | "adsb"
+  | "eurostat"
   | null;
 
 export interface ProjectMeta {

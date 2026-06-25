@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ArrowLeft,
   Upload,
@@ -43,10 +43,22 @@ import {
   catalogApiAvailable,
   searchCkan,
   fetchResourceText,
+  searchEurostat,
+  fetchEurostatCsv,
   CATALOG_PORTALS,
   type CkanDataset,
   type CkanResource,
+  type EurostatSearchItem,
 } from "../../lib/catalog-api";
+import {
+  EUROSTAT_DATASETS,
+  EUROSTAT_THEMES,
+  searchCurated,
+  curatedByTheme,
+  geoLabel,
+  type EurostatDataset,
+  type EurostatTheme,
+} from "../../lib/eurostat-catalog";
 import {
   DB_DATASETS,
   OMI_TYPES,
@@ -99,7 +111,7 @@ export function DataPanel() {
           {dataSource === "upload" && <UploadSource />}
           {dataSource === "osm" && <OsmSource />}
           {dataSource === "zornade-db" && <ZornadeDbSource />}
-          {dataSource === "adsb" && <AdsbSource />}
+          {dataSource === "eurostat" && <EurostatSource />}
           {(dataSource === "paste" ||
             dataSource === "url" ||
             dataSource === "api") && <ComingSoon />}
@@ -1227,312 +1239,376 @@ function ComingSoon() {
   );
 }
 
-/* ----------------------------- ADS-B source ------------------------------ */
 
-function adsbJobId(
-  bbox: string,
-  date: string,
-  from: string,
-  to: string,
-  noMilitary: boolean,
-): string {
-  const f = from.replace(":", "");
-  const t = to.replace(":", "");
-  const mil = noMilitary ? "-nomil" : "";
-  return `adsb-${bbox}-${date}-${f}-${t}${mil}`;
-}
+/* ──────────────────────────────── Eurostat ───────────────────────────────── */
 
-type AdsbPhase = "idle" | "triggering" | "polling" | "importing" | "done" | "error";
+type EurostatStep = "list" | "detail";
 
-const ADSB_BBOX_OPTIONS: { value: string; label: string }[] = [
-  { value: "italy",         label: "Italia" },
-  { value: "alps",          label: "Alpi" },
-  { value: "sicily",        label: "Sicilia" },
-  { value: "europe",        label: "Europa" },
-  { value: "mediterranean", label: "Mediterraneo" },
-  { value: "france",        label: "Francia" },
-  { value: "germany",       label: "Germania" },
-  { value: "spain",         label: "Spagna" },
-  { value: "uk",            label: "UK" },
-  { value: "balkans",       label: "Balcani" },
-];
+function EurostatSource() {
+  const { setData, setStep, updateProject } = useStudio();
+  const [tab, setTab] = useState<"curated" | "search">("curated");
+  const [themeFilter, setThemeFilter] = useState<EurostatTheme | "">("");
+  const [localQ, setLocalQ] = useState("");
+  const [innerStep, setInnerStep] = useState<EurostatStep>("list");
+  const [selected, setSelected] = useState<EurostatDataset | null>(null);
+  const [geo, setGeo] = useState<"paese" | "nuts2" | "nuts3">("nuts2");
+  const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
-function etaMinutes(from: string, to: string): number {
-  const [fh, fm] = from.split(":").map(Number);
-  const [th, tm] = to.split(":").map(Number);
-  const windowH = (th * 60 + tm - (fh * 60 + fm)) / 60;
-  return Math.max(2, Math.round(windowH * 0.55));
-}
+  const [liveQ, setLiveQ] = useState("");
+  const [liveSubmitted, setLiveSubmitted] = useState("");
+  const [liveLoading, setLiveLoading] = useState(false);
+  const [liveError, setLiveError] = useState<string | null>(null);
+  const [liveResults, setLiveResults] = useState<{
+    count: number;
+    results: EurostatSearchItem[];
+  } | null>(null);
 
-function AdsbSource() {
-  const { setData, setStep } = useStudio();
+  const curatedFiltered = useMemo(
+    () =>
+      themeFilter
+        ? curatedByTheme(themeFilter)
+        : localQ
+          ? searchCurated(localQ)
+          : EUROSTAT_DATASETS,
+    [themeFilter, localQ],
+  );
 
-  const yesterday = new Date(Date.now() - 86_400_000).toISOString().slice(0, 10);
-
-  const [bbox, setBbox] = useState("italy");
-  const [date, setDate] = useState(yesterday);
-  const [from, setFrom] = useState("00:00");
-  const [to, setTo] = useState("23:59");
-  const [noMilitary, setNoMilitary] = useState(false);
-
-  const [phase, setPhase] = useState<AdsbPhase>("idle");
-  const [error, setError] = useState<string | null>(null);
-  const [count, setCount] = useState<number | null>(null);
-
-  const jobId = adsbJobId(bbox, date, from, to, noMilitary);
-  const statusUrl = `/embed/adsb/${jobId}.status.json`;
-  const geojsonUrl = `/embed/adsb/${jobId}.geojson`;
-
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const pollTickRef = useRef(0);
-  // 15 min / 5 s = 180 tick max (limite background function Netlify)
-  const POLL_MAX_TICKS = 180;
-
-  const stopPolling = () => {
-    if (pollRef.current) {
-      clearInterval(pollRef.current);
-      pollRef.current = null;
-    }
+  const pickDataset = (ds: EurostatDataset) => {
+    setSelected(ds);
+    setGeo(ds.geo === "paese" ? "paese" : "nuts2");
+    setLoadError(null);
+    setInnerStep("detail");
   };
 
-  useEffect(() => {
-    setPhase("idle");
-    setError(null);
-    setCount(null);
-    stopPolling();
-  // stopPolling usa solo il ref interno, nessuna dep esterna
-  }, [jobId]);
-
-  useEffect(() => () => stopPolling(), []);
-
-  const importGeojson = async () => {
-    setPhase("importing");
+  const doLoad = async () => {
+    if (!selected) return;
+    setLoading(true);
+    setLoadError(null);
     try {
-      const resp = await fetch(geojsonUrl);
-      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-      const text = await resp.text();
-      const fc = JSON.parse(text) as GeoJSON.FeatureCollection;
-      const { buildGeoDataset } = await import("../../lib/geo-dataset");
-      const out = buildGeoDataset(
-        fc,
-        `voli-${bbox}-${date}-${from.replace(":", "")}-${to.replace(":", "")}.geojson`,
+      const csv = await fetchEurostatCsv(
+        selected.code,
+        geo,
+        selected.defaultFilters ?? {},
       );
+      const out = await buildDatasetFromCsv(csv, selected.label);
       if ("error" in out) {
-        setError(out.error);
-        setPhase("error");
+        setLoadError(out.error);
         return;
       }
       setData(out.dataset);
-      setStep("design");
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Errore caricamento GeoJSON.");
-      setPhase("error");
-    }
-  };
-
-  const startPolling = () => {
-    setPhase("polling");
-    pollTickRef.current = 0;
-    pollRef.current = setInterval(() => {
-      void (async () => {
-        pollTickRef.current += 1;
-
-        // Timeout di sicurezza: 15 min = 180 tick a 5 s
-        if (pollTickRef.current > POLL_MAX_TICKS) {
-          stopPolling();
-          setError(
-            "Timeout: l'elaborazione ha superato 15 minuti. " +
-            "Controlla i log della funzione Netlify per i dettagli.",
-          );
-          setPhase("error");
-          return;
-        }
-
-        try {
-          const resp = await fetch(statusUrl, { cache: "no-store" });
-          if (!resp.ok) return; // status.json non ancora scritto: riprova
-          const st = (await resp.json()) as {
-            status: string;
-            count?: number;
-            message?: string;
-          };
-          if (st.status === "done") {
-            stopPolling();
-            setCount(st.count ?? null);
-            void importGeojson();
-          } else if (st.status === "error") {
-            stopPolling();
-            setError(st.message ?? "Errore sconosciuto.");
-            setPhase("error");
-          }
-          // status === "running": continua a fare polling
-        } catch {
-          // errore di rete transitorio: riprova al prossimo tick
-        }
-      })();
-    }, 5_000);
-  };
-
-  const handleGenerate = async () => {
-    setError(null);
-    setPhase("triggering");
-
-    // Cache hit: dataset gia' generato
-    try {
-      const resp = await fetch(statusUrl, { cache: "no-store" });
-      if (resp.ok) {
-        const st = (await resp.json()) as { status: string; count?: number };
-        if (st.status === "done") {
-          setCount(st.count ?? null);
-          void importGeojson();
-          return;
-        }
-        if (st.status === "running") {
-          startPolling();
-          return;
-        }
-      }
-    } catch {
-      // Non esiste ancora
-    }
-
-    // Avvia ETL background
-    try {
-      const resp = await fetch("/api/adsb-etl", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ date, bbox, from, to, noMilitary, minPoints: 5 }),
+      updateProject({
+        title: selected.label,
+        subtitle: selected.desc,
+        source: `Fonte: Eurostat (${selected.code}) \u00b7 Fatto con Zornade Studio`,
       });
-      if (!resp.ok) {
-        const body = (await resp.json().catch(() => ({}))) as { error?: string };
-        setError(body.error ?? `Errore server ${resp.status}.`);
-        setPhase("error");
-        return;
-      }
-      startPolling();
+      setStep("structure");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Errore di rete.");
-      setPhase("error");
+      setLoadError(e instanceof Error ? e.message : "Caricamento fallito.");
+    } finally {
+      setLoading(false);
     }
   };
 
-  const busy = phase === "triggering" || phase === "polling" || phase === "importing";
-  const eta = etaMinutes(from, to);
+  const runLiveSearch = async (q: string) => {
+    setLiveLoading(true);
+    setLiveError(null);
+    setLiveSubmitted(q);
+    try {
+      const res = await searchEurostat(q, 0, 30);
+      setLiveResults(res);
+    } catch (e) {
+      setLiveError(e instanceof Error ? e.message : "Errore di ricerca.");
+      setLiveResults(null);
+    } finally {
+      setLiveLoading(false);
+    }
+  };
+
+  if (innerStep === "detail" && selected) {
+    const geoOptions: Array<{ value: "paese" | "nuts2" | "nuts3"; label: string }> = [
+      { value: "paese", label: "Italia aggregata" },
+      ...(selected.geo !== "paese"
+        ? [{ value: "nuts2" as const, label: "Regioni NUTS2 (21)" }]
+        : []),
+      ...(selected.geo === "nuts3"
+        ? [{ value: "nuts3" as const, label: "Province NUTS3 (107)" }]
+        : []),
+    ];
+
+    return (
+      <div className="space-y-4">
+        <button
+          onClick={() => setInnerStep("list")}
+          className="flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-slate-700"
+        >
+          <ArrowLeft size={14} />
+          Tutti i dataset
+        </button>
+
+        <PanelSection title={selected.label} hint={selected.desc}>
+          <Field label="Granularita geografica">
+            <select
+              value={geo}
+              onChange={(e) => setGeo(e.target.value as typeof geo)}
+              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-zornade focus:outline-none"
+            >
+              {geoOptions.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+          </Field>
+
+          <div className="rounded-lg bg-slate-50 p-3 space-y-1">
+            <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
+              Aggiornato {selected.updated} &middot; {geoLabel(selected.geo)}
+            </p>
+            <p className="text-[11px] text-slate-500">
+              Serie: {selected.timeRange[0]}&ndash;{selected.timeRange[1]}
+            </p>
+          </div>
+
+          {selected.columns.length > 0 && (
+            <div>
+              <p className="mb-2 text-xs font-medium text-slate-600">Colonne prodotte</p>
+              <div className="space-y-1">
+                {selected.columns.map((col) => (
+                  <div key={col.name} className="flex items-start gap-2 text-xs">
+                    <code className="flex-shrink-0 rounded bg-zornade-50 px-1.5 py-0.5 font-mono text-[11px] text-zornade-700">
+                      {col.name}
+                    </code>
+                    <span className="text-slate-500">{col.desc}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {loadError && (
+            <p className="flex items-start gap-1.5 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700">
+              <AlertTriangle size={13} className="mt-0.5 flex-shrink-0" />
+              {loadError}
+            </p>
+          )}
+
+          <Button onClick={() => void doLoad()} disabled={loading} className="w-full">
+            {loading ? (
+              <>
+                <Loader2 size={14} className="animate-spin" />
+                Caricamento...
+              </>
+            ) : (
+              "Carica in Studio"
+            )}
+          </Button>
+
+          <a
+            href={selected.landing}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-center gap-1 text-xs text-slate-400 hover:text-zornade-700"
+          >
+            <ExternalLink size={12} />
+            Apri su Eurostat
+          </a>
+        </PanelSection>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
-      <Field label="Area">
-        <select
-          value={bbox}
-          disabled={busy}
-          onChange={(e) => setBbox(e.target.value)}
-          className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"
+      <div className="flex gap-1 rounded-lg bg-slate-100 p-1">
+        <button
+          onClick={() => setTab("curated")}
+          className={`flex-1 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+            tab === "curated"
+              ? "bg-white shadow-sm text-slate-800"
+              : "text-slate-500 hover:text-slate-700"
+          }`}
         >
-          {ADSB_BBOX_OPTIONS.map((o) => (
-            <option key={o.value} value={o.value}>
-              {o.label}
-            </option>
-          ))}
-        </select>
-      </Field>
-
-      <Field label="Data (UTC)">
-        <input
-          type="date"
-          value={date}
-          disabled={busy}
-          max={yesterday}
-          onChange={(e) => setDate(e.target.value)}
-          className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"
-        />
-      </Field>
-
-      <div className="grid grid-cols-2 gap-2">
-        <Field label="Dalle (UTC)">
-          <input
-            type="time"
-            value={from}
-            disabled={busy}
-            onChange={(e) => setFrom(e.target.value)}
-            className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"
-          />
-        </Field>
-        <Field label="Alle (UTC)">
-          <input
-            type="time"
-            value={to}
-            disabled={busy}
-            onChange={(e) => setTo(e.target.value)}
-            className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm"
-          />
-        </Field>
+          Curati ({EUROSTAT_DATASETS.length})
+        </button>
+        <button
+          onClick={() => setTab("search")}
+          className={`flex-1 rounded-md px-3 py-1.5 text-xs font-medium transition-colors ${
+            tab === "search"
+              ? "bg-white shadow-sm text-slate-800"
+              : "text-slate-500 hover:text-slate-700"
+          }`}
+        >
+          Cerca tutti
+        </button>
       </div>
 
-      <label className="flex items-center gap-2 text-xs text-slate-600">
-        <input
-          type="checkbox"
-          checked={noMilitary}
-          disabled={busy}
-          onChange={(e) => setNoMilitary(e.target.checked)}
-          className="rounded"
-        />
-        Escludi militari
-      </label>
+      {tab === "curated" && (
+        <div className="space-y-3">
+          <div className="flex flex-wrap gap-1.5">
+            <button
+              onClick={() => { setThemeFilter(""); setLocalQ(""); }}
+              className={`rounded-full px-2.5 py-1 text-[11px] font-medium transition-colors ${
+                themeFilter === ""
+                  ? "bg-zornade text-white"
+                  : "bg-slate-100 text-slate-500 hover:bg-slate-200"
+              }`}
+            >
+              Tutti
+            </button>
+            {(
+              Object.entries(EUROSTAT_THEMES) as [
+                EurostatTheme,
+                { label: string; emoji: string },
+              ][]
+            ).map(([t, meta]) => (
+              <button
+                key={t}
+                onClick={() => { setThemeFilter(t); setLocalQ(""); }}
+                className={`rounded-full px-2.5 py-1 text-[11px] font-medium transition-colors ${
+                  themeFilter === t
+                    ? "bg-zornade text-white"
+                    : "bg-slate-100 text-slate-500 hover:bg-slate-200"
+                }`}
+              >
+                {meta.emoji} {meta.label}
+              </button>
+            ))}
+          </div>
 
-      <Button
-        variant="primary"
-        disabled={busy || !date}
-        onClick={() => void handleGenerate()}
-        className="w-full"
-      >
-        {phase === "triggering" && (
-          <span className="flex items-center justify-center gap-2">
-            <Loader2 size={15} className="animate-spin" />
-            Avvio elaborazione…
-          </span>
-        )}
-        {phase === "polling" && (
-          <span className="flex items-center justify-center gap-2">
-            <Loader2 size={15} className="animate-spin" />
-            Elaborazione (~{eta} min)…
-          </span>
-        )}
-        {phase === "importing" && (
-          <span className="flex items-center justify-center gap-2">
-            <Loader2 size={15} className="animate-spin" />
-            Importazione…
-          </span>
-        )}
-        {!busy && "Genera dataset voli"}
-      </Button>
+          <div className="relative">
+            <Search
+              size={14}
+              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+            />
+            <input
+              value={localQ}
+              onChange={(e) => { setLocalQ(e.target.value); setThemeFilter(""); }}
+              placeholder="Cerca tra i dataset curati..."
+              className="w-full rounded-lg border border-slate-200 py-2 pl-9 pr-3 text-sm focus:border-zornade focus:outline-none focus:ring-2 focus:ring-zornade/20"
+            />
+          </div>
 
-      {phase === "polling" && (
-        <div className="space-y-1 text-center text-[11px] text-slate-400">
-          <p>Streaming ~4 GB di dati ADS-B · aggiornamento ogni 5 s</p>
-          <p className="font-mono text-[10px] text-slate-300 select-all">
-            job: {jobId}
-          </p>
+          <div className="space-y-2">
+            {curatedFiltered.map((ds) => (
+              <button
+                key={ds.code}
+                onClick={() => pickDataset(ds)}
+                className="w-full rounded-xl border border-slate-200 bg-white p-3 text-left transition-all hover:border-zornade hover:shadow-sm"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium text-slate-800">{ds.label}</p>
+                    <p className="text-[10px] font-semibold uppercase tracking-wide text-zornade-700">
+                      {EUROSTAT_THEMES[ds.theme].emoji} {EUROSTAT_THEMES[ds.theme].label}
+                    </p>
+                    <p className="mt-1 line-clamp-2 text-xs text-slate-500">{ds.desc}</p>
+                  </div>
+                  <span className="flex-shrink-0 rounded bg-slate-100 px-1.5 py-0.5 font-mono text-[10px] text-slate-500">
+                    {ds.code}
+                  </span>
+                </div>
+                <div className="mt-2 flex items-center gap-3 text-[11px] text-slate-400">
+                  <span>{geoLabel(ds.geo)}</span>
+                  <span>&middot;</span>
+                  <span>{ds.timeRange[0]}&ndash;{ds.timeRange[1]}</span>
+                </div>
+              </button>
+            ))}
+            {curatedFiltered.length === 0 && (
+              <p className="rounded-lg bg-slate-50 px-3 py-6 text-center text-xs text-slate-400">
+                Nessun dataset trovato.
+              </p>
+            )}
+          </div>
         </div>
       )}
 
-      {phase === "done" && count != null && (
-        <p className="flex items-start gap-1.5 rounded-lg bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
-          <CheckCircle2 size={13} className="mt-0.5 flex-shrink-0" />
-          {count} aerei caricati · traiettorie pronte sulla mappa.
-        </p>
-      )}
+      {tab === "search" && (
+        <div className="space-y-3">
+          <form
+            onSubmit={(e) => { e.preventDefault(); void runLiveSearch(liveQ); }}
+            className="relative"
+          >
+            <Search
+              size={15}
+              className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+            />
+            <input
+              value={liveQ}
+              onChange={(e) => setLiveQ(e.target.value)}
+              placeholder="Es: population, GDP, unemployment..."
+              className="w-full rounded-lg border border-slate-200 py-2 pl-9 pr-3 text-sm focus:border-zornade focus:outline-none focus:ring-2 focus:ring-zornade/20"
+            />
+          </form>
 
-      {error && (
-        <p className="flex items-start gap-1.5 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700">
-          <AlertTriangle size={13} className="mt-0.5 flex-shrink-0" />
-          {error}
-        </p>
-      )}
+          {liveLoading && (
+            <div className="flex items-center justify-center gap-2 py-6 text-sm text-slate-400">
+              <Loader2 size={16} className="animate-spin" />
+              Cerco nel catalogo Eurostat...
+            </div>
+          )}
 
-      <p className="text-[11px] text-slate-400">
-        Fonte: adsb.lol/globe_history · Licenza ODbL · Attribuzione obbligatoria
-        negli embed.
-      </p>
+          {liveError && (
+            <p className="flex items-start gap-1.5 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700">
+              <AlertTriangle size={13} className="mt-0.5 flex-shrink-0" />
+              {liveError}
+            </p>
+          )}
+
+          {!liveLoading && liveResults && (
+            <>
+              <p className="text-[11px] text-slate-400">
+                {liveResults.count.toLocaleString("it-IT")} dataset trovati per "{liveSubmitted}"
+              </p>
+              <div className="space-y-2">
+                {liveResults.results.map((item) => {
+                  const curated = EUROSTAT_DATASETS.find((d) => d.code === item.code);
+                  return (
+                    <button
+                      key={item.code}
+                      onClick={() =>
+                        pickDataset(
+                          curated ?? {
+                            code: item.code,
+                            label: item.label,
+                            desc: item.label,
+                            theme: "economia",
+                            geo: "paese",
+                            timeRange: [2000, 2024],
+                            updated: "",
+                            columns: [],
+                            landing: `https://ec.europa.eu/eurostat/databrowser/view/${item.code}`,
+                          },
+                        )
+                      }
+                      className="w-full rounded-xl border border-slate-200 bg-white p-3 text-left transition-all hover:border-zornade hover:shadow-sm"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="text-sm font-medium text-slate-800">{item.label}</p>
+                        <span className="flex-shrink-0 rounded bg-slate-100 px-1.5 py-0.5 font-mono text-[10px] text-slate-500">
+                          {item.code}
+                        </span>
+                      </div>
+                      {curated && (
+                        <p className="mt-0.5 text-[11px] text-zornade-700">
+                          {EUROSTAT_THEMES[curated.theme].emoji} Gia curato
+                        </p>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </>
+          )}
+
+          {!liveLoading && !liveResults && !liveError && (
+            <p className="rounded-lg bg-slate-50 px-3 py-6 text-center text-xs text-slate-400">
+              Cerca per parola chiave in inglese (es. "population", "GDP", "unemployment").
+            </p>
+          )}
+        </div>
+      )}
     </div>
   );
 }

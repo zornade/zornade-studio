@@ -94,3 +94,62 @@ export async function fetchResourceText(resourceUrl: string): Promise<string> {
   }
   return await res.text();
 }
+
+// ── Eurostat ─────────────────────────────────────────────────────────────────
+
+export interface EurostatSearchItem {
+  code: string;
+  label: string;
+}
+
+export interface EurostatSearchResult {
+  count: number;
+  results: EurostatSearchItem[];
+}
+
+/** Cerca tra tutti i dataset Eurostat (8237+) per parola chiave. */
+export async function searchEurostat(
+  query: string,
+  start = 0,
+  rows = 20,
+): Promise<EurostatSearchResult> {
+  const params = new URLSearchParams({
+    mode: "search",
+    q: query,
+    start: String(start),
+    rows: String(rows),
+  });
+  const res = await fetch(`/api/eurostat?${params.toString()}`, {
+    headers: { accept: "application/json" },
+  });
+  if (!res.ok) {
+    const data = (await res.json().catch(() => ({}))) as { error?: string };
+    throw new Error(data.error ?? `Errore ${res.status}`);
+  }
+  return (await res.json()) as EurostatSearchResult;
+}
+
+/**
+ * Scarica un dataset Eurostat come CSV piatto tramite il proxy.
+ * @param code    Codice Eurostat (es. "DEMO_R_D3DENS")
+ * @param geo     "paese" | "nuts2" | "nuts3"
+ * @param filters Filtri dimensionali opzionali (es. { unit: "MIO_EUR" })
+ */
+export async function fetchEurostatCsv(
+  code: string,
+  geo: "paese" | "nuts2" | "nuts3",
+  filters: Record<string, string> = {},
+): Promise<string> {
+  const params = new URLSearchParams({
+    mode: "data",
+    code,
+    geo,
+    filters: JSON.stringify(filters),
+  });
+  const res = await fetch(`/api/eurostat?${params.toString()}`);
+  if (!res.ok) {
+    const data = (await res.json().catch(() => ({}))) as { error?: string };
+    throw new Error(data.error ?? `Download fallito (${res.status})`);
+  }
+  return await res.text();
+}
