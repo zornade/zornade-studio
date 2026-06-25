@@ -59,6 +59,7 @@ import {
   type EurostatDataset,
   type EurostatTheme,
 } from "../../lib/eurostat-catalog";
+import { BboxPickerMap } from "../BboxPickerMap";
 import {
   DB_DATASETS,
   OMI_TYPES,
@@ -829,11 +830,12 @@ function OsmSource() {
   const [scopeMode, setScopeMode] = useState<"place" | "bbox">("place");
   // place mode
   const [placeName, setPlaceName] = useState("");
-  // bbox mode: raw string "minLon,minLat,maxLon,maxLat" or from geocode resolve
-  const [bboxRaw, setBboxRaw] = useState("");
-  const [bboxResolved, setBboxResolved] = useState<{
-    south: number; west: number; north: number; east: number; label: string;
+  // bbox mode: drawn on the mini-map or typed manually
+  const [drawnBbox, setDrawnBbox] = useState<{
+    south: number; west: number; north: number; east: number;
   } | null>(null);
+  // raw editable string kept in sync with drawnBbox (minLon,minLat,maxLon,maxLat)
+  const [bboxRaw, setBboxRaw] = useState("");
   const [resolving, setResolving] = useState(false);
   const [resolveError, setResolveError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -842,7 +844,7 @@ function OsmSource() {
 
   const preset = OSM_PRESETS.find((p) => p.id === selected) ?? null;
 
-  // Validate bbox string "minLon,minLat,maxLon,maxLat"
+  // Validate a bbox string "minLon,minLat,maxLon,maxLat"
   const parseBboxRaw = (s: string): { south: number; west: number; north: number; east: number } | null => {
     const parts = s.trim().split(",").map((v) => parseFloat(v.trim()));
     if (parts.length !== 4 || parts.some(isNaN)) return null;
@@ -853,21 +855,33 @@ function OsmSource() {
     return { south, west, north, east };
   };
 
-  const parsedBbox = scopeMode === "bbox" ? parseBboxRaw(bboxRaw) : null;
-  const bboxValid = scopeMode === "bbox" ? (parsedBbox !== null || bboxResolved !== null) : true;
+  // The effective bbox: drawn on map OR parsed from the text field
+  const effectiveBbox = drawnBbox ?? (bboxRaw ? parseBboxRaw(bboxRaw) : null);
+  const bboxValid = scopeMode === "bbox" ? effectiveBbox !== null : true;
   const canSearch =
     !!preset &&
     !loading &&
     (scopeMode === "place" ? placeName.trim() !== "" : bboxValid);
+
+  // When user draws a bbox on the map, update the text field to match
+  const handleMapBbox = (bbox: { south: number; west: number; north: number; east: number }) => {
+    setDrawnBbox(bbox);
+    setBboxRaw(`${bbox.west.toFixed(4)},${bbox.south.toFixed(4)},${bbox.east.toFixed(4)},${bbox.north.toFixed(4)}`);
+  };
+
+  // When user edits the text field manually, clear the drawn bbox and re-parse
+  const handleBboxRawChange = (s: string) => {
+    setBboxRaw(s);
+    const parsed = parseBboxRaw(s);
+    setDrawnBbox(parsed);
+  };
 
   const resolvePlaceToBbox = async () => {
     const q = placeName.trim();
     if (!q) return;
     setResolving(true);
     setResolveError(null);
-    setBboxResolved(null);
     try {
-      // Use Nominatim to get the place bbox
       const params = new URLSearchParams({
         q,
         format: "json",
@@ -887,16 +901,14 @@ function OsmSource() {
         setResolveError(`Luogo "${q}" non trovato.`);
         return;
       }
-      const bb = results[0].boundingbox; // [south, north, west, east] from Nominatim
-      const resolved = {
+      const bb = results[0].boundingbox; // Nominatim: [south, north, west, east]
+      const bbox = {
         south: parseFloat(bb[0]),
         north: parseFloat(bb[1]),
         west: parseFloat(bb[2]),
         east: parseFloat(bb[3]),
-        label: results[0].display_name?.split(",")[0] ?? q,
       };
-      setBboxResolved(resolved);
-      setBboxRaw(`${resolved.west},${resolved.south},${resolved.east},${resolved.north}`);
+      handleMapBbox(bbox);
     } catch (e) {
       setResolveError(e instanceof Error ? e.message : "Errore geocoding.");
     } finally {
@@ -926,18 +938,12 @@ function OsmSource() {
       let where = "";
 
       if (scopeMode === "bbox") {
-        const bbox = parsedBbox ?? (bboxResolved ? {
-          south: bboxResolved.south,
-          west: bboxResolved.west,
-          north: bboxResolved.north,
-          east: bboxResolved.east,
-        } : null);
-        if (!bbox) {
-          setError("Inserisci un bounding box valido (minLon,minLat,maxLon,maxLat).");
+        if (!effectiveBbox) {
+          setError("Disegna un'area sulla mappa o inserisci le coordinate.");
           return;
         }
-        scope = { kind: "bbox", ...bbox };
-        where = bboxResolved?.label ?? `bbox(${bboxRaw.slice(0, 40)})`;
+        scope = { kind: "bbox", ...effectiveBbox };
+        where = `bbox(${effectiveBbox.west.toFixed(2)},${effectiveBbox.south.toFixed(2)},${effectiveBbox.east.toFixed(2)},${effectiveBbox.north.toFixed(2)})`;
       } else {
         // place mode: geocode to area id (supports worldwide)
         const { geocodeArea } = await import("../../lib/nominatim");
@@ -1074,51 +1080,46 @@ function OsmSource() {
 
       {scopeMode === "bbox" && (
         <div className="space-y-2">
-          <Field
-            label="Bounding box"
-            hint="minLon, minLat, maxLon, maxLat (gradi decimali)"
-          >
-            <div className="flex gap-2">
-              <input
-                value={bboxRaw}
-                onChange={(e) => { setBboxRaw(e.target.value); setBboxResolved(null); }}
-                placeholder="es. 11.0,43.5,11.5,44.0"
-                className={`flex-1 rounded-lg border px-3 py-2 text-sm font-mono text-slate-700 focus:border-zornade focus:outline-none ${
-                  bboxRaw && !parseBboxRaw(bboxRaw) && !bboxResolved
-                    ? "border-amber-300 bg-amber-50"
-                    : "border-slate-200"
-                }`}
-              />
-            </div>
-          </Field>
-          <Field label="Oppure cerca un luogo per nome">
-            <div className="flex gap-2">
-              <input
-                value={placeName}
-                onChange={(e) => setPlaceName(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter") void resolvePlaceToBbox();
-                }}
-                placeholder="es. Firenze, France, Kenya…"
-                className="flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:border-zornade focus:outline-none"
-              />
-              <button
-                onClick={() => void resolvePlaceToBbox()}
-                disabled={resolving || !placeName.trim()}
-                className="flex-shrink-0 rounded-lg border border-slate-200 px-3 py-2 text-xs font-medium text-slate-600 hover:border-slate-300 disabled:opacity-50"
-              >
-                {resolving ? <Loader2 size={13} className="animate-spin" /> : "Risolvi"}
-              </button>
-            </div>
-          </Field>
+          {/* Mini-map: draw bbox by dragging */}
+          <BboxPickerMap value={drawnBbox} onChange={handleMapBbox} />
+
+          {/* Optional: find by name to auto-zoom */}
+          <div className="flex gap-2">
+            <input
+              value={placeName}
+              onChange={(e) => setPlaceName(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") void resolvePlaceToBbox();
+              }}
+              placeholder="Cerca un luogo per centrare la mappa…"
+              className="flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:border-zornade focus:outline-none"
+            />
+            <button
+              onClick={() => void resolvePlaceToBbox()}
+              disabled={resolving || !placeName.trim()}
+              className="flex-shrink-0 rounded-lg border border-slate-200 px-3 py-2 text-xs font-medium text-slate-600 hover:border-slate-300 disabled:opacity-50"
+            >
+              {resolving ? <Loader2 size={13} className="animate-spin" /> : "Trova"}
+            </button>
+          </div>
+
           {resolveError && (
             <p className="text-xs text-amber-700">{resolveError}</p>
           )}
-          {bboxResolved && (
-            <p className="text-[11px] text-emerald-700">
-              ✓ {bboxResolved.label} ({bboxResolved.west.toFixed(3)},{bboxResolved.south.toFixed(3)},{bboxResolved.east.toFixed(3)},{bboxResolved.north.toFixed(3)})
-            </p>
-          )}
+
+          {/* Editable coordinate field — stays in sync with the drawn bbox */}
+          <Field label="Coordinate (minLon,minLat,maxLon,maxLat)" hint="Modifica manualmente se necessario">
+            <input
+              value={bboxRaw}
+              onChange={(e) => handleBboxRawChange(e.target.value)}
+              placeholder="es. 11.0,43.5,11.5,44.0"
+              className={`w-full rounded-lg border px-3 py-2 text-sm font-mono text-slate-700 focus:border-zornade focus:outline-none ${
+                bboxRaw && !parseBboxRaw(bboxRaw)
+                  ? "border-amber-300 bg-amber-50"
+                  : "border-slate-200"
+              }`}
+            />
+          </Field>
         </div>
       )}
 
