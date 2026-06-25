@@ -774,7 +774,7 @@ function build(){
     map.addLayer({id:"d-fill",type:"fill-extrusion",source:"d",
       paint:{"fill-extrusion-color":E.fill,
         "fill-extrusion-height":["interpolate",["linear"],
-          ["coalesce",["to-number",["get","__value"]],E.min],E.min,4800*(E.extrusionScale||1),E.max,120000*(E.extrusionScale||1)],
+          ["coalesce",["to-number",["get","__value"]],E.min],E.min,Math.max(2000,4800*(E.extrusionScale||1)),E.max,120000*(E.extrusionScale||1)],
         "fill-extrusion-base":0,"fill-extrusion-opacity":0.95,
         "fill-extrusion-vertical-gradient":true}},before);
   }else if(E.render==="symbol"||E.render==="spike"){
@@ -809,7 +809,7 @@ function build(){
     hoverFx();
   }
   if(E.render!=="extrusion")raiseLabels();
-  if(!E.hasCamera&&!E.globe){fit();}else if(E.bounds){map.fitBounds(E.bounds,{pitch:E.pitch,bearing:E.bearing,duration:0,padding:0});}
+  if(!E.hasCamera&&!E.globe){fit();}else if(E.pitch>0){fit(E.pitch);}else if(E.bounds){map.fitBounds(E.bounds,{pitch:E.pitch,bearing:E.bearing,duration:0,padding:0});}
   if(E.showLegend)legend(noData);
   if(E.tooltip)tooltip();
   if(E.frames&&E.frames.length>1)timeUI();
@@ -951,11 +951,15 @@ function timeUI(){
   btn.onclick=function(){if(timer)stop();else play();};
   rng.oninput=function(){stop();show(parseInt(rng.value,10));};
 }
-function fit(){try{var b=new maplibregl.LngLatBounds();
-  GEO.features.forEach(function(f){var g=f.geometry;if(!g)return;
+function fit(pitch){try{var b=new maplibregl.LngLatBounds();
+  var fs=GEO.features||[];
+  var wv=fs.filter(function(f){var p=f.properties||{};return typeof p.__value==="number";});
+  if(wv.length)fs=wv;
+  fs.forEach(function(f){var g=f.geometry;if(!g)return;
     var cc=g.type==="Polygon"?[g.coordinates]:g.type==="MultiPolygon"?g.coordinates:null;
     if(!cc)return;cc.forEach(function(poly){poly[0].forEach(function(pt){b.extend(pt);});});});
-  if(!b.isEmpty())map.fitBounds(b,{padding:48,duration:0,maxZoom:9});}catch(e){}}
+  var opt={padding:48,duration:0,maxZoom:9};if(pitch!=null)opt.pitch=pitch;
+  if(!b.isEmpty())map.fitBounds(b,opt);}catch(e){}}
 function legend(noData){
   var box=document.createElement("div");box.className="lgd";
   var t=document.createElement("p");t.className="lgd-t";t.textContent=E.valueLabel||"Legenda";box.appendChild(t);
