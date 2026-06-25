@@ -165,8 +165,8 @@ function buildStoryEmbedHtml(spec: StorySpec, opts: EmbedOptions): string {
     design: { ...spec.base.design, zoomPan: false },
   } as StoryBaseSpec;
   const rawBase = buildEmbedHtml(baseSpec, opts).replace(
-    "map.addControl(new maplibregl.AttributionControl({compact:true}));",
-    'map.addControl(new maplibregl.AttributionControl({compact:true}));try{window.__zmap=map;}catch(e){}',
+    '\'<a href="https://zornade.com/studio" target="_blank" rel="noopener">Fatto con Zornade Studio</a>\'}));',
+    '\'<a href="https://zornade.com/studio" target="_blank" rel="noopener">Fatto con Zornade Studio</a>\'}));try{window.__zmap=map;}catch(e){}',
   );
   // srcdoc lives in a double-quoted attribute → escape & and " only.
   const srcdoc = rawBase.replace(/&/g, "&amp;").replace(/"/g, "&quot;");
@@ -612,6 +612,7 @@ function buildAreaEmbedHtml(
     cartogramKind: spec.cartogramKind ?? "noncontiguous",
     pointColor: d.pointColor || BRAND_TEAL,
     pointSize: d.pointSize || 7,
+    extrusionScale: d.extrusionScale ?? 1,
     valueRange: { min: classes.min, max: classes.max },
     legendColors,
     breaks: classes.breaks,
@@ -663,7 +664,6 @@ ${oembedLinks}
 <div id="tip"></div>
 ${spec.design.showTitle && title ? `<div class="ttl"><h1 style="font-family:${titleFont}">${title}</h1>${subtitle ? `<p style="font-family:${titleFont}">${subtitle}</p>` : ""}</div>` : ""}
 ${spec.design.showSource && source ? `<div class="src">${source}</div>` : ""}
-<div class="attr"><a href="https://zornade.com/studio" target="_blank" rel="noopener">Fatto con Zornade Studio</a> · Dati © OpenStreetMap</div>
 ${dataTableHtml ? `<div class="sr-only">${dataTableHtml}</div>` : ""}
 <script src="https://unpkg.com/maplibre-gl@${mlVer}/dist/maplibre-gl.js"></script>
 <script>
@@ -762,7 +762,7 @@ function light(){try{map.setLight(${LIGHT_JSON});}catch(e){}}
 var map=new maplibregl.Map({container:"map",
   style:E.basemapStyle||{version:8,sources:{},layers:[]},
   center:E.center,zoom:E.zoom,pitch:E.pitch,bearing:E.bearing,attributionControl:false,interactive:E.interactive});
-map.addControl(new maplibregl.AttributionControl({compact:true}));
+map.addControl(new maplibregl.AttributionControl({compact:true,customAttribution:'<a href="https://zornade.com/studio" target="_blank" rel="noopener">Fatto con Zornade Studio</a>'}));
 var GEO=null,ready=false;
 map.on("load",function(){ready=true;if(E.globe){try{map.setProjection({type:"globe"});}catch(e){}}sky();light();loc();if(GEO)build();});
 fetch(E.geoUrl).then(function(r){return r.json();}).then(function(g){GEO=g;if(ready)build();});
@@ -1294,7 +1294,6 @@ ${oembedLinks}
 <div id="map"></div>
 ${spec.design.showTitle && title ? `<div class="ttl"><h1 style="font-family:${titleFont}">${title}</h1>${subtitle ? `<p style="font-family:${titleFont}">${subtitle}</p>` : ""}</div>` : ""}
 ${spec.design.showSource && source ? `<div class="src">${source}</div>` : ""}
-<div class="attr"><a href="https://zornade.com/studio" target="_blank" rel="noopener">Fatto con Zornade Studio</a> · Dati © OpenStreetMap</div>
 ${dataTableHtml ? `<div class="sr-only">${dataTableHtml}</div>` : ""}
 <script src="https://unpkg.com/maplibre-gl@${mlVer}/dist/maplibre-gl.js"></script>
 <script>
@@ -1318,7 +1317,7 @@ function sky(){try{map.setSky(E.globe?${SKY_GLOBE_JSON}:${SKY_FLAT_JSON});}catch
 var map=new maplibregl.Map({container:"map",
   style:E.basemapStyle||{version:8,sources:{},layers:[]},
   center:E.center,zoom:E.zoom,pitch:E.pitch,bearing:E.bearing,attributionControl:false,interactive:E.interactive});
-map.addControl(new maplibregl.AttributionControl({compact:true}));
+map.addControl(new maplibregl.AttributionControl({compact:true,customAttribution:'<a href="https://zornade.com/studio" target="_blank" rel="noopener">Fatto con Zornade Studio</a>'}));
 map.on("load",function(){if(E.globe){try{map.setProjection({type:"globe"});}catch(e){}}sky();loc();build();});
 function build(){
   map.addSource("d",{type:"geojson",data:E.geojson});
@@ -1566,7 +1565,6 @@ ${oembedLinks}
 <div id="map"></div>
 ${spec.design.showTitle && title ? `<div class="ttl"><h1 style="font-family:${titleFont}">${title}</h1>${subtitle ? `<p style="font-family:${titleFont}">${subtitle}</p>` : ""}</div>` : ""}
 ${spec.design.showSource && source ? `<div class="src">${source}</div>` : ""}
-<div class="attr"><a href="https://zornade.com/studio" target="_blank" rel="noopener">Fatto con Zornade Studio</a> · Dati © OpenStreetMap</div>
 ${dataTableHtml ? `<div class="sr-only">${dataTableHtml}</div>` : ""}
 <script src="https://unpkg.com/maplibre-gl@${mlVer}/dist/maplibre-gl.js"></script>
 <script>
@@ -1598,7 +1596,7 @@ function sky(){try{map.setSky(E.globe?${SKY_GLOBE_JSON}:${SKY_FLAT_JSON});}catch
 var map=new maplibregl.Map({container:"map",
   style:E.basemapStyle||{version:8,sources:{},layers:[]},
   center:E.center,zoom:E.zoom,pitch:E.pitch,bearing:E.bearing,attributionControl:false,interactive:E.interactive});
-map.addControl(new maplibregl.AttributionControl({compact:true}));
+map.addControl(new maplibregl.AttributionControl({compact:true,customAttribution:'<a href="https://zornade.com/studio" target="_blank" rel="noopener">Fatto con Zornade Studio</a>'}));
 map.on("load",function(){if(E.globe){try{map.setProjection({type:"globe"});}catch(e){}}sky();loc();build();});
 function build(){
   map.addSource("d",{type:"geojson",data:E.geojson});
