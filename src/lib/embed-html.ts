@@ -60,7 +60,17 @@ function fmt(n){var s=NF.format(n);return E.valueUnit?(s+"\u00a0"+E.valueUnit):s
 // Move every basemap label (symbol) layer above the data so place names stay
 // readable on top of the overlay. 2D renders only (callers skip 3D extrusion).
 function raiseLabels(){try{(map.getStyle().layers||[]).forEach(function(l){
-  if(l.type==="symbol"&&l.id.indexOf("d-")!==0)map.moveLayer(l.id);});}catch(e){}}`;
+  if(l.type==="symbol"&&l.id.indexOf("d-")!==0)map.moveLayer(l.id);});}catch(e){}}
+// Force every place/road label to Italian. The external OpenFreeMap basemaps
+// (OpenMapTiles schema) render the local/native name by default, so cities like
+// "München"/"Wien"/"London" would show instead of "Monaco"/"Vienna"/"Londra".
+// Rewrite each symbol layer's text-field to prefer name:it, then the latin
+// name, then the raw name. Idempotent; re-run after each (re)style.
+function loc(){try{(map.getStyle().layers||[]).forEach(function(l){
+  if(l.type!=="symbol")return;var tf=l.layout&&l.layout["text-field"];if(tf==null)return;
+  if(JSON.stringify(tf).indexOf('"name')<0)return;
+  try{map.setLayoutProperty(l.id,"text-field",
+    ["coalesce",["get","name:it"],["get","name:latin"],["get","name"]]);}catch(e){}});}catch(e){}}`;
 
 /** Pinned MapLibre version for embeds (matches the app's maplibre-gl).
  *  Must be v5+: the globe projection (`setProjection`) and `setSky` used by
@@ -754,7 +764,7 @@ var map=new maplibregl.Map({container:"map",
   center:E.center,zoom:E.zoom,pitch:E.pitch,bearing:E.bearing,attributionControl:false,interactive:E.interactive});
 map.addControl(new maplibregl.AttributionControl({compact:true}));
 var GEO=null,ready=false;
-map.on("load",function(){ready=true;if(E.globe){try{map.setProjection({type:"globe"});}catch(e){}}sky();light();if(GEO)build();});
+map.on("load",function(){ready=true;if(E.globe){try{map.setProjection({type:"globe"});}catch(e){}}sky();light();loc();if(GEO)build();});
 fetch(E.geoUrl).then(function(r){return r.json();}).then(function(g){GEO=g;if(ready)build();});
 function build(){
   var noData=paint(E.keyed);
@@ -1305,7 +1315,7 @@ var map=new maplibregl.Map({container:"map",
   style:E.basemapStyle||{version:8,sources:{},layers:[]},
   center:E.center,zoom:E.zoom,pitch:E.pitch,bearing:E.bearing,attributionControl:false,interactive:E.interactive});
 map.addControl(new maplibregl.AttributionControl({compact:true}));
-map.on("load",function(){if(E.globe){try{map.setProjection({type:"globe"});}catch(e){}}sky();build();});
+map.on("load",function(){if(E.globe){try{map.setProjection({type:"globe"});}catch(e){}}sky();loc();build();});
 function build(){
   map.addSource("d",{type:"geojson",data:E.geojson});
   map.addLayer({id:"d-fill",type:E.layerType,source:"d",paint:E.paint});
@@ -1585,7 +1595,7 @@ var map=new maplibregl.Map({container:"map",
   style:E.basemapStyle||{version:8,sources:{},layers:[]},
   center:E.center,zoom:E.zoom,pitch:E.pitch,bearing:E.bearing,attributionControl:false,interactive:E.interactive});
 map.addControl(new maplibregl.AttributionControl({compact:true}));
-map.on("load",function(){if(E.globe){try{map.setProjection({type:"globe"});}catch(e){}}sky();build();});
+map.on("load",function(){if(E.globe){try{map.setProjection({type:"globe"});}catch(e){}}sky();loc();build();});
 function build(){
   map.addSource("d",{type:"geojson",data:E.geojson});
   var before=beforeId();

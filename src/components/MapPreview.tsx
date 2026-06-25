@@ -258,6 +258,46 @@ function applyProjection(map: maplibregl.Map, globe: boolean): void {
   }
 }
 
+/**
+ * Force every place/road label to Italian. The bundled Protomaps style is
+ * already built with `lang: "it"`, but the external OpenFreeMap basemaps
+ * (Positron/Bright/Liberty/Dark, OpenMapTiles schema) ship `text-field`
+ * expressions that render the local/native name (or a latin transliteration),
+ * so e.g. "München", "Wien", "London" show instead of "Monaco", "Vienna",
+ * "Londra". We rewrite the `text-field` of every symbol layer that renders a
+ * name to prefer `name:it`, falling back to the latin name and finally the raw
+ * `name`. Idempotent and schema-agnostic (both Protomaps and OpenMapTiles tiles
+ * carry `name:it` + `name`). setStyle() wipes this, so re-apply after each
+ * (re)style, like applySky/applyLight.
+ */
+function localizeLabels(map: maplibregl.Map, lang = "it"): void {
+  let style: maplibregl.StyleSpecification | undefined;
+  try {
+    style = map.getStyle();
+  } catch {
+    return; // style not ready yet
+  }
+  if (!style?.layers) return;
+  const localized: maplibregl.ExpressionSpecification = [
+    "coalesce",
+    ["get", `name:${lang}`],
+    ["get", "name:latin"],
+    ["get", "name"],
+  ];
+  for (const layer of style.layers) {
+    if (layer.type !== "symbol") continue;
+    const tf = (layer.layout as { "text-field"?: unknown } | undefined)?.["text-field"];
+    if (tf === undefined) continue;
+    // Only touch layers that render a name (skip housenumber, ref, ele, …).
+    if (!JSON.stringify(tf).includes('"name')) continue;
+    try {
+      map.setLayoutProperty(layer.id, "text-field", localized);
+    } catch {
+      /* layer removed mid-restyle — ignore. */
+    }
+  }
+}
+
 export function MapPreview({
   tilesUrl,
   flavor,
@@ -846,6 +886,7 @@ export function MapPreview({
       applyProjection(map, globeRef.current);
       applySky(map, globeRef.current);
       applyLight(map);
+      localizeLabels(map, lang);
       syncData(map);
       syncAnnotations(map);
     });
@@ -902,6 +943,7 @@ export function MapPreview({
         applyProjection(map, globeRef.current);
         applySky(map, globeRef.current);
         applyLight(map);
+        localizeLabels(map, lang);
         syncData(map);
         syncAnnotations(map);
       }

@@ -466,13 +466,20 @@ export function DesignPanel() {
                   }`}
                 >
                   <span className="flex h-3.5 w-24 overflow-hidden rounded-full">
-                    {s.colors.map((c) => (
+                    {(design.reverseScale ? [...s.colors].reverse() : s.colors).map((c) => (
                       <span key={c} className="flex-1" style={{ background: c }} />
                     ))}
                   </span>
                   <span className="text-xs text-slate-600">{s.label}</span>
                 </button>
               ))}
+            </div>
+            <div className="pt-2">
+              <Toggle
+                label="Inverti scala"
+                checked={design.reverseScale}
+                onChange={(v) => updateDesign({ reverseScale: v })}
+              />
             </div>
           </Field>
           {vizType === "bar" && (
@@ -556,13 +563,20 @@ export function DesignPanel() {
                   }`}
                 >
                   <span className="flex h-3.5 w-24 overflow-hidden rounded-full">
-                    {s.colors.map((c) => (
+                    {(design.reverseScale ? [...s.colors].reverse() : s.colors).map((c) => (
                       <span key={c} className="flex-1" style={{ background: c }} />
                     ))}
                   </span>
                   <span className="text-xs text-slate-600">{s.label}</span>
                 </button>
               ))}
+            </div>
+            <div className="pt-2">
+              <Toggle
+                label="Inverti scala"
+                checked={design.reverseScale}
+                onChange={(v) => updateDesign({ reverseScale: v })}
+              />
             </div>
           </Field>
         </PanelSection>
