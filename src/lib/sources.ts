@@ -21,10 +21,10 @@
  */
 
 /** Catalogue platform — determines which adapter the proxy uses. */
-export type SourceKind = "ckan" | "socrata";
+export type SourceKind = "ckan" | "socrata" | "dcat";
 
 /** Geographic reach of a source (used for grouping/labelling only). */
-export type SourceScope = "nazionale" | "regione" | "comune";
+export type SourceScope = "europeo" | "nazionale" | "regione" | "comune";
 
 export interface OpenDataSource {
   /** Stable slug used as the `portal` API parameter and blacklist key. */
@@ -61,6 +61,22 @@ export interface OpenDataSource {
  * cities). Keep it alphabetical-ish within each scope for readability.
  */
 export const OPEN_DATA_SOURCES: OpenDataSource[] = [
+  // --- European (supranational) ---------------------------------------------
+  {
+    id: "data-europa",
+    label: "data.europa.eu (UE)",
+    kind: "dcat",
+    // CKAN-compatible hub endpoint of the official EU open-data portal. It
+    // federates ~1.7M datasets harvested from every member-state portal and
+    // returns a DCAT-AP shape that needs its own adapter (see catalog-search).
+    api: "https://data.europa.eu/api/hub/search/ckan/package_search",
+    // Landing pages are keyed by dataset id, not name; the DCAT adapter passes
+    // the id through landingUrl(), so {name} is substituted with the id.
+    landingPattern: "https://data.europa.eu/data/datasets/{name}?locale=it",
+    scope: "europeo",
+    region: "Unione Europea",
+  },
+
   // --- National --------------------------------------------------------------
   {
     id: "nazionale",

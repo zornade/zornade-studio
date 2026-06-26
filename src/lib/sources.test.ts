@@ -23,7 +23,7 @@ describe("open-data sources registry", () => {
 
   it("ckan sources carry a {name} landing pattern; socrata carry a domain", () => {
     for (const s of OPEN_DATA_SOURCES) {
-      if (s.kind === "ckan") {
+      if (s.kind === "ckan" || s.kind === "dcat") {
         expect(s.landingPattern, `${s.id} landingPattern`).toBeTruthy();
         expect(s.landingPattern, `${s.id} landing token`).toContain("{name}");
       } else {

@@ -113,3 +113,112 @@ describe("catalog-search · Socrata adapter", () => {
     expect(out.results[1].resources[0].url).toBe("https://www.dati.friuliveneziagiulia.it/resource/wxyz-9999.csv");
   });
 });
+
+describe("catalog-search · DCAT adapter (data.europa.eu)", () => {
+  const europa = sourceById("data-europa")!;
+
+  it("strips the [..] brackets from access_url and reads the title/format fields", async () => {
+    const { fn } = mockJson({
+      result: {
+        count: 1747616,
+        results: [
+          {
+            id: "c_e630-popolazione",
+            title: "Popolazione",
+            notes: "Dati popolazione residente",
+            publisher: { name: "Comune di Lizzano" },
+            resources: [
+              {
+                access_url: "[https://raw.githubusercontent.com/x/dataset_popolazione.csv]",
+                format: "CSV",
+                title: "Dati popolazione",
+              },
+            ],
+          },
+        ],
+      },
+    });
+    const out = await searchSource(europa, { q: "popolazione" }, fn);
+    expect(out.count).toBe(1747616);
+    expect(out.results).toHaveLength(1);
+    const d = out.results[0];
+    expect(d.title).toBe("Popolazione");
+    expect(d.publisher).toBe("Comune di Lizzano");
+    expect(d.resources[0].url).toBe("https://raw.githubusercontent.com/x/dataset_popolazione.csv");
+    expect(d.resources[0].format).toBe("CSV");
+    expect(d.resources[0].name).toBe("Dati popolazione");
+    expect(d.landing).toBe("https://data.europa.eu/data/datasets/c_e630-popolazione?locale=it");
+  });
+
+  it("infers a usable format from the URL extension when `format` is null", async () => {
+    const { fn } = mockJson({
+      result: {
+        results: [
+          {
+            id: "geo-1",
+            title: "Confini",
+            resources: [
+              { access_url: "[https://host/confini.geojson]", format: null },
+              { access_url: "[https://host/dati.gpkg]", format: null },
+              { access_url: "[https://host/landing.html]", format: null }, // not usable
+            ],
+          },
+        ],
+      },
+    });
+    const out = await searchSource(europa, {}, fn);
+    expect(out.results[0].resources.map((r) => r.format)).toEqual(["GEOJSON", "GPKG"]);
+  });
+
+  it("coerces multilingual title/notes objects and falls back to id for a null title", async () => {
+    const { fn } = mockJson({
+      result: {
+        results: [
+          {
+            id: "ml-1",
+            title: { it: "Densità", en: "Density" },
+            notes: { en: "Population density" },
+            resources: [{ access_url: "[https://host/d.csv]", format: "CSV" }],
+          },
+          {
+            id: "null-title-2",
+            title: null,
+            resources: [{ access_url: "[https://host/e.csv]", format: "CSV" }],
+          },
+        ],
+      },
+    });
+    const out = await searchSource(europa, {}, fn);
+    expect(out.results[0].title).toBe("Densità"); // it preferred
+    expect(out.results[0].notes).toBe("Population density");
+    expect(out.results[1].title).toBe("null-title-2"); // id fallback
+  });
+
+  it("drops datasets whose resources are non-usable or have no resolvable URL", async () => {
+    const { fn } = mockJson({
+      result: {
+        results: [
+          {
+            id: "only-pdf",
+            title: "Report",
+            resources: [{ access_url: "[https://host/report.pdf]", format: "PDF" }],
+          },
+          {
+            id: "no-url",
+            title: "Vuoto",
+            resources: [{ format: "CSV" }],
+          },
+        ],
+      },
+    });
+    const out = await searchSource(europa, {}, fn);
+    expect(out.results).toHaveLength(0);
+  });
+
+  it("builds the query URL with q/rows/start", async () => {
+    const { fn, calls } = mockJson({ result: { count: 0, results: [] } });
+    await searchSource(europa, { q: "energia", rows: 30, start: 60 }, fn);
+    expect(calls[0]).toContain("package_search?q=energia&rows=30&start=60");
+  });
+});
+
