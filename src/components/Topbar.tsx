@@ -5,7 +5,7 @@ import { useAuth } from "../auth/AuthContext";
 import { Button } from "./primitives";
 
 const REPO = "zornade/zornade-studio";
-const SUPPORT_EMAIL = "studio@zornade.com";
+const SUPPORT_EMAIL = "info@zornade.com";
 
 function buildContext(projectTitle: string, step: string): string {
   return [
