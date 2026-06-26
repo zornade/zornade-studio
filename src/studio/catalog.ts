@@ -67,7 +67,6 @@ import {
   ChartCandlestick,
   SlidersHorizontal,
   MapPinned,
-  Sparkles,
   Flag,
 } from "lucide-react";
 import { PRESETS, type PresetName } from "../basemap";
@@ -166,16 +165,19 @@ export const DATA_SOURCES: CatalogItem[] = [
 ];
 
 /**
- * Data sources grouped by their **nature**, not by a misleading "ready vs your
- * data" split. Three honest buckets, the Zornade moat first:
- *  - `zornade`  — exclusive Zornade data (the competitive advantage).
- *  - `ready`    — external sources ready to query (catalogue + OpenStreetMap).
- *  - `own`      — bring-your-own data (file/paste/URL/API).
- * `id` matches a `DataSourceKind` (or "catalog" for the curated CKAN catalogue,
- * which is handled by a dedicated screen rather than a `dataSource`).
+ * Data sources grouped by their **provenance**, so the user immediately sees
+ * where each source comes from. Buckets, Zornade moat first:
+ *  - `zornade` — exclusive Zornade data (the competitive advantage).
+ *  - `italia`  — official Italian open data (national / regional / municipal).
+ *  - `europa`  — European open data (data.europa.eu, Eurostat).
+ *  - `mondo`   — worldwide sources (OpenStreetMap).
+ *  - `own`     — bring-your-own data (file / paste / URL / API).
+ * `id` matches a `DataSourceKind`, except the catalogue entries
+ * (`catalog-it` / `catalog-eu`) which open a dedicated search screen scoped to
+ * Italian or European portals rather than selecting a `dataSource`.
  */
 export interface SourceGroup {
-  id: "zornade" | "ready" | "own";
+  id: "zornade" | "italia" | "europa" | "mondo" | "own";
   label: string;
   hint: string;
   items: CatalogItem[];
@@ -197,24 +199,45 @@ export const SOURCE_GROUPS: SourceGroup[] = [
     ],
   },
   {
-    id: "ready",
-    label: "Fonti dati",
-    hint: "Portali open data, dati europei e OpenStreetMap — Italia e mondo.",
+    id: "italia",
+    label: "Fonti ufficiali italiane",
+    hint: "Portali open data della PA: nazionali, regionali e comunali.",
     items: [
       {
-        id: "catalog",
+        id: "catalog-it",
         label: "Open data italiani",
         desc: "dati.gov.it, regioni, comuni — cerca per tema",
-        icon: Sparkles,
+        icon: Landmark,
+        status: "ready",
+      },
+    ],
+  },
+  {
+    id: "europa",
+    label: "Fonti europee",
+    hint: "Dati ufficiali dell'Unione Europea.",
+    items: [
+      {
+        id: "catalog-eu",
+        label: "Open data europei",
+        desc: "data.europa.eu — 1,7M dataset di tutta la UE",
+        icon: Flag,
         status: "ready",
       },
       {
         id: "eurostat",
         label: "Eurostat",
-        desc: "Dataset europei curati",
-        icon: Flag,
+        desc: "Statistiche ufficiali europee, dataset curati",
+        icon: BarChart3,
         status: "ready",
       },
+    ],
+  },
+  {
+    id: "mondo",
+    label: "Mondo",
+    hint: "Dati geografici globali, ovunque nel mondo.",
+    items: [
       {
         id: "osm",
         label: "OpenStreetMap",

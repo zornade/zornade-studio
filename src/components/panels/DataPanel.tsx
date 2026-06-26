@@ -46,7 +46,8 @@ import {
   fetchResourceText,
   searchEurostat,
   fetchEurostatCsv,
-  CATALOG_PORTALS,
+  ITALIAN_PORTALS,
+  EUROPEAN_PORTALS,
   type CkanDataset,
   type CkanResource,
   type EurostatSearchItem,
@@ -73,7 +74,8 @@ import {
 } from "../../lib/zornade-db";
 import type { DatasetState, ProjectMeta } from "../../studio/types";
 
-type DataMode = "home" | "catalog";
+type DataMode = "home" | "catalog-it" | "catalog-eu";
+type CatalogScope = "italia" | "europa";
 
 function applyDatasetMeta(
   updateProject: (patch: Partial<ProjectMeta>) => void,
@@ -121,8 +123,9 @@ export function DataPanel() {
     );
   }
 
-  if (mode === "catalog") {
-    return <DataCatalog onBack={() => setMode("home")} />;
+  if (mode === "catalog-it" || mode === "catalog-eu") {
+    const scope: CatalogScope = mode === "catalog-eu" ? "europa" : "italia";
+    return <DataCatalog scope={scope} onBack={() => setMode("home")} />;
   }
 
   // Home: pick a source, grouped by its nature (Zornade moat first).
@@ -155,7 +158,8 @@ export function DataPanel() {
                     key={s.id}
                     disabled={disabled}
                     onClick={() => {
-                      if (s.id === "catalog") setMode("catalog");
+                      if (s.id === "catalog-it") setMode("catalog-it");
+                      else if (s.id === "catalog-eu") setMode("catalog-eu");
                       else setDataSource(s.id as never);
                     }}
                     className={`flex items-start gap-3 rounded-xl border p-3 text-left transition-all ${
@@ -197,7 +201,13 @@ export function DataPanel() {
 
 /* ------------------------------ Data catalog ------------------------------ */
 
-function DataCatalog({ onBack }: { onBack: () => void }) {
+function DataCatalog({
+  scope,
+  onBack,
+}: {
+  scope: CatalogScope;
+  onBack: () => void;
+}) {
   const [live, setLive] = useState<boolean | null>(null);
   useEffect(() => {
     let cancelled = false;
@@ -222,7 +232,7 @@ function DataCatalog({ onBack }: { onBack: () => void }) {
   }
 
   return live ? (
-    <LiveCatalog onBack={onBack} />
+    <LiveCatalog scope={scope} onBack={onBack} />
   ) : (
     <CuratedCatalog onBack={onBack} />
   );
@@ -244,8 +254,15 @@ function BackButton({ onClick }: { onClick: () => void }) {
 
 const PAGE_SIZE = 25;
 
-function LiveCatalog({ onBack }: { onBack: () => void }) {
-  const [portal, setPortal] = useState("nazionale");
+function LiveCatalog({
+  scope,
+  onBack,
+}: {
+  scope: CatalogScope;
+  onBack: () => void;
+}) {
+  const portals = scope === "europa" ? EUROPEAN_PORTALS : ITALIAN_PORTALS;
+  const [portal, setPortal] = useState(portals[0]?.id ?? "nazionale");
   const [query, setQuery] = useState("");
   const [submitted, setSubmitted] = useState("");
   const [page, setPage] = useState(0);
@@ -279,7 +296,9 @@ function LiveCatalog({ onBack }: { onBack: () => void }) {
     <div className="space-y-4">
       <BackButton onClick={onBack} />
       <PanelSection
-        title="Catalogo open data"
+        title={
+          scope === "europa" ? "Open data europei" : "Open data italiani"
+        }
         hint="Cerca tra i dataset pubblicati dai portali open data e caricali direttamente."
       >
         {/* Portal selector */}
@@ -292,7 +311,7 @@ function LiveCatalog({ onBack }: { onBack: () => void }) {
             }}
             className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-zornade focus:outline-none"
           >
-            {CATALOG_PORTALS.map((p) => (
+            {portals.map((p) => (
               <option key={p.id} value={p.id}>
                 {p.label}
               </option>

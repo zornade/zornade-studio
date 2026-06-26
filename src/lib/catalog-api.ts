@@ -7,7 +7,7 @@
  * static catalogue.
  */
 
-import { activeSources } from "./sources";
+import { activeSources, type SourceScope } from "./sources";
 
 export interface CkanResource {
   format: string;
@@ -33,6 +33,7 @@ export interface CkanSearchResult {
 export interface CatalogPortal {
   id: string;
   label: string;
+  scope: SourceScope;
 }
 
 /**
@@ -44,7 +45,18 @@ export interface CatalogPortal {
 export const CATALOG_PORTALS: CatalogPortal[] = activeSources().map((s) => ({
   id: s.id,
   label: s.label,
+  scope: s.scope,
 }));
+
+/** Portals whose data is Italian (national/regional/municipal). */
+export const ITALIAN_PORTALS = CATALOG_PORTALS.filter(
+  (p) => p.scope !== "europeo",
+);
+
+/** Portals whose data is European (EU-wide). */
+export const EUROPEAN_PORTALS = CATALOG_PORTALS.filter(
+  (p) => p.scope === "europeo",
+);
 
 let availability: boolean | null = null;
 
