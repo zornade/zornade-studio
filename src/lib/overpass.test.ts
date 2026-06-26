@@ -197,6 +197,42 @@ describe("runOverpass (robustness)", () => {
       globalThis.fetch = orig;
     }
   });
+
+  it("hedges: a hung first mirror does not block a fast second one", async () => {
+    // The first mirror hangs (until aborted); with a tiny hedge delay the second
+    // mirror is fired in parallel and wins, so the search still succeeds quickly
+    // instead of waiting out the first mirror's full timeout.
+    const calls: string[] = [];
+    const fetchMock = (url: string, init?: RequestInit) => {
+      calls.push(url);
+      if (url.includes("slow")) {
+        return new Promise<Response>((_resolve, reject) => {
+          init?.signal?.addEventListener("abort", () =>
+            reject(new DOMException("aborted", "AbortError")),
+          );
+        });
+      }
+      return Promise.resolve({
+        ok: true,
+        json: async () => okBody,
+      } as unknown as Response);
+    };
+    const orig = globalThis.fetch;
+    globalThis.fetch = fetchMock as typeof fetch;
+    try {
+      // perEndpointTimeout 5s (never reached), hedgeDelay 10ms → fast mirror joins.
+      const els = await runOverpass(
+        "q",
+        ["https://slow/i", "https://fast/i"],
+        5_000,
+        10,
+      );
+      expect(els).toHaveLength(1);
+      expect(calls).toContain("https://fast/i");
+    } finally {
+      globalThis.fetch = orig;
+    }
+  });
 });
 
 describe("isRuntimeError", () => {
