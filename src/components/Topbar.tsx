@@ -1,10 +1,34 @@
-import { Eye, Share2, LogOut } from "lucide-react";
+import { Eye, Share2, LogOut, Bug } from "lucide-react";
 import { useStudio } from "../studio/StudioContext";
 import { useAuth } from "../auth/AuthContext";
 import { Button } from "./primitives";
 
+const REPO = "zornade/zornade-studio";
+
+function buildIssueUrl(projectTitle: string, step: string): string {
+  const body = [
+    "## Descrizione del problema",
+    "",
+    "<!-- Descrivi brevemente cosa è successo e cosa ti aspettavi -->",
+    "",
+    "## Contesto",
+    `- **Pagina/step**: ${step}`,
+    `- **Titolo progetto**: ${projectTitle}`,
+    `- **URL**: ${window.location.href}`,
+    `- **Browser**: ${navigator.userAgent}`,
+  ].join("\n");
+
+  const params = new URLSearchParams({
+    template: "bug_report.md",
+    labels: "bug,studio",
+    title: `[Studio] Bug in step "${step}"`,
+    body,
+  });
+  return `https://github.com/${REPO}/issues/new?${params.toString()}`;
+}
+
 export function Topbar() {
-  const { project, updateProject, setStep } = useStudio();
+  const { project, updateProject, setStep, step } = useStudio();
   const { logout } = useAuth();
 
   return (
@@ -41,6 +65,13 @@ export function Topbar() {
           Pubblica
         </Button>
         <div className="h-6 w-px bg-slate-200" />
+        <Button
+          variant="ghost"
+          title="Segnala un problema"
+          onClick={() => window.open(buildIssueUrl(project.title, step), "_blank", "noopener,noreferrer")}
+        >
+          <Bug size={16} />
+        </Button>
         <Button variant="ghost" onClick={logout} title="Esci">
           <LogOut size={16} />
         </Button>
