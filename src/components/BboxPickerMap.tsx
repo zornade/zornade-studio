@@ -242,24 +242,28 @@ export function BboxPickerMap({ value, onChange, fullscreen = false }: Props) {
           style={{ zIndex: 11 }}
         />
 
-        {/* Draw-mode toggle — visible only in fullscreen mode */}
+        {/* Mode toggle — segmented control, visible only in fullscreen mode */}
         {fullscreen && (
-          <div
-            className="absolute left-3 top-3 z-20"
-          >
+          <div className="absolute left-3 top-3 z-20 flex gap-1 rounded-lg bg-white/95 p-1 shadow-md backdrop-blur">
             <button
-              onClick={() => setDrawActive((v) => !v)}
-              title={drawActive ? "Sposta mappa" : "Disegna area"}
-              className={`flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold shadow-md transition-colors ${
-                drawActive
-                  ? "bg-zornade text-white hover:bg-zornade-700"
-                  : "bg-white text-slate-700 hover:bg-slate-50 border border-slate-200"
+              onClick={() => setDrawActive(false)}
+              className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
+                !drawActive
+                  ? "bg-zornade text-white"
+                  : "text-slate-600 hover:bg-slate-100"
               }`}
             >
-              {drawActive
-                ? <><Pencil size={13} /> Seleziona area</>
-                : <><Move size={13} /> Sposta / zoom</>
-              }
+              <Move size={13} /> Sposta / zoom
+            </button>
+            <button
+              onClick={() => setDrawActive(true)}
+              className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
+                drawActive
+                  ? "bg-zornade text-white"
+                  : "text-slate-600 hover:bg-slate-100"
+              }`}
+            >
+              <Pencil size={13} /> Seleziona area
             </button>
           </div>
         )}
