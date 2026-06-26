@@ -12,6 +12,7 @@ import {
   Loader2,
   ChevronLeft,
   ChevronRight,
+  Map,
 } from "lucide-react";
 import { useStudio } from "../../studio/StudioContext";
 import {
@@ -1091,7 +1092,7 @@ function OsmSource() {
         <div className="space-y-2">
           {/* Status callout */}
           <div className="flex items-start gap-2 rounded-lg border border-zornade/30 bg-zornade-50 px-3 py-2.5">
-            <span className="mt-0.5 text-base leading-none">🗺️</span>
+            <Map size={15} className="mt-0.5 flex-shrink-0 text-zornade-700" />
             <p className="text-xs text-zornade-800">
               {effectiveBbox
                 ? `Area selezionata: ${effectiveBbox.west.toFixed(2)},\u200b${effectiveBbox.south.toFixed(2)},\u200b${effectiveBbox.east.toFixed(2)},\u200b${effectiveBbox.north.toFixed(2)}`
@@ -1624,19 +1625,20 @@ function EurostatSource() {
             {(
               Object.entries(EUROSTAT_THEMES) as [
                 EurostatTheme,
-                { label: string; emoji: string },
+                { label: string; icon: typeof Map },
               ][]
             ).map(([t, meta]) => (
               <button
                 key={t}
                 onClick={() => { setThemeFilter(t); setLocalQ(""); }}
-                className={`rounded-full px-2.5 py-1 text-[11px] font-medium transition-colors ${
+                className={`flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-medium transition-colors ${
                   themeFilter === t
                     ? "bg-zornade text-white"
                     : "bg-slate-100 text-slate-500 hover:bg-slate-200"
                 }`}
               >
-                {meta.emoji} {meta.label}
+                <meta.icon size={12} className="flex-shrink-0" />
+                {meta.label}
               </button>
             ))}
           </div>
@@ -1664,8 +1666,12 @@ function EurostatSource() {
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0 flex-1">
                     <p className="text-sm font-medium text-slate-800">{ds.label}</p>
-                    <p className="text-[10px] font-semibold uppercase tracking-wide text-zornade-700">
-                      {EUROSTAT_THEMES[ds.theme].emoji} {EUROSTAT_THEMES[ds.theme].label}
+                    <p className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-zornade-700">
+                      {(() => {
+                        const Icon = EUROSTAT_THEMES[ds.theme].icon;
+                        return <Icon size={11} className="flex-shrink-0" />;
+                      })()}
+                      {EUROSTAT_THEMES[ds.theme].label}
                     </p>
                     <p className="mt-1 line-clamp-2 text-xs text-slate-500">{ds.desc}</p>
                   </div>
@@ -1756,8 +1762,12 @@ function EurostatSource() {
                         </span>
                       </div>
                       {curated && (
-                        <p className="mt-0.5 text-[11px] text-zornade-700">
-                          {EUROSTAT_THEMES[curated.theme].emoji} Gia curato
+                        <p className="mt-0.5 flex items-center gap-1 text-[11px] text-zornade-700">
+                          {(() => {
+                            const Icon = EUROSTAT_THEMES[curated.theme].icon;
+                            return <Icon size={11} className="flex-shrink-0" />;
+                          })()}
+                          Gia curato
                         </p>
                       )}
                     </button>

@@ -9,6 +9,19 @@
  * i dati sono sotto i codici NUTS2 (ITC1..ITG2) / NUTS3 (ITC11..ITG22).
  */
 
+import {
+  Users,
+  BarChart3,
+  Home,
+  Leaf,
+  Briefcase,
+  Plane,
+  Car,
+  Hospital,
+  GraduationCap,
+  type LucideIcon,
+} from "lucide-react";
+
 /** Granularità geografica disponibile per un dataset. */
 export type EurostatGeo = "paese" | "nuts2" | "nuts3";
 
@@ -512,16 +525,16 @@ export const EUROSTAT_DATASETS: EurostatDataset[] = [
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-export const EUROSTAT_THEMES: Record<EurostatTheme, { label: string; emoji: string }> = {
-  demografia: { label: "Popolazione", emoji: "👥" },
-  economia: { label: "Economia", emoji: "📊" },
-  abitazioni: { label: "Abitazioni", emoji: "🏠" },
-  ambiente: { label: "Ambiente", emoji: "🌿" },
-  lavoro: { label: "Lavoro", emoji: "💼" },
-  turismo: { label: "Turismo", emoji: "✈️" },
-  trasporti: { label: "Trasporti", emoji: "🚗" },
-  salute: { label: "Salute", emoji: "🏥" },
-  istruzione: { label: "Istruzione", emoji: "🎓" },
+export const EUROSTAT_THEMES: Record<EurostatTheme, { label: string; icon: LucideIcon }> = {
+  demografia: { label: "Popolazione", icon: Users },
+  economia: { label: "Economia", icon: BarChart3 },
+  abitazioni: { label: "Abitazioni", icon: Home },
+  ambiente: { label: "Ambiente", icon: Leaf },
+  lavoro: { label: "Lavoro", icon: Briefcase },
+  turismo: { label: "Turismo", icon: Plane },
+  trasporti: { label: "Trasporti", icon: Car },
+  salute: { label: "Salute", icon: Hospital },
+  istruzione: { label: "Istruzione", icon: GraduationCap },
 };
 
 /** Restituisce i dataset curati filtrati per tema (o tutti se non specificato). */
