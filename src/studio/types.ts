@@ -51,6 +51,10 @@ export interface DesignSettings {
   valueLabel: string;
   /** Optional unit of measure appended to values (e.g. "%", "€/m²", "ha"). */
   valueUnit: string;
+  /** Bivariate: display name for the SECOND variable (B). Empty = column name. */
+  valueLabel2: string;
+  /** Bivariate: optional unit of measure for the second variable (B). */
+  valueUnit2: string;
   /** Point layer: colour of points without a category (and category fallback). */
   pointColor: string;
   /** Point layer: base radius in px (also the centre of the size scale). */
@@ -76,6 +80,8 @@ export interface DesignSettings {
   chartSortByValue: boolean;
   /** Bivariate map: the SECOND value column (the first is the dataset value). */
   bivariateColumn2: string;
+  /** Bivariate map: id of the selected 3×3 colour palette. "" = default. */
+  bivariatePalette: string;
   /** Cartogram variant: scale areas in place, or Dorling circles. */
   cartogramKind: "noncontiguous" | "dorling";
   /** Flow map: origin/destination coordinate columns + optional magnitude. */

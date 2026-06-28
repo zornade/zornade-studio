@@ -66,7 +66,7 @@ export interface DataLayer {
    * Bivariate map: labels for the two variables. When set, the tooltip shows
    * both `__a` (variable A) and `__b` (variable B) instead of a single value.
    */
-  bivariate?: { labelA: string; labelB: string };
+  bivariate?: { labelA: string; labelB: string; unitB?: string };
 }
 
 interface MapPreviewProps {
@@ -786,11 +786,12 @@ export function MapPreview({
       }
       if (biv) {
         const rawB = props.__b;
+        const unitB = biv.unitB ? `\u00a0${biv.unitB}` : "";
         const valueB =
           typeof rawB === "number"
-            ? fmt.format(rawB)
+            ? `${fmt.format(rawB)}${unitB}`
             : rawB != null
-              ? String(rawB)
+              ? `${String(rawB)}${unitB}`
               : "n/d";
         return (
           `<div class="studio-tooltip-name">${escapeHtml(String(name ?? ""))}</div>` +

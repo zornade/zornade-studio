@@ -17,7 +17,7 @@ import {
 } from "../lib/choropleth";
 import { buildPointFeatures } from "../lib/points";
 import { prepareGeoRender } from "../lib/geo-dataset";
-import { joinBivariate, BIVARIATE_PALETTE } from "../lib/bivariate";
+import { joinBivariate, bivariatePaletteColors } from "../lib/bivariate";
 import { spikeTriangles } from "../lib/spike";
 import { hexbin } from "../lib/hexbin";
 import { nonContiguousCartogram, dorlingCartogram } from "../lib/cartogram";
@@ -32,6 +32,12 @@ const NO_DATA_COLOR = DEFAULT_NO_DATA_COLOR;
 /** Categorical palette for point/category colouring (falls back to teal). */
 const CAT_PALETTE =
   COLOR_SCALES.find((s) => s.id === "cat")?.colors ?? [BRAND_TEAL];
+
+/** "Label (unit)" if a unit is set, otherwise just the label. */
+function labelWithUnit(label: string, unit: string): string {
+  const u = unit.trim();
+  return u ? `${label} (${u})` : label;
+}
 
 export function MapCanvas() {
   const {
@@ -351,6 +357,23 @@ export function MapCanvas() {
       (data && data.kind !== "table" ? data.valueColumn : "")) ??
     "";
 
+  // Bivariate: the selected 3×3 palette and the per-axis labels (with units).
+  const bivPalette = bivariatePaletteColors(design.bivariatePalette);
+  const bivColB =
+    data?.kind === "area"
+      ? design.bivariateColumn2 && data.numericColumns.includes(design.bivariateColumn2)
+        ? design.bivariateColumn2
+        : data.numericColumns.find((c) => c !== data.valueColumn) ?? ""
+      : "";
+  const bivLabelA = labelWithUnit(
+    design.valueLabel || (data?.kind === "area" ? data.valueColumn : "") || "Variabile 1",
+    design.valueUnit,
+  );
+  const bivLabelB = labelWithUnit(
+    design.valueLabel2 || bivColB || "Variabile 2",
+    design.valueUnit2,
+  );
+
   const dataLayer: DataLayer | null = useMemo(
     () =>
       buildDataLayer({
@@ -592,7 +615,7 @@ export function MapCanvas() {
             <div className="flex items-end gap-1.5">
               {/* Vertical axis label (variable B), rotated. */}
               <span className="mb-3 text-[9px] font-medium uppercase tracking-wide text-slate-500 [writing-mode:vertical-rl] rotate-180">
-                {design.bivariateColumn2 || "Variabile 2"} →
+                {bivLabelB} →
               </span>
               <div>
                 <div className="grid grid-cols-3 grid-rows-3 gap-0.5">
@@ -602,13 +625,13 @@ export function MapCanvas() {
                       <span
                         key={`${r}-${c}`}
                         className="h-4 w-4"
-                        style={{ background: BIVARIATE_PALETTE[r * 3 + c] }}
+                        style={{ background: bivPalette[r * 3 + c] }}
                       />
                     )),
                   )}
                 </div>
                 <span className="mt-0.5 block text-[9px] font-medium uppercase tracking-wide text-slate-500">
-                  {valueLabel || data?.kind === "area" && data.valueColumn || "Variabile 1"} →
+                  {bivLabelA} →
                 </span>
               </div>
             </div>

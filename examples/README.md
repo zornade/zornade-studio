@@ -137,14 +137,18 @@ bivariata).
 | **Mappa di calore** | punti | `eventi-punti-italia.csv` | densità; `intensita` pesa i punti (scegli `intensita` come valore in Struttura) |
 | **Densità di punti** | punti | `eventi-punti-italia.csv` | un puntino per evento; `categoria` li colora |
 | **Esagoni** | punti | `eventi-punti-italia.csv` | griglia esagonale, colore per conteggio |
-| **Bivariata** | aree (2 numeri) | `regioni-completo.csv` | combina due variabili in una matrice 3×3; la 2ª colonna si sceglie nel Design |
+| **Bivariata** | aree (2 numeri) | `mondo-clima-emissioni-vulnerabilita.csv` · `regioni-completo.csv` | combina due variabili in una matrice 3×3; la 2ª colonna si sceglie in “Struttura” → “Secondo valore” |
 | **Spike map** | aree | `regioni-completo.csv` | un picco per regione, altezza = valore |
 | **Estrusione 3D** | aree | `regioni-completo.csv` | aree estruse in 3D (la mappa si inclina automaticamente) |
 
 Note:
 - Per la **bivariata**: in “Struttura” imposta la *colonna valore* (1ª
-  variabile); in “Design” → “Seconda variabile” scegli la 2ª. La legenda 3×3
-  compare in basso a sinistra.
+  variabile) e il *Secondo valore* (2ª variabile). La legenda 3×3 compare in
+  basso a sinistra. Esempio mondiale pronto: `mondo-clima-emissioni-vulnerabilita.csv`
+  (livello **Paesi**, chiave `codice_iso`) — **CO₂ pro capite 2023** (Our World in
+  Data / Global Carbon Project, CC-BY) × **vulnerabilità climatica 2023** (ND-GAIN,
+  University of Notre Dame): mette in mappa la “giustizia climatica” (chi emette
+  vs. chi subisce). 187 Paesi.
 - Per **mappa di calore / esagoni** scegli un livello di zoom adatto: la densità
   si legge meglio sull'insieme dell'Italia.
 - L'**estrusione 3D** inclina la camera (pitch 50°); trascina con il tasto destro

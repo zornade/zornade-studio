@@ -4,6 +4,9 @@ import {
   tercileClass,
   buildBivariateColorExpression,
   BIVARIATE_PALETTE,
+  BIVARIATE_PALETTES,
+  DEFAULT_BIVARIATE_PALETTE_ID,
+  bivariatePaletteColors,
 } from "./bivariate";
 
 /** Minimal regioni-like geometry keyed by reg_name. */
@@ -112,5 +115,31 @@ describe("buildBivariateColorExpression", () => {
   it("has a 9-colour palette", () => {
     expect(BIVARIATE_PALETTE).toHaveLength(9);
     for (const c of BIVARIATE_PALETTE) expect(c).toMatch(/^#[0-9a-f]{6}$/i);
+  });
+});
+
+describe("BIVARIATE_PALETTES registry", () => {
+  it("offers several named 9-colour palettes with unique ids", () => {
+    expect(BIVARIATE_PALETTES.length).toBeGreaterThanOrEqual(3);
+    const ids = new Set(BIVARIATE_PALETTES.map((p) => p.id));
+    expect(ids.size).toBe(BIVARIATE_PALETTES.length);
+    for (const p of BIVARIATE_PALETTES) {
+      expect(p.colors).toHaveLength(9);
+      for (const c of p.colors) expect(c).toMatch(/^#[0-9a-f]{6}$/i);
+      expect(p.label.length).toBeGreaterThan(0);
+    }
+  });
+
+  it("keeps the default palette byte-identical to BIVARIATE_PALETTE (back-compat)", () => {
+    expect(DEFAULT_BIVARIATE_PALETTE_ID).toBe(BIVARIATE_PALETTES[0].id);
+    expect(bivariatePaletteColors(DEFAULT_BIVARIATE_PALETTE_ID)).toEqual(BIVARIATE_PALETTE);
+  });
+
+  it("resolves a known id and falls back to the default for unknown/empty ids", () => {
+    const greenBlue = BIVARIATE_PALETTES.find((p) => p.id === "green-blue")!;
+    expect(bivariatePaletteColors("green-blue")).toEqual(greenBlue.colors);
+    expect(bivariatePaletteColors("")).toEqual(BIVARIATE_PALETTES[0].colors);
+    expect(bivariatePaletteColors(undefined)).toEqual(BIVARIATE_PALETTES[0].colors);
+    expect(bivariatePaletteColors("does-not-exist")).toEqual(BIVARIATE_PALETTES[0].colors);
   });
 });

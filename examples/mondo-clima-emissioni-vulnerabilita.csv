@@ -1,0 +1,188 @@
+paese,codice_iso,co2_procapite_t,vulnerabilita_climatica
+Qatar,QAT,40.13,0.351
+Brunei,BRN,27.24,0.404
+Kuwait,KWT,25.45,0.362
+Bahrein,BHR,24.71,0.436
+Trinidad e Tobago,TTO,23.64,0.371
+Arabia Saudita,SAU,20.37,0.408
+Emirati Arabi Uniti,ARE,19.77,0.383
+Oman,OMN,15.81,0.42
+Isole Ashmore e Cartier,AUS,14.53,0.316
+Stati Uniti d'America,USA,14.32,0.312
+Kazakistan,KAZ,14.08,0.316
+Canada,CAN,13.88,0.282
+Turkmenistan,TKM,12.96,0.372
+Mongolia,MNG,12.87,0.365
+Palau,PLW,12.18,0.513
+Russia,RUS,11.92,0.324
+Corea del Sud,KOR,11.39,0.357
+Lussemburgo,LUX,10.29,0.311
+Islanda,ISL,9.05,0.322
+Singapore,SGP,8.82,0.389
+Libia,LBY,8.79,0.416
+Iran,IRN,8.72,0.376
+Cina,CHN,8.56,0.382
+Giappone,JPN,7.94,0.369
+Malaysia,MYS,7.87,0.367
+Repubblica Ceca,CZE,7.7,0.264
+Bahamas,BHS,7.4,0.458
+Polonia,POL,7.31,0.306
+Belgio,BEL,7.23,0.335
+Norvegia,NOR,7.04,0.256
+Germania,DEU,7.02,0.301
+Sudafrica,ZAF,6.91,0.395
+Antigua e Barbuda,ATG,6.86,0.468
+Paesi Bassi,NLD,6.47,0.354
+Irlanda,IRL,6.46,0.316
+Estonia,EST,6.4,0.334
+Serbia,SRB,6.33,0.422
+Bosnia ed Erzegovina,BIH,6.24,0.347
+Austria,AUT,6.23,0.295
+Bielorussia,BLR,6.11,0.323
+Nuova Zelanda,NZL,6.1,0.304
+Israele,ISR,5.98,0.289
+Finlandia,FIN,5.68,0.28
+Slovenia,SVN,5.67,0.314
+Slovacchia,SVK,5.58,0.36
+Turchia,TUR,5.58,0.375
+Cipro,CYP,5.34,0.359
+Guyana,GUY,5.3,0.43
+Italia,ITA,5.25,0.342
+Bulgaria,BGR,5.08,0.354
+Grecia,GRC,5.08,0.337
+Iraq,IRQ,5.06,0.436
+Seychelles,SYC,5.01,0.444
+Nauru,NRU,4.93,0.509
+Danimarca,DNK,4.85,0.347
+Croazia,HRV,4.74,0.38
+Barbados,BRB,4.66,0.371
+Suriname,SUR,4.56,0.404
+Spagna,ESP,4.5,0.305
+Regno Unito,GBR,4.48,0.288
+Algeria,DZA,4.39,0.367
+Lituania,LTU,4.38,0.36
+Venezuela,VEN,4.23,0.373
+Maldive,MDV,4.19,0.55
+Ungheria,HUN,4.16,0.353
+Azerbaigian,AZE,4.14,0.404
+Francia,FRA,4.07,0.304
+Macedonia del Nord,MKD,4.01,0.372
+Cile,CHL,3.95,0.332
+Argentina,ARG,3.92,0.383
+Isole Marshall,MHL,3.8,0.59
+Montenegro,MNE,3.8,0.363
+Guinea Equatoriale,GNQ,3.74,0.41
+Thailandia,THA,3.69,0.435
+Ucraina,UKR,3.69,0.365
+Portogallo,PRT,3.61,0.318
+Svizzera,CHE,3.6,0.251
+Mauritius,MUS,3.6,0.412
+Romania,ROU,3.55,0.412
+Messico,MEX,3.53,0.387
+Lettonia,LVA,3.5,0.36
+Svezia,SWE,3.48,0.317
+Vietnam,VNM,3.46,0.468
+Uzbekistan,UZB,3.45,0.359
+Malta,MLT,3.32,0.32
+Laos,LAO,3.15,0.486
+Georgia,GEO,3.13,0.394
+Grenada,GRD,3.1,0.383
+Botswana,BWA,2.92,0.432
+Panama,PAN,2.92,0.406
+Saint Lucia,LCA,2.88,0.375
+Giamaica,JAM,2.84,0.422
+Repubblica Dominicana,DOM,2.81,0.433
+Indonesia,IDN,2.71,0.43
+Libano,LBN,2.69,0.399
+Tunisia,TUN,2.6,0.379
+Armenia,ARM,2.52,0.357
+Ecuador,ECU,2.48,0.461
+Dominica,DMA,2.47,0.439
+Saint Vincent e Grenadine,VCT,2.43,0.431
+Corea del Nord,PRK,2.35,0.46
+Brasile,BRA,2.29,0.369
+Uruguay,URY,2.25,0.375
+Egitto,EGY,2.18,0.411
+Gabon,GAB,2.14,0.436
+Cuba,CUB,2.13,0.441
+India,IND,2.13,0.485
+Bhutan,BTN,2.07,0.515
+Giordania,JOR,2.02,0.366
+Bolivia,BOL,2.01,0.451
+Perù,PER,1.95,0.409
+Belize,BLZ,1.86,0.467
+Marocco,MAR,1.83,0.368
+Moldavia,MDA,1.74,0.394
+Colombia,COL,1.72,0.405
+Costa Rica,CRI,1.66,0.376
+Kirghizistan,KGZ,1.58,0.311
+Albania,ALB,1.57,0.38
+Figi,FJI,1.5,0.453
+Filippine,PHL,1.4,0.444
+Tonga,TON,1.39,0.607
+El Salvador,SLV,1.37,0.425
+Repubblica del Congo,COG,1.34,0.522
+Siria,SYR,1.34,0.486
+Stati Federati di Micronesia,FSM,1.28,0.621
+Cambogia,KHM,1.23,0.481
+Honduras,HND,1.17,0.445
+Namibia,NAM,1.16,0.454
+Paraguay,PRY,1.12,0.372
+Tuvalu,TUV,1.11,0.576
+Capo Verde,CPV,1.09,0.42
+Guatemala,GTM,1.09,0.434
+Lesotho,LSO,1.08,0.472
+Samoa,WSM,1.08,0.513
+Mauritania,MRT,1.0,0.578
+Tagikistan,TJK,0.99,0.356
+eSwatini,SWZ,0.84,0.448
+Sri Lanka,LKA,0.83,0.475
+Zimbabwe,ZWE,0.82,0.498
+Nicaragua,NIC,0.8,0.446
+Papua Nuova Guinea,PNG,0.8,0.55
+Senegal,SEN,0.78,0.535
+Pakistan,PAK,0.75,0.515
+Comore,COM,0.64,0.541
+Nepal,NPL,0.62,0.49
+Bangladesh,BGD,0.61,0.568
+São Tomé e Príncipe,STP,0.61,0.542
+Ghana,GHA,0.6,0.448
+Angola,AGO,0.59,0.506
+Birmania,MMR,0.59,0.514
+Vanuatu,VUT,0.59,0.563
+Nigeria,NGA,0.57,0.481
+Zambia,ZMB,0.57,0.485
+Kiribati,KIR,0.52,0.557
+Gibuti,DJI,0.48,0.502
+Timor Est,TLS,0.46,0.538
+Costa d'Avorio,CIV,0.45,0.489
+Benin,BEN,0.42,0.571
+Kenya,KEN,0.38,0.5
+Sudan,SDN,0.35,0.612
+Isole Salomone,SLB,0.35,0.629
+Camerun,CMR,0.34,0.486
+Togo,TGO,0.32,0.503
+Tanzania,TZA,0.3,0.516
+Gambia,GMB,0.29,0.524
+Mali,MLI,0.28,0.576
+Burkina Faso,BFA,0.27,0.521
+Guinea,GIN,0.27,0.529
+Mozambico,MOZ,0.27,0.493
+Yemen,YEM,0.26,0.534
+Afghanistan,AFG,0.25,0.588
+Haiti,HTI,0.25,0.509
+Eritrea,ERI,0.21,0.592
+Sierra Leone,SLE,0.16,0.597
+Guinea-Bissau,GNB,0.15,0.613
+Liberia,LBR,0.15,0.538
+Ciad,TCD,0.15,0.64
+Etiopia,ETH,0.14,0.522
+Madagascar,MDG,0.14,0.558
+Ruanda,RWA,0.14,0.567
+Uganda,UGA,0.13,0.536
+Niger,NER,0.12,0.633
+Malawi,MWI,0.09,0.549
+Repubblica Centrafricana,CAF,0.08,0.579
+Burundi,BDI,0.07,0.553
+Somalia,SOM,0.07,0.611
+Repubblica Democratica del Congo,COD,0.06,0.561

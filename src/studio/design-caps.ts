@@ -52,7 +52,7 @@ export const VIZ_DESIGN_CAPS: Record<string, DesignCapability[]> = {
   cartogram: ["cartogramKind", "valueLabel", "colorScale", "classification", "tooltipTemplate"],
   // Flow map: arcs between origin/destination coordinate pairs.
   flow: ["flowBinding", "valueLabel", "colorScale", "pointStyle", "tooltipTemplate"],
-  // Bivariate map: two variables → a fixed 3×3 colour matrix (no colour ramp).
+  // Bivariate map: two variables → a selectable 3×3 colour matrix (no colour ramp).
   bivariate: ["valueLabel", "bivariateBinding", "tooltipTemplate"],
   // Spike map: triangles at centroids, uniform colour + width (pointStyle).
   spike: ["valueLabel", "colorScale", "pointStyle", "tooltipTemplate"],

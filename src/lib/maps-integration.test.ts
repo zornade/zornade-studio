@@ -127,10 +127,11 @@ describe("area-map publish · real data end-to-end (O4 Fase 1)", () => {
         titleFont: "Inter", basemap: "ofm-positron", colorScale: "teal-seq",
         reverseScale: false, classification: "quantile", manualBreaks: [],
         legendType: "steps", nClasses: 5, valueLabel: "", valueUnit: "",
+        valueLabel2: "", valueUnit2: "",
         pointColor: "#01646f", pointSize: 7, showTitle: true, showLegend: true,
         showSource: true, tooltip: true, tooltipTemplate: "", zoomPan: true,
         readerFilters: false, chartX: "", chartY: "", chartSeries: "",
-        chartSortByValue: false, bivariateColumn2: "",
+        chartSortByValue: false, bivariateColumn2: "", bivariatePalette: "",
         cartogramKind: "noncontiguous", flowFromLat: "", flowFromLon: "",
         flowToLat: "", flowToLon: "", flowValue: "", customBasemapUrl: "", globe: false, ...over,
       },
@@ -171,14 +172,28 @@ describe("area-map publish · real data end-to-end (O4 Fase 1)", () => {
   });
 
   it("publishes a bivariate map carrying both real value series", () => {
-    const out = buildSpec(areaState("bivariate", { bivariateColumn2: "pil_procapite_eur" }));
+    const out = buildSpec(
+      areaState("bivariate", {
+        bivariateColumn2: "pil_procapite_eur",
+        valueLabel2: "PIL pro capite",
+        valueUnit2: "€",
+        bivariatePalette: "green-blue",
+      }),
+    );
     if (!("spec" in out) || out.spec.type !== "choropleth") throw new Error("expected choropleth spec");
     expect(out.spec.render).toBe("bivariate");
+    // The second variable's label/unit and the palette choice are serialised.
+    expect(out.spec.design.valueLabel2).toBe("PIL pro capite");
+    expect(out.spec.design.valueUnit2).toBe("€");
+    expect(out.spec.design.bivariatePalette).toBe("green-blue");
     // Every datum has both values.
     expect(out.spec.data.every((d) => d.value != null && d.value2 != null)).toBe(true);
     const html = buildEmbedHtml(out.spec, { geoBaseUrl: "https://embed.x/geo" });
     expect(html).toContain('"render":"bivariate"');
     expect(html).toContain('"bivPalette"');
+    // The chosen palette (green-blue) reaches the embed, and the B label/unit too.
+    expect(html).toContain("#2a5a5b");
+    expect(html).toContain("PIL pro capite");
   });
 
   it("publishes a chart from the real renewables CSV (Observable Plot)", () => {
@@ -194,10 +209,11 @@ describe("area-map publish · real data end-to-end (O4 Fase 1)", () => {
         titleFont: "Inter", basemap: "ofm-positron", colorScale: "teal-seq",
         reverseScale: false, classification: "quantile", manualBreaks: [],
         legendType: "steps", nClasses: 5, valueLabel: "", valueUnit: "GWh",
+        valueLabel2: "", valueUnit2: "",
         pointColor: "#01646f", pointSize: 7, showTitle: true, showLegend: true,
         showSource: true, tooltip: true, tooltipTemplate: "", zoomPan: true,
         readerFilters: false, chartX: "regione", chartY: "produzione_rinnovabile_gwh",
-        chartSeries: "", chartSortByValue: true, bivariateColumn2: "",
+        chartSeries: "", chartSortByValue: true, bivariateColumn2: "", bivariatePalette: "",
         cartogramKind: "noncontiguous", flowFromLat: "", flowFromLon: "",
         flowToLat: "", flowToLon: "", flowValue: "", customBasemapUrl: "", globe: false,
       },

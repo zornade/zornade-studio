@@ -25,6 +25,7 @@ import { buildPointFeatures } from "./points";
 import { prepareGeoRender } from "./geo-dataset";
 import { buildFlows } from "./flow";
 import { sanitizeStorySteps, type StoryStep, type StoryCamera } from "./story";
+import { DEFAULT_BIVARIATE_PALETTE_ID } from "./bivariate";
 import type { GeometryKind } from "../studio/types";
 import {
   chartColumnRoles,
@@ -88,6 +89,11 @@ export interface SpecDesign {
   nClasses: number;
   valueLabel: string;
   valueUnit: string;
+  /** Bivariate: display name + unit for the SECOND variable (B). Optional. */
+  valueLabel2?: string;
+  valueUnit2?: string;
+  /** Bivariate: id of the selected 3×3 colour palette. Absent = default. */
+  bivariatePalette?: string;
   titleFont: string;
   showTitle: boolean;
   showLegend: boolean;
@@ -377,7 +383,7 @@ export function buildSpec(state: StudioState & { camera?: StoryCamera | null }):
     if (datums.length === 0) {
       return { error: "Nessun valore numerico da pubblicare." };
     }
-    return { spec: makeAreaSpec(state, render, datums) };
+    return { spec: makeAreaSpec(state, render, datums, { bivariateColumn2: colB }) };
   }
 
   // choropleth / symbol / spike / extrusion: a single numeric value per area.
@@ -430,6 +436,8 @@ function makeAreaSpec(
     time?: { column: string; frames: string[] };
     frames?: SpecFrame[];
     categoryColumn?: string;
+    /** Bivariate: the resolved SECOND value column (label fallback). */
+    bivariateColumn2?: string;
   } = {},
 ): ChoroplethSpec {
   const { data, design, project } = state;
@@ -480,6 +488,17 @@ function makeAreaSpec(
       pointColor: design.pointColor,
       pointSize: design.pointSize,
       customBasemapUrl: design.customBasemapUrl ?? "",
+      // Bivariate maps carry a second variable (label + unit) and a palette
+      // choice; emitted only for that render so other area specs stay
+      // byte-identical with previously-published embeds.
+      ...(render === "bivariate"
+        ? {
+            valueLabel2: design.valueLabel2 || opts.bivariateColumn2 || "",
+            valueUnit2: design.valueUnit2,
+            bivariatePalette:
+              design.bivariatePalette || DEFAULT_BIVARIATE_PALETTE_ID,
+          }
+        : {}),
       // Only for the 3D extrusion, and only when actually exaggerated, so plain
       // choropleth/cartogram specs and unscaled extrusions stay byte-identical.
       ...(render === "extrusion" && (design.extrusionScale ?? 1) !== 1

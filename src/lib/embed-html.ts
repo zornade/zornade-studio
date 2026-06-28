@@ -29,7 +29,7 @@ import {
   markerAnnotations,
   sanitizeAnnotations,
 } from "./annotations";
-import { tercileClass, BIVARIATE_PALETTE } from "./bivariate";
+import { tercileClass, bivariatePaletteColors } from "./bivariate";
 import { buildHeatmapPaint } from "./heatmap";
 import { hexbin } from "./hexbin";
 import { buildPointColorExpression, buildPointRadiusExpression } from "./points";
@@ -57,6 +57,8 @@ function esc(s){return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"
   .replace(/>/g,"&gt;").replace(/"/g,"&quot;").replace(/'/g,"&#39;");}
 var NF=new Intl.NumberFormat("it-IT",{maximumFractionDigits:2});
 function fmt(n){var s=NF.format(n);return E.valueUnit?(s+"\u00a0"+E.valueUnit):s;}
+// Format with an explicit unit (bivariate variable B has its own unit).
+function fmtU(n,u){var s=NF.format(n);return u?(s+"\u00a0"+u):s;}
 // Move every basemap label (symbol) layer above the data so place names stay
 // readable on top of the overlay. 2D renders only (callers skip 3D extrusion).
 function raiseLabels(){try{(map.getStyle().layers||[]).forEach(function(l){
@@ -466,6 +468,10 @@ function buildAreaEmbedHtml(
   const noData = DEFAULT_NO_DATA_COLOR;
   const { fields, nameField } = geoJoinFields(spec.geo.level);
   const valueLabel = d.valueLabel || spec.geo.valueColumn || "Valore";
+  // Bivariate: the chosen 3×3 palette and the second variable's label/unit.
+  const bivPalette = bivariatePaletteColors(d.bivariatePalette);
+  const bivLabelB = d.valueLabel2 || "Variabile 2";
+  const bivUnitB = d.valueUnit2 || "";
 
   // Value put on each feature's `__value` at runtime, keyed by normalised key.
   // Its meaning depends on `render`: a number (numeric maps), the category
@@ -549,7 +555,7 @@ function buildAreaEmbedHtml(
       bivB[k] = datum.value2;
     }
     const match: unknown[] = ["match", ["get", "__value"]];
-    BIVARIATE_PALETTE.forEach((c, i) => match.push(i, c));
+    bivPalette.forEach((c, i) => match.push(i, c));
     match.push(noData);
     fill = match;
   }
@@ -619,7 +625,9 @@ function buildAreaEmbedHtml(
     categoryLegend,
     bivA,
     bivB,
-    bivPalette: BIVARIATE_PALETTE,
+    bivPalette,
+    bivLabelB,
+    bivUnitB,
     basemapStyle: resolveBasemap(d.basemap, d.customBasemapUrl ?? ""),
     center: (spec.camera?.center ?? (spec.globe ? [0, 20] : [12.5, 42])) as [number, number],
     zoom: spec.camera?.zoom ?? (spec.globe ? 1.5 : 4.4),
@@ -972,15 +980,30 @@ function legend(noData){
       box.appendChild(row);});
     document.body.appendChild(box);return;
   }
-  // Bivariate map: a 3×3 colour matrix.
+  // Bivariate map: a 3×3 colour matrix with the two axis labels.
   if(E.render==="bivariate"&&E.bivPalette){
+    box.removeChild(t);
+    var alab=E.valueLabel+(E.valueUnit?" ("+E.valueUnit+")":"");
+    var blab=(E.bivLabelB||"Variabile 2")+(E.bivUnitB?" ("+E.bivUnitB+")":"");
+    var axStyle="font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;color:#64748b";
+    var roww=document.createElement("div");
+    roww.style.cssText="display:flex;align-items:flex-end;gap:6px";
+    var by=document.createElement("span");
+    by.textContent=blab+" \u2192";
+    by.style.cssText=axStyle+";margin-bottom:12px;writing-mode:vertical-rl;transform:rotate(180deg)";
+    var col=document.createElement("div");
     var grid=document.createElement("div");
     grid.style.cssText="display:grid;grid-template-columns:repeat(3,14px);grid-template-rows:repeat(3,14px);gap:2px";
     [2,1,0].forEach(function(r){[0,1,2].forEach(function(c){
       var sp=document.createElement("span");
       sp.style.cssText="width:14px;height:14px;background:"+E.bivPalette[r*3+c];
       grid.appendChild(sp);});});
-    box.appendChild(grid);document.body.appendChild(box);return;
+    var bx=document.createElement("span");
+    bx.textContent=alab+" \u2192";
+    bx.style.cssText=axStyle+";display:block;margin-top:2px";
+    col.appendChild(grid);col.appendChild(bx);
+    roww.appendChild(by);roww.appendChild(col);
+    box.appendChild(roww);document.body.appendChild(box);return;
   }
   // Reader-facing clickable legend: each class toggles its visibility.
   if(E.readerFilters&&E.legendType==="steps"&&E.breaks){
@@ -1050,12 +1073,16 @@ function tooltip(){
     // The painted value, formatted per render: a number, a category string, or
     // the two raw values of a bivariate map.
     var vtxt;
-    if(E.render==="bivariate"){vtxt=fmt(p.__a)+" \u00b7 "+fmt(p.__b);}
+    if(E.render==="bivariate"){vtxt=fmt(p.__a)+" \u00b7 "+fmtU(p.__b,E.bivUnitB);}
     else if(typeof p.__value==="number"){vtxt=fmt(p.__value);}
     else{vtxt=String(p.__value);}
     if(E.tooltipTemplate){var vals={nome:nm,valore:vtxt};
       for(var k in p){if(k.indexOf("col:")===0)vals[k.slice(4)]=p[k];}
       html=tplRender(E.tooltipTemplate,vals);}
+    else if(E.render==="bivariate"){
+      html='<div class="studio-tooltip-name">'+esc(nm)+'</div>'+
+        '<div class="studio-tooltip-value"><span>'+esc(E.valueLabel)+'</span> '+esc(fmt(p.__a))+'</div>'+
+        '<div class="studio-tooltip-value"><span>'+esc(E.bivLabelB||"Variabile 2")+'</span> '+esc(fmtU(p.__b,E.bivUnitB))+'</div>';}
     else{html='<div class="studio-tooltip-name">'+esc(nm)+'</div>'+
       '<div class="studio-tooltip-value"><span>'+esc(E.valueLabel)+'</span> '+esc(vtxt)+'</div>';}
     if(tip){tip.innerHTML=html;

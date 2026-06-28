@@ -28,6 +28,80 @@ export const BIVARIATE_PALETTE: string[] = [
   "#64acbe", "#627f8c", "#574249", // row 2 (B high)
 ];
 
+/** A named, selectable 3×3 bivariate palette (same index layout as above). */
+export interface BivariatePalette {
+  id: string;
+  label: string;
+  colors: string[];
+}
+
+/**
+ * Selectable bivariate palettes. All nine-colour schemes by Joshua Stevens /
+ * Cynthia Brewer (via the R `pals` package), sharing the same `row*3 + col`
+ * layout: index 0 = both variables low (pale), index 8 = both high (dark).
+ * The first entry is the historical default and is byte-identical to
+ * `BIVARIATE_PALETTE` for back-compatibility with existing specs.
+ */
+export const BIVARIATE_PALETTES: BivariatePalette[] = [
+  {
+    id: "teal-red",
+    label: "Verde-azzurro × Rosso",
+    colors: [
+      "#e8e8e8", "#e4acac", "#c85a5a",
+      "#b0d5df", "#ad9ea5", "#985356",
+      "#64acbe", "#627f8c", "#574249",
+    ],
+  },
+  {
+    id: "pink-blue",
+    label: "Rosa × Blu",
+    colors: [
+      "#e8e8e8", "#ace4e4", "#5ac8c8",
+      "#dfb0d6", "#a5add3", "#5698b9",
+      "#be64ac", "#8c62aa", "#3b4994",
+    ],
+  },
+  {
+    id: "green-blue",
+    label: "Verde × Blu",
+    colors: [
+      "#e8e8e8", "#b5c0da", "#6c83b5",
+      "#b8d6be", "#90b2b3", "#567994",
+      "#73ae80", "#5a9178", "#2a5a5b",
+    ],
+  },
+  {
+    id: "purple-gold",
+    label: "Viola × Oro",
+    colors: [
+      "#e8e8e8", "#e4d9ac", "#c8b35a",
+      "#cbb8d7", "#c8ada0", "#af8e53",
+      "#9972af", "#976b82", "#804d36",
+    ],
+  },
+  {
+    id: "pink-green",
+    label: "Rosa × Verde",
+    colors: [
+      "#f3f3f3", "#c2f1ce", "#8be2af",
+      "#eac5dd", "#9ec6d3", "#7fc6b1",
+      "#e6a3d0", "#bc9fce", "#7b8eaf",
+    ],
+  },
+];
+
+/** Default bivariate palette id (the historical teal × red scheme). */
+export const DEFAULT_BIVARIATE_PALETTE_ID = BIVARIATE_PALETTES[0].id;
+
+/**
+ * Resolve a palette id to its 9 colours, falling back to the default scheme
+ * for unknown/empty ids (keeps old specs and bad input rendering correctly).
+ */
+export function bivariatePaletteColors(id: string | undefined | null): string[] {
+  const found = BIVARIATE_PALETTES.find((p) => p.id === id);
+  return (found ?? BIVARIATE_PALETTES[0]).colors;
+}
+
 /** Class (0,1,2) of a value given two tercile thresholds. */
 export function tercileClass(value: number, breaks: number[]): 0 | 1 | 2 {
   if (breaks.length === 0) return 1;

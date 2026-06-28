@@ -36,6 +36,7 @@ import {
   type DrawTool,
 } from "../../lib/annotations";
 import { designCaps, supportsGlobe } from "../../studio/design-caps";
+import { BIVARIATE_PALETTES, DEFAULT_BIVARIATE_PALETTE_ID } from "../../lib/bivariate";
 
 const PRESET_OPTIONS: { id: PresetChoice; label: string }[] = [
   ...NEWSROOM_KIT_LIST.map((k) => ({ id: k.id as PresetChoice, label: k.label })),
@@ -497,7 +498,13 @@ export function DesignPanel() {
       {/* ---- Dato: etichetta del valore mappato (mappe) ---- */}
       {caps.has("valueLabel") && data && data.kind !== "table" && (
         <PanelSection title="Dato" hint="Etichetta e unità del valore in mappa.">
-          <Field label="Nome del dato in mappa">
+          <Field
+            label={
+              caps.has("bivariateBinding")
+                ? "Nome del 1° valore (A) in mappa"
+                : "Nome del dato in mappa"
+            }
+          >
             <input
               value={design.valueLabel}
               onChange={(e) => updateDesign({ valueLabel: e.target.value })}
@@ -513,9 +520,75 @@ export function DesignPanel() {
               className={inputCls}
             />
           </Field>
+          {caps.has("bivariateBinding") && (
+            <>
+              <Field label="Nome del 2° valore (B) in mappa">
+                <input
+                  value={design.valueLabel2}
+                  onChange={(e) => updateDesign({ valueLabel2: e.target.value })}
+                  placeholder={design.bivariateColumn2 || "Variabile 2"}
+                  className={inputCls}
+                />
+              </Field>
+              <Field label="Unità di misura del 2° valore (opzionale)">
+                <input
+                  value={design.valueUnit2}
+                  onChange={(e) => updateDesign({ valueUnit2: e.target.value })}
+                  placeholder="es. %, €/m², ab/km²"
+                  className={inputCls}
+                />
+              </Field>
+            </>
+          )}
           <p className="text-[11px] text-slate-400">
-            La colonna del valore si sceglie nel passo “Struttura”.
+            {caps.has("bivariateBinding")
+              ? "Le due colonne (valore e secondo valore) si scelgono nel passo “Struttura”."
+              : "La colonna del valore si sceglie nel passo “Struttura”."}
           </p>
+        </PanelSection>
+      )}
+
+      {/* ---- Colore: palette bivariata (matrice 3×3) ---- */}
+      {caps.has("bivariateBinding") && (
+        <PanelSection title="Colore" hint="Palette della matrice bivariata 3×3.">
+          <Field label="Palette bivariata">
+            <div className="space-y-1.5">
+              {BIVARIATE_PALETTES.map((p) => {
+                const selected =
+                  (design.bivariatePalette || DEFAULT_BIVARIATE_PALETTE_ID) === p.id;
+                return (
+                  <button
+                    key={p.id}
+                    onClick={() => updateDesign({ bivariatePalette: p.id })}
+                    className={`flex w-full items-center gap-2 rounded-lg border px-2.5 py-1.5 transition-colors ${
+                      selected
+                        ? "border-zornade bg-zornade-50"
+                        : "border-slate-200 hover:border-slate-300"
+                    }`}
+                  >
+                    <span
+                      className="grid overflow-hidden rounded"
+                      style={{
+                        gridTemplateColumns: "repeat(3, 11px)",
+                        gridTemplateRows: "repeat(3, 11px)",
+                        gap: "1px",
+                      }}
+                    >
+                      {[2, 1, 0].map((r) =>
+                        [0, 1, 2].map((c) => (
+                          <span
+                            key={`${r}-${c}`}
+                            style={{ background: p.colors[r * 3 + c] }}
+                          />
+                        )),
+                      )}
+                    </span>
+                    <span className="text-xs text-slate-600">{p.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </Field>
         </PanelSection>
       )}
 

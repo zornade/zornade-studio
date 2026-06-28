@@ -29,7 +29,7 @@ import { prepareGeoRender } from "./geo-dataset";
 import {
   joinBivariate,
   buildBivariateColorExpression,
-  BIVARIATE_PALETTE,
+  bivariatePaletteColors,
 } from "./bivariate";
 import { spikeTriangles } from "./spike";
 import { hexbin } from "./hexbin";
@@ -127,7 +127,10 @@ export function buildDataLayer(args: BuildDataLayerArgs): DataLayer | null {
     return {
       kind: "area",
       geojson: bivariate.geojson,
-      fillColor: buildBivariateColorExpression(BIVARIATE_PALETTE, NO_DATA_COLOR),
+      fillColor: buildBivariateColorExpression(
+        bivariatePaletteColors(design.bivariatePalette),
+        NO_DATA_COLOR,
+      ),
       nameField:
         data?.kind === "area" ? GEO_LEVELS[data.geoLevel].nameField : undefined,
       valueLabel,
@@ -135,7 +138,8 @@ export function buildDataLayer(args: BuildDataLayerArgs): DataLayer | null {
       tooltipTemplate: design.tooltipTemplate,
       bivariate: {
         labelA: valueLabel || colA || "Variabile 1",
-        labelB: colB || "Variabile 2",
+        labelB: design.valueLabel2 || colB || "Variabile 2",
+        unitB: design.valueUnit2 || undefined,
       },
     };
   }
