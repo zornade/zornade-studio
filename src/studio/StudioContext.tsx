@@ -132,6 +132,7 @@ const INITIAL_DESIGN: DesignSettings = {
   flowToLon: "",
   flowValue: "",
   customBasemapUrl: "",
+  hideLabels: false,
   globe: false,
   extrusionScale: 1,
 };

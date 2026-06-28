@@ -52,6 +52,7 @@ const design = (over: Partial<DesignSettings> = {}): DesignSettings => ({
   flowToLon: "",
   flowValue: "",
   customBasemapUrl: "",
+  hideLabels: false,
   globe: false,
   ...over,
 });

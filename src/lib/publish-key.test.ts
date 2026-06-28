@@ -24,7 +24,7 @@ function state(title: string, value: string): StudioState {
       bivariateColumn2: "",
       bivariatePalette: "",
       cartogramKind: "noncontiguous", flowFromLat: "", flowFromLon: "",
-      flowToLat: "", flowToLon: "", flowValue: "", customBasemapUrl: "", globe: false,
+      flowToLat: "", flowToLon: "", flowValue: "", customBasemapUrl: "", hideLabels: false, globe: false,
     },
     data: {
       kind: "area",

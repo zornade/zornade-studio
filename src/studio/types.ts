@@ -92,6 +92,8 @@ export interface DesignSettings {
   flowValue: string;
   /** Custom raster basemap tile URL (XYZ/WMS), used when basemap = "custom-raster". */
   customBasemapUrl: string;
+  /** Hide every basemap label (place/road names) for a clean, label-free map. */
+  hideLabels: boolean;
   /** Render the map on a 3D globe (spherical projection). Default false. */
   globe: boolean;
   /**

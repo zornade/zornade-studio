@@ -58,7 +58,7 @@ function baseState(overrides: Partial<StudioState> = {}): StudioState {
       flowToLat: "",
       flowToLon: "",
       flowValue: "",
-      customBasemapUrl: "", globe: false,
+      customBasemapUrl: "", hideLabels: false, globe: false,
     },
     data: {
       kind: "area",
@@ -321,6 +321,27 @@ describe("buildSpec · point maps (O4 publish, phase 2)", () => {
     const out = buildSpec(pointState("points", 5001));
     expect("error" in out).toBe(true);
     if ("error" in out) expect(out.error).toMatch(/[Tt]roppi punti/);
+  });
+
+  it("allows aggregating renders above MAX_PUBLISH_POINTS", () => {
+    // Heatmap/hexbin only sum points into a density surface, so they tolerate a
+    // larger cloud (MAX_PUBLISH_POINTS_AGGREGATED) than the per-marker renders.
+    for (const vizType of ["heatmap", "hexbin"]) {
+      const out = buildSpec(pointState(vizType, 7126));
+      if (!("spec" in out) || out.spec.type !== "point") {
+        throw new Error(`expected point spec for ${vizType}`);
+      }
+      expect(out.spec.points).toHaveLength(7126);
+    }
+  });
+
+  it("rejects aggregating renders above MAX_PUBLISH_POINTS_AGGREGATED", () => {
+    const out = buildSpec(pointState("heatmap", 50001));
+    expect("error" in out).toBe(true);
+    if ("error" in out) {
+      expect(out.error).toMatch(/[Tt]roppi punti/);
+      expect(out.error).toMatch(/50000/);
+    }
   });
 
   it("rejects a point viz on a non-point dataset", () => {

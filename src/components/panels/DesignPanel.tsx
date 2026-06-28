@@ -262,6 +262,13 @@ export function DesignPanel() {
             resta nell'embed.
           </p>
         )}
+        <div className="flex flex-wrap gap-3 pt-2">
+          <Toggle
+            label="Nascondi etichette"
+            checked={design.hideLabels}
+            onChange={(v) => updateDesign({ hideLabels: v })}
+          />
+        </div>
       </PanelSection>
 
       {/* ---- Proiezione (globo 3D) ---- */}

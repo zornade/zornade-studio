@@ -72,7 +72,12 @@ function loc(){try{(map.getStyle().layers||[]).forEach(function(l){
   if(l.type!=="symbol")return;var tf=l.layout&&l.layout["text-field"];if(tf==null)return;
   if(JSON.stringify(tf).indexOf('"name')<0)return;
   try{map.setLayoutProperty(l.id,"text-field",
-    ["coalesce",["get","name:it"],["get","name:latin"],["get","name"]]);}catch(e){}});}catch(e){}}`;
+    ["coalesce",["get","name:it"],["get","name:latin"],["get","name"]]);}catch(e){}});}catch(e){}}
+// Hide every basemap label (symbol) layer for a clean, label-free map. Only the
+// basemap's own symbols are touched (data layers use the "d-" id prefix).
+function hideLbl(){try{(map.getStyle().layers||[]).forEach(function(l){
+  if(l.type==="symbol"&&l.id.indexOf("d-")!==0)
+    map.setLayoutProperty(l.id,"visibility","none");});}catch(e){}}`;
 
 /** Pinned MapLibre version for embeds (matches the app's maplibre-gl).
  *  Must be v5+: the globe projection (`setProjection`) and `setSky` used by
@@ -629,6 +634,7 @@ function buildAreaEmbedHtml(
     bivLabelB,
     bivUnitB,
     basemapStyle: resolveBasemap(d.basemap, d.customBasemapUrl ?? ""),
+    hideLabels: !!d.hideLabels,
     center: (spec.camera?.center ?? (spec.globe ? [0, 20] : [12.5, 42])) as [number, number],
     zoom: spec.camera?.zoom ?? (spec.globe ? 1.5 : 4.4),
     pitch: spec.camera?.pitch ?? (render === "extrusion" ? 50 : 0),
@@ -772,7 +778,7 @@ var map=new maplibregl.Map({container:"map",
   center:E.center,zoom:E.zoom,pitch:E.pitch,bearing:E.bearing,attributionControl:false,interactive:E.interactive});
 map.addControl(new maplibregl.AttributionControl({compact:true,customAttribution:'<a href="https://zornade.com/studio" target="_blank" rel="noopener">Fatto con Zornade Studio</a>'}));
 var GEO=null,ready=false;
-map.on("load",function(){ready=true;if(E.globe){try{map.setProjection({type:"globe"});}catch(e){}}sky();light();loc();if(GEO)build();});
+map.on("load",function(){ready=true;if(E.globe){try{map.setProjection({type:"globe"});}catch(e){}}sky();light();loc();if(E.hideLabels)hideLbl();if(GEO)build();});
 fetch(E.geoUrl).then(function(r){return r.json();}).then(function(g){GEO=g;if(ready)build();});
 function build(){
   var noData=paint(E.keyed);
@@ -1281,6 +1287,7 @@ function buildPointEmbedHtml(spec: PointSpec, opts: EmbedOptions): string {
     showLabels: spec.render === "locator",
     nameField: "__name",
     basemapStyle: resolveBasemap(d.basemap, d.customBasemapUrl ?? ""),
+    hideLabels: !!d.hideLabels,
     center: (spec.camera?.center ?? (spec.globe ? [0, 20] : [12.5, 42])) as [number, number],
     zoom: spec.camera?.zoom ?? (spec.globe ? 1.5 : 5),
     pitch: spec.camera?.pitch ?? 0,
@@ -1345,7 +1352,7 @@ var map=new maplibregl.Map({container:"map",
   style:E.basemapStyle||{version:8,sources:{},layers:[]},
   center:E.center,zoom:E.zoom,pitch:E.pitch,bearing:E.bearing,attributionControl:false,interactive:E.interactive});
 map.addControl(new maplibregl.AttributionControl({compact:true,customAttribution:'<a href="https://zornade.com/studio" target="_blank" rel="noopener">Fatto con Zornade Studio</a>'}));
-map.on("load",function(){if(E.globe){try{map.setProjection({type:"globe"});}catch(e){}}sky();loc();build();});
+map.on("load",function(){if(E.globe){try{map.setProjection({type:"globe"});}catch(e){}}sky();loc();if(E.hideLabels)hideLbl();build();});
 function build(){
   map.addSource("d",{type:"geojson",data:E.geojson});
   map.addLayer({id:"d-fill",type:E.layerType,source:"d",paint:E.paint});
@@ -1553,6 +1560,7 @@ function buildGeoEmbedHtml(spec: GeoSpec, opts: EmbedOptions): string {
     circleRadius: d.pointSize,
     nameField: "__name",
     basemapStyle: resolveBasemap(d.basemap, d.customBasemapUrl ?? ""),
+    hideLabels: !!d.hideLabels,
     center: (spec.camera?.center ?? (spec.globe ? [0, 20] : [12.5, 42])) as [number, number],
     zoom: spec.camera?.zoom ?? (spec.globe ? 1.5 : 5),
     pitch: spec.camera?.pitch ?? 0,
@@ -1625,7 +1633,7 @@ var map=new maplibregl.Map({container:"map",
   style:E.basemapStyle||{version:8,sources:{},layers:[]},
   center:E.center,zoom:E.zoom,pitch:E.pitch,bearing:E.bearing,attributionControl:false,interactive:E.interactive});
 map.addControl(new maplibregl.AttributionControl({compact:true,customAttribution:'<a href="https://zornade.com/studio" target="_blank" rel="noopener">Fatto con Zornade Studio</a>'}));
-map.on("load",function(){if(E.globe){try{map.setProjection({type:"globe"});}catch(e){}}sky();loc();build();});
+map.on("load",function(){if(E.globe){try{map.setProjection({type:"globe"});}catch(e){}}sky();loc();if(E.hideLabels)hideLbl();build();});
 function build(){
   map.addSource("d",{type:"geojson",data:E.geojson});
   var before=beforeId();

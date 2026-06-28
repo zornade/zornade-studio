@@ -89,6 +89,12 @@ interface MapPreviewProps {
    */
   basemapUrl?: string | maplibregl.StyleSpecification | null;
   /**
+   * Hide every basemap label (place/road names) for a clean, label-free map.
+   * Default false. Only the basemap's own symbol layers are toggled; the data
+   * overlay and annotations are untouched.
+   */
+  hideLabels?: boolean;
+  /**
    * Changing this string triggers an auto fit-bounds to the data extent.
    * Keep it stable across basemap/style changes so the camera is only refit
    * when the underlying dataset changes (not on every restyle).
@@ -219,6 +225,25 @@ function raiseBasemapLabels(map: maplibregl.Map): void {
 }
 
 /**
+ * Toggle the visibility of every basemap label (symbol) layer. Used for the
+ * "hide labels" design option to produce a clean, name-free map. Only the
+ * basemap's own symbol layers are affected; data/annotation layers are skipped
+ * via OWN_LAYER_IDS. Mirrors the embed's `hideLbl`.
+ */
+function hideBasemapLabels(map: maplibregl.Map, hide: boolean): void {
+  const layers = map.getStyle().layers ?? [];
+  for (const l of layers) {
+    if (l.type === "symbol" && !OWN_LAYER_IDS.has(l.id)) {
+      try {
+        map.setLayoutProperty(l.id, "visibility", hide ? "none" : "visible");
+      } catch {
+        /* layer removed during a concurrent restyle — ignore. */
+      }
+    }
+  }
+}
+
+/**
  * Add a subtle sky + atmospheric haze. On a pitched 2D map it draws a soft
  * horizon; on the globe it gives the planet a blue atmosphere halo. The
  * atmosphere fades out as the camera zooms in so it never washes out the data.
@@ -312,6 +337,7 @@ export function MapPreview({
   zoomPan = true,
   basemap = true,
   basemapUrl = null,
+  hideLabels = false,
   fitKey = null,
   dataFilter = null,
   annotations = [],
@@ -337,6 +363,9 @@ export function MapPreview({
   /** Live globe flag read by the once-bound load/restyle handlers (for sky). */
   const globeRef = useRef<boolean>(globe);
   globeRef.current = globe;
+  /** Live hide-labels flag read by the once-bound load/restyle handlers. */
+  const hideLabelsRef = useRef<boolean>(hideLabels);
+  hideLabelsRef.current = hideLabels;
   /** Feature id currently under the cursor (for the hover highlight). */
   const hoveredIdRef = useRef<number | string | null>(null);
   /** Imperative hide for the cursor tooltip, set once the map is built. */
@@ -914,6 +943,7 @@ export function MapPreview({
       applySky(map, globeRef.current);
       applyLight(map);
       localizeLabels(map, lang);
+      hideBasemapLabels(map, hideLabelsRef.current);
       syncData(map);
       syncAnnotations(map);
     });
@@ -971,6 +1001,7 @@ export function MapPreview({
         applySky(map, globeRef.current);
         applyLight(map);
         localizeLabels(map, lang);
+        hideBasemapLabels(map, hideLabelsRef.current);
         syncData(map);
         syncAnnotations(map);
       }
@@ -984,6 +1015,13 @@ export function MapPreview({
     if (map) syncData(map);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dataLayer]);
+
+  // Toggle basemap labels when the hideLabels option changes (no restyle).
+  useEffect(() => {
+    const map = mapRef.current;
+    if (map && map.isStyleLoaded()) hideBasemapLabels(map, hideLabels);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hideLabels]);
 
   // Tilt the camera for 3D extrusion (and flatten back for the other maps).
   useEffect(() => {

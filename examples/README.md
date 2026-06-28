@@ -223,3 +223,99 @@ Come pubblicarli per la landing:
    (quantili o intervalli naturali), unità nel tooltip, titolo e fonte.
 3. **Pubblica** → ottieni l'URL embed `studio.zornade.com/embed/{slug}/{hash}/`
    da inserire nel carosello della landing.
+
+---
+
+# Dataset verificato — Palestina, vittime del conflitto per governatorato
+
+Coropletica su **geografia custom** (GeoJSON con shape proprie): i 16
+governatorati della **Palestina storica** (5 Striscia di Gaza + 11
+Cisgiordania). I valori sono **incorporati nelle proprietà del GeoJSON**, quindi
+si carica direttamente senza CSV di join.
+
+| File | Livello / Tipo | Colonna valore | Note |
+|------|----------------|----------------|------|
+| `palestina-vittime-conflitto-governatorati.geojson` | Governatorato (area, geografia custom) | `vittime_totali` (in alternativa `vittime_dal_2023`, `eventi_totali`) | 16 feature; valori già dentro le proprietà. Carica il GeoJSON, **Struttura** → conferma `governatorato` = geografia e scegli la colonna valore. |
+| `palestina-vittime-conflitto-governatorati.csv` | Governatorato | idem | Stessi dati senza geometria, per ispezione/trasparenza. |
+
+## Provenienza (fonti esterne verificabili)
+
+- **Dati conflitto**: **ACLED** (Armed Conflict Location & Event Data Project),
+  distribuiti via **HDX HAPI** (`hdx_hapi_conflict_event_pse.csv`, dataset
+  *Conflict Events – State of Palestine*). Aggregazione propria a livello di
+  governatorato (`admin_level=2`), somma di `fatalities` ed `events`. Periodo di
+  riferimento **gen 2016 – giu 2026**. Licenza ACLED: uso con attribuzione.
+- **Confini amministrativi**: **geoBoundaries** (wmgeolab, Università William &
+  Mary), release `gbOpen` **PSE ADM2**, licenza **CC-BY 4.0**. Coordinate
+  arrotondate a 5 decimali per alleggerire l'embed (≈1,2 MB).
+- **Join nomi**: i 16 nomi geoBoundaries combaciano 1:1 con gli `admin2_name`
+  ACLED (mappatura esplicita per le grafie diverse: *Deir Al Balah*↔*Deir
+  Al-Balah*, *Khan Yunis*↔*Khan Younis*, *Qalqiliya*↔*Qalqilya*, *Ramallah & Al
+  Bireh*↔*Ramallah*, *Jericho & Al Aghwar*↔*Jericho*). Copertura **16/16**.
+
+## Numeri (con denominatore)
+
+- **127.069** vittime totali registrate da ACLED nei 16 governatorati (2016–2026).
+- **125.016** (il **98,4%** del totale) avvenute **dopo il 7 ottobre 2023**
+  (`vittime_dal_2023`): il dato che rende leggibile la concentrazione su Gaza.
+- Top 5, tutti nella Striscia di Gaza: **Gaza** 41.704 · **Deir al-Balah** 24.251
+  · **Khan Yunis** 22.627 · **Gaza Nord** 22.369 · **Rafah** 13.559. La
+  Cisgiordania resta sotto le ~560 vittime per governatorato.
+
+Storia per chi scrive: con palette sequenziale e `vittime_totali`, la Striscia
+di Gaza si stacca nettamente dalla Cisgiordania; usando `vittime_dal_2023` il
+quadro è quasi identico, a conferma che la quasi totalità delle vittime è
+posteriore al 7 ottobre 2023.
+
+---
+
+# Dataset verificato — Palestina, eventi del conflitto a PUNTI (lat/lon)
+
+Mappa a **punti / mappa di calore**: ogni riga è un evento di violenza
+georeferenziato (latitudine/longitudine) nella **Palestina storica** (Striscia di
+Gaza, Cisgiordania, Gerusalemme e distretti limitrofi). Adatto a **Punti**,
+**Mappa di calore** ed **Esagoni** in Studio.
+
+| File | Tipo | Coordinate | Valore consigliato | Note |
+|------|------|------------|--------------------|------|
+| `palestina-eventi-conflitto-punti.csv` | Punti (lat/lon) | `lat`, `lon` | `vittime` (stima morti per evento) | 8.070 eventi 1989–2024. In **Struttura** imposta `lat`/`lon` come coordinate e `vittime` come valore (peso della heatmap / dimensione dei punti). |
+
+Colonne: `lat, lon, data, anno, localita, area, vittime, vittime_civili,
+tipo_violenza, attore_a, attore_b, precisione_geo`.
+
+## Provenienza (fonte esterna verificabile)
+
+- **Fonte**: **UCDP GED** — Uppsala Conflict Data Program, *Georeferenced Event
+  Dataset* **versione 25.1** (release globale, eventi **1989–2024**). Standard
+  accademico di riferimento per i conflitti armati; ogni evento è codificato da
+  fonti multiple e georeferenziato. Scaricato dal portale ufficiale
+  `ucdp.uu.se/downloads` (file `ged251-csv.zip`, aperto, nessuna registrazione).
+- **Filtro**: tutti gli eventi del contenitore-paese UCDP che ricadono nella
+  Palestina storica (regione *Middle East*): **8.070** eventi, **100% con
+  coordinate valide** (`latitude`/`longitude`).
+- **Precisione geografica** (`where_prec` UCDP → colonna `precisione_geo`):
+  **6.592/8.070 = 82%** a localizzazione esatta (=1); il resto a centroide di
+  località/distretto. I punti condividono **359 coordinate uniche** (centroidi di
+  località ricorrenti): per questo la **mappa di calore** pesata su `vittime`
+  rende meglio della densità di punti grezza.
+- **Stime di mortalità**: `vittime` = stima centrale UCDP (`best`) per evento;
+  `vittime_civili` = morti civili (`deaths_civilians`). UCDP è volutamente
+  conservativo (conteggi documentati per singolo evento), quindi i totali sono
+  **inferiori** ai bilanci complessivi del Ministero della Salute di Gaza.
+
+## Numeri (con denominatore)
+
+- **8.070** eventi georeferenziati nella Palestina storica (1989–2024).
+- **58.206** vittime stimate complessive; **31.860** civili (il **54,7%**).
+- **4.217** eventi (il **52%** del totale) e **48.737** vittime stimate (l'**84%**
+  del totale 1989–2024) sono **dopo il 7 ottobre 2023** (`data >= 2023-10-07`):
+  la concentrazione spaziale e temporale su Gaza è netta.
+- Distribuzione per area: **Gaza Strip 6.291**, **West Bank 1.296**, resto nei
+  distretti limitrofi.
+
+Storia per chi scrive: una **mappa di calore** pesata su `vittime` mostra la
+sovrapposizione quasi totale degli eventi sulla Striscia di Gaza; filtrando per
+`anno >= 2023` o `data >= 2023-10-07` si isola la fase dell'attuale guerra.
+
+> Alternativa **a punti puri** rispetto alla coropletica per governatorato qui
+> sopra: stessa geografia, due tagli diversi (densità/heatmap vs. aree colorate).

@@ -493,6 +493,7 @@ export function MapCanvas() {
         zoomPan={design.zoomPan}
         basemap={false}
         basemapUrl={basemapStyle}
+        hideLabels={design.hideLabels}
         dataFilter={dataFilter}
         pitch={pitch}
         globe={design.globe}

@@ -108,6 +108,8 @@ export interface SpecDesign {
   pointSize: number;
   /** Custom raster basemap tile URL (XYZ/WMS), used when basemap = "custom-raster". */
   customBasemapUrl?: string;
+  /** Hide every basemap label (place/road names). Absent = false (back-compat). */
+  hideLabels?: boolean;
   /** Vertical exaggeration of the 3D extrusion. Absent = 1 (no exaggeration). */
   extrusionScale?: number;
 }
@@ -269,6 +271,15 @@ export interface ChartSpec {
 
 /** Max points carried inline in a published point embed (keeps the file sane). */
 export const MAX_PUBLISH_POINTS = 5000;
+
+/**
+ * Higher cap for AGGREGATING point renders (heatmap / hexbin). These never draw
+ * the points one-by-one — they sum them into a density surface or a hex grid —
+ * so a much larger cloud stays performant, and the inline payload is just bare
+ * coordinates. The 5000 cap is meant for renders that draw a marker per point
+ * (points / locator / dot-density), where too many degrade the map and the file.
+ */
+export const MAX_PUBLISH_POINTS_AGGREGATED = 50000;
 
 /** Max features carried inline in a published custom-geometry embed. */
 export const MAX_PUBLISH_FEATURES = 5000;
@@ -488,6 +499,7 @@ function makeAreaSpec(
       pointColor: design.pointColor,
       pointSize: design.pointSize,
       customBasemapUrl: design.customBasemapUrl ?? "",
+      ...(design.hideLabels ? { hideLabels: true } : {}),
       // Bivariate maps carry a second variable (label + unit) and a palette
       // choice; emitted only for that render so other area specs stay
       // byte-identical with previously-published embeds.
@@ -532,11 +544,17 @@ function buildPointSpec(state: StudioState & { camera?: StoryCamera | null }, re
   if (feats.length === 0) {
     return { error: "Nessun punto con coordinate valide da pubblicare." };
   }
-  if (feats.length > MAX_PUBLISH_POINTS) {
+  // Aggregating renders (heatmap / hexbin) only sum points into a density
+  // surface, so they tolerate a much larger cloud than the per-marker renders.
+  const aggregating = render === "heatmap" || render === "hexbin";
+  const cap = aggregating ? MAX_PUBLISH_POINTS_AGGREGATED : MAX_PUBLISH_POINTS;
+  if (feats.length > cap) {
     return {
-      error:
-        `Troppi punti da incorporare (${feats.length}; max ${MAX_PUBLISH_POINTS}). ` +
-        "Usa una mappa di calore o a esagoni per aggregare, o filtra i dati.",
+      error: aggregating
+        ? `Troppi punti da incorporare (${feats.length}; max ${cap}). ` +
+          "Filtra i dati per ridurre il numero di punti."
+        : `Troppi punti da incorporare (${feats.length}; max ${cap}). ` +
+          "Usa una mappa di calore o a esagoni per aggregare, o filtra i dati.",
     };
   }
   const points: SpecPoint[] = feats.map((f) => {
@@ -588,6 +606,7 @@ function buildPointSpec(state: StudioState & { camera?: StoryCamera | null }, re
       pointColor: design.pointColor,
       pointSize: design.pointSize,
       customBasemapUrl: design.customBasemapUrl ?? "",
+      ...(design.hideLabels ? { hideLabels: true } : {}),
     },
     ...(state.camera ? { camera: state.camera } : {}),
   };
@@ -737,6 +756,7 @@ function buildGeoSpec(state: StudioState & { camera?: StoryCamera | null }): Bui
       pointColor: design.pointColor,
       pointSize: design.pointSize,
       customBasemapUrl: design.customBasemapUrl ?? "",
+      ...(design.hideLabels ? { hideLabels: true } : {}),
     },
     ...(state.camera ? { camera: state.camera } : {}),
   };
