@@ -34,8 +34,8 @@ const CAT_PALETTE =
   COLOR_SCALES.find((s) => s.id === "cat")?.colors ?? [BRAND_TEAL];
 
 /** "Label (unit)" if a unit is set, otherwise just the label. */
-function labelWithUnit(label: string, unit: string): string {
-  const u = unit.trim();
+function labelWithUnit(label: string, unit?: string): string {
+  const u = (unit ?? "").trim();
   return u ? `${label} (${u})` : label;
 }
 
