@@ -519,34 +519,6 @@ export function DesignPanel() {
         </PanelSection>
       )}
 
-      {/* ---- Bivariata: seconda variabile ---- */}
-      {caps.has("bivariateBinding") && data && data.kind !== "table" && (
-        <PanelSection
-          title="Seconda variabile"
-          hint="La mappa bivariata combina due variabili in una matrice 3×3 di colori."
-        >
-          <Field label="Seconda colonna numerica">
-            <select
-              value={design.bivariateColumn2}
-              onChange={(e) => updateDesign({ bivariateColumn2: e.target.value })}
-              className={inputCls}
-            >
-              <option value="">— automatica (la prossima numerica) —</option>
-              {data.numericColumns
-                .filter((c) => c !== data.valueColumn)
-                .map((c) => (
-                  <option key={c} value={c}>
-                    {c}
-                  </option>
-                ))}
-            </select>
-          </Field>
-          <p className="text-[11px] text-slate-400">
-            La prima variabile è la “colonna valore” scelta in “Struttura”.
-          </p>
-        </PanelSection>
-      )}
-
       {/* ---- Colore: scala del dato (mappe) ---- */}
       {caps.has("colorScale") && !caps.has("chartAxes") && (
         <PanelSection title="Colore" hint="Scala colore del dato.">

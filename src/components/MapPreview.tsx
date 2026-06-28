@@ -62,6 +62,11 @@ export interface DataLayer {
   valueUnit?: string;
   /** Custom tooltip HTML template ({nome},{valore},{colonna}); "" = default. */
   tooltipTemplate?: string;
+  /**
+   * Bivariate map: labels for the two variables. When set, the tooltip shows
+   * both `__a` (variable A) and `__b` (variable B) instead of a single value.
+   */
+  bivariate?: { labelA: string; labelB: string };
 }
 
 interface MapPreviewProps {
@@ -762,8 +767,12 @@ export function MapPreview({
       const layer = dataLayerRef.current;
       const props = (f.properties ?? {}) as Record<string, unknown>;
       const name = layer?.nameField ? props[layer.nameField] : undefined;
-      const raw = props.__value;
       const unit = layer?.valueUnit ? `\u00a0${layer.valueUnit}` : "";
+      // Bivariate maps carry two values (`__a`,`__b`); the single-value `__value`
+      // path would show "n/d". Use variable A as {valore} and, with no custom
+      // template, list both variables with their labels.
+      const biv = layer?.bivariate;
+      const raw = biv ? props.__a : props.__value;
       const value =
         typeof raw === "number"
           ? `${fmt.format(raw)}${unit}`
@@ -772,10 +781,27 @@ export function MapPreview({
             : "n/d";
       const label = layer?.valueLabel ?? "Valore";
       const tpl = layer?.tooltipTemplate?.trim();
-      return tpl
-        ? renderTooltipTemplate(tpl, tooltipValues(props, String(name ?? ""), value))
-        : `<div class="studio-tooltip-name">${escapeHtml(String(name ?? ""))}</div>` +
-          `<div class="studio-tooltip-value"><span>${escapeHtml(label)}</span> ${escapeHtml(value)}</div>`;
+      if (tpl) {
+        return renderTooltipTemplate(tpl, tooltipValues(props, String(name ?? ""), value));
+      }
+      if (biv) {
+        const rawB = props.__b;
+        const valueB =
+          typeof rawB === "number"
+            ? fmt.format(rawB)
+            : rawB != null
+              ? String(rawB)
+              : "n/d";
+        return (
+          `<div class="studio-tooltip-name">${escapeHtml(String(name ?? ""))}</div>` +
+          `<div class="studio-tooltip-value"><span>${escapeHtml(biv.labelA)}</span> ${escapeHtml(value)}</div>` +
+          `<div class="studio-tooltip-value"><span>${escapeHtml(biv.labelB)}</span> ${escapeHtml(valueB)}</div>`
+        );
+      }
+      return (
+        `<div class="studio-tooltip-name">${escapeHtml(String(name ?? ""))}</div>` +
+        `<div class="studio-tooltip-value"><span>${escapeHtml(label)}</span> ${escapeHtml(value)}</div>`
+      );
     };
 
     const clearHoverState = () => {

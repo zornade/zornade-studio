@@ -115,6 +115,15 @@ export function buildDataLayer(args: BuildDataLayerArgs): DataLayer | null {
   }
   // Bivariate map: two variables → a 3×3 colour matrix on the areas.
   if (vizType === "bivariate" && bivariate) {
+    // Resolve variable B's column name exactly as the bivariate join does, so
+    // the tooltip labels match the legend axes.
+    const colA = data?.kind === "area" ? data.valueColumn : "";
+    const colB =
+      data?.kind === "area"
+        ? design.bivariateColumn2 && data.numericColumns.includes(design.bivariateColumn2)
+          ? design.bivariateColumn2
+          : data.numericColumns.find((c) => c !== colA) ?? ""
+        : "";
     return {
       kind: "area",
       geojson: bivariate.geojson,
@@ -124,6 +133,10 @@ export function buildDataLayer(args: BuildDataLayerArgs): DataLayer | null {
       valueLabel,
       valueUnit: design.valueUnit || undefined,
       tooltipTemplate: design.tooltipTemplate,
+      bivariate: {
+        labelA: valueLabel || colA || "Variabile 1",
+        labelB: colB || "Variabile 2",
+      },
     };
   }
   // Spike map: triangles at centroids, height ∝ value, uniform colour.

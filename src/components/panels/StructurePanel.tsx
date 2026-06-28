@@ -111,6 +111,13 @@ export function StructurePanel() {
       c !== mapping.lonColumn,
   );
 
+  // Second numeric value (variable B of a bivariate map): same exclusions plus
+  // the first value column actually in use (explicit mapping or the resolved
+  // "first numeric" default), so A and B can never be the same column.
+  const firstValue =
+    mapping.valueColumn ?? (data.kind === "area" ? data.valueColumn : null);
+  const secondValueOptions = valueOptions.filter((c) => c !== firstValue);
+
   const isGeo = mapping.kind === "geo";
 
   return (
@@ -192,6 +199,18 @@ export function StructurePanel() {
             >
               <option value="">— prima numerica —</option>
               {colOptions(valueOptions)}
+            </Select>
+          </Field>
+          <Field
+            label="Secondo valore (opzionale)"
+            hint="Serve per la mappa bivariata: combina due variabili numeriche in una matrice 3×3 di colori."
+          >
+            <Select
+              value={design.bivariateColumn2}
+              onChange={(v) => updateDesign({ bivariateColumn2: v })}
+            >
+              <option value="">— automatico (la prossima numerica) —</option>
+              {colOptions(secondValueOptions)}
             </Select>
           </Field>
           <Field label="Categoria (opzionale)" hint="Per la mappa a categorie.">

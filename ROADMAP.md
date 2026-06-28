@@ -761,7 +761,8 @@ L'utente incolla **host / utente / password** (credenziali read-only generate a 
    verdi (+27: spec +11, embed +15, integrazione +1), tsc + build OK. **Verificato end-to-end** su dati
    reali: punti (487 eventi), geometria, e un grafico a barre dal CSV rinnovabili → buildSpec→
    buildEmbedHtml produce HTML completo. *(Render runtime degli embed — MapLibre/Plot da CDN — da
-   verificare sul browser dell'utente. Limite noto: tooltip bivariata senza etichetta colonna B.)*
+   verificare sul browser dell'utente. Tooltip bivariata: mostra entrambe le variabili A e B con le
+   rispettive etichette — fix 2026-06-28.)*
 - **O4.0g** ✅ **3 dei 4 tipi rinviati: cartogramma, flussi, raster/satellite** (2026-06-23). Aggiunti
    con moduli puri **testati** e zero nuove dipendenze; il **globo 3D** resta rinviato (richiede l'upgrade
    a MapLibre v5 = O4.3). **Cartogramma** (`lib/cartogram.ts`, 7 test) in **due varianti**:
