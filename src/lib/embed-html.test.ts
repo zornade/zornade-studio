@@ -212,6 +212,62 @@ describe("buildEmbedHtml", () => {
   });
 });
 
+describe("buildEmbedHtml · locked view (O4 framing)", () => {
+  const camera = {
+    center: [35.2, 31.9] as [number, number],
+    zoom: 8.4,
+    pitch: 0,
+    bearing: 0,
+    bounds: [34.2, 31.2, 36.2, 32.6] as [number, number, number, number],
+  };
+
+  it("defaults to fit-to-data (lockView false, no applyView call)", () => {
+    const out = buildEmbedHtml(spec(), { geoBaseUrl: "https://embed.x/geo" });
+    expect(out).toContain('"lockView":false');
+    // The author view helper is always defined, but the default path fits data.
+    expect(out).toContain("else fit(E.pitch)");
+    expectRendererCompiles(out);
+  });
+
+  it("locks the captured view when design.lockView + camera are set", () => {
+    const out = buildEmbedHtml(
+      spec({ design: { ...spec().design, lockView: true }, camera }),
+      { geoBaseUrl: "https://embed.x/geo" },
+    );
+    expect(out).toContain('"lockView":true');
+    expect(out).toContain('"hasCamera":true');
+    // A flat camera re-fits the captured bounds (aspect-ratio robust).
+    expect(out).toContain('"bounds":[34.2,31.2,36.2,32.6]');
+    expect(out).toContain("function applyView()");
+    expect(out).toContain("map.fitBounds(E.bounds");
+    expectRendererCompiles(out);
+  });
+
+  it("keeps the exact camera (jumpTo) for a tilted / globe view", () => {
+    const tilted = { ...camera, pitch: 55 };
+    const out = buildEmbedHtml(
+      spec({ design: { ...spec().design, lockView: true }, camera: tilted, globe: true }),
+      { geoBaseUrl: "https://embed.x/geo" },
+    );
+    expect(out).toContain('"lockView":true');
+    expect(out).toContain('"pitch":55');
+    expect(out).toContain('"globe":true');
+    expect(out).toContain("map.jumpTo({center:E.center,zoom:E.zoom,pitch:E.pitch");
+    expectRendererCompiles(out);
+  });
+
+  it("ignores lockView when no camera was captured (safe fallback to fit)", () => {
+    const out = buildEmbedHtml(
+      spec({ design: { ...spec().design, lockView: true } }),
+      { geoBaseUrl: "https://embed.x/geo" },
+    );
+    expect(out).toContain('"lockView":true');
+    expect(out).toContain('"hasCamera":false');
+    expect(out).toContain("E.lockView&&E.hasCamera");
+    expectRendererCompiles(out);
+  });
+});
+
 describe("buildEmbedHtml · temporal (O3.3)", () => {
   const temporalSpec = spec({
     data: [

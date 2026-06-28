@@ -63,6 +63,21 @@ function fmtU(n,u){var s=NF.format(n);return u?(s+"\u00a0"+u):s;}
 // readable on top of the overlay. 2D renders only (callers skip 3D extrusion).
 function raiseLabels(){try{(map.getStyle().layers||[]).forEach(function(l){
   if(l.type==="symbol"&&l.id.indexOf("d-")!==0)map.moveLayer(l.id);});}catch(e){}}
+// Apply the author-locked view ("usa la vista attuale"): the map already opened
+// at the captured center/zoom/pitch/bearing, here we re-assert it so it survives
+// the data load. For a FLAT 2D map we re-fit the captured BOUNDS, so the very
+// same geographic area is framed whatever the iframe aspect ratio (embeds aren't
+// always our size). When the camera is TILTED (pitch) or on the GLOBE a bounding
+// box can't reproduce it, so we restore center/zoom/pitch/bearing exactly.
+function applyView(){
+  try{
+    if(E.bounds&&!E.pitch&&!E.globe){
+      map.fitBounds(E.bounds,{padding:0,duration:0,bearing:E.bearing||0});
+      return;
+    }
+  }catch(e){}
+  try{map.jumpTo({center:E.center,zoom:E.zoom,pitch:E.pitch||0,bearing:E.bearing||0});}catch(e){}
+}
 // Force every place/road label to Italian. The external OpenFreeMap basemaps
 // (OpenMapTiles schema) render the local/native name by default, so cities like
 // "München"/"Wien"/"London" would show instead of "Monaco"/"Vienna"/"Londra".
@@ -640,6 +655,7 @@ function buildAreaEmbedHtml(
     pitch: spec.camera?.pitch ?? (render === "extrusion" ? 50 : 0),
     bearing: spec.camera?.bearing ?? 0,
     hasCamera: !!spec.camera,
+    lockView: !!d.lockView,
     bounds: spec.camera?.bounds ?? null,
     globe: spec.globe ?? false,
     interactive: !!d.zoomPan,
@@ -823,7 +839,7 @@ function build(){
     hoverFx();
   }
   if(E.render!=="extrusion")raiseLabels();
-  fit(E.pitch);
+  if(E.lockView&&E.hasCamera)applyView();else fit(E.pitch);
   if(E.showLegend)legend(noData);
   if(E.tooltip)tooltip();
   if(E.frames&&E.frames.length>1)timeUI();
@@ -1296,6 +1312,7 @@ function buildPointEmbedHtml(spec: PointSpec, opts: EmbedOptions): string {
     bounds: spec.camera?.bounds ?? null,
     globe: spec.globe ?? false,
     interactive: !!d.zoomPan,
+    lockView: !!d.lockView,
     tooltip: !!d.tooltip && spec.render !== "heatmap",
     showLegend: !!d.showLegend,
     legendKind,
@@ -1366,7 +1383,7 @@ function build(){
       paint:{"text-color":"#0f172a","text-halo-color":"#fff","text-halo-width":1.4}});
   }
   raiseLabels();
-  fit(E.pitch);
+  if(E.lockView&&E.hasCamera)applyView();else fit(E.pitch);
   if(E.showLegend)legend();
   if(E.tooltip)tooltip();
   annotations();
@@ -1569,6 +1586,7 @@ function buildGeoEmbedHtml(spec: GeoSpec, opts: EmbedOptions): string {
     bounds: spec.camera?.bounds ?? null,
     globe: spec.globe ?? false,
     interactive: !!d.zoomPan,
+    lockView: !!d.lockView,
     tooltip: !!d.tooltip,
     showLegend: !!d.showLegend,
     legendKind,
@@ -1645,7 +1663,7 @@ function build(){
     paint:{"circle-color":E.circleColor,"circle-radius":E.circleRadius||5,
       "circle-stroke-color":"#fff","circle-stroke-width":1,"circle-opacity":0.9}},before);
   raiseLabels();
-  fit(E.pitch);
+  if(E.lockView&&E.hasCamera)applyView();else fit(E.pitch);
   if(E.showLegend)legend();
   if(E.tooltip)tooltip();
   annotations();

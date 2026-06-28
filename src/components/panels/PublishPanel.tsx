@@ -332,6 +332,49 @@ export function PublishPanel() {
         title="Pubblica & incorpora"
         hint="Genera uno snapshot immutabile e ottieni il codice da incollare."
       >
+        {!isChartType(studio.vizType) && studio.vizType !== "table" && (
+          <div className="mb-3">
+            <p className="mb-1.5 text-xs font-medium text-slate-600">
+              Inquadratura dell&apos;embed
+            </p>
+            <div className="grid grid-cols-2 gap-1.5">
+              <button
+                type="button"
+                onClick={() => studio.updateDesign({ lockView: false })}
+                className={`rounded-lg border px-2.5 py-2 text-left text-xs transition-colors ${
+                  !studio.design.lockView
+                    ? "border-zornade bg-zornade/5 text-zornade"
+                    : "border-slate-200 text-slate-600 hover:border-slate-300"
+                }`}
+              >
+                <span className="block font-medium">Adatta ai dati</span>
+                <span className="mt-0.5 block text-[11px] text-slate-400">
+                  Inquadra automaticamente tutta l&apos;area dei dati.
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => studio.updateDesign({ lockView: true })}
+                className={`rounded-lg border px-2.5 py-2 text-left text-xs transition-colors ${
+                  studio.design.lockView
+                    ? "border-zornade bg-zornade/5 text-zornade"
+                    : "border-slate-200 text-slate-600 hover:border-slate-300"
+                }`}
+              >
+                <span className="block font-medium">Usa la vista attuale</span>
+                <span className="mt-0.5 block text-[11px] text-slate-400">
+                  Blocca zoom, centro, inclinazione e globo dell&apos;anteprima.
+                </span>
+              </button>
+            </div>
+            {studio.design.lockView && (
+              <p className="mt-1.5 text-[11px] text-slate-400">
+                Verrà catturata l&apos;inquadratura corrente dell&apos;anteprima.
+                Su embed più larghi o stretti resta centrata sullo stesso punto.
+              </p>
+            )}
+          </div>
+        )}
         <button
           onClick={publish}
           disabled={!data || publishing}

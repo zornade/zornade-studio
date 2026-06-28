@@ -97,6 +97,12 @@ export interface DesignSettings {
   /** Render the map on a 3D globe (spherical projection). Default false. */
   globe: boolean;
   /**
+   * Framing of the published embed. When true ("usa la vista attuale") the
+   * embed locks the camera captured at publish time (center/zoom/pitch/bearing)
+   * instead of auto-fitting to the data extent. Default false (fit to data).
+   */
+  lockView: boolean;
+  /**
    * Vertical exaggeration of the 3D extrusion (kind "extrusion"). A multiplier
    * on the bar height: <1 attenuates the height differences, >1 exaggerates
    * them. Default 1 (no exaggeration).

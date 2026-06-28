@@ -58,7 +58,7 @@ function baseState(overrides: Partial<StudioState> = {}): StudioState {
       flowToLat: "",
       flowToLon: "",
       flowValue: "",
-      customBasemapUrl: "", hideLabels: false, globe: false,
+      customBasemapUrl: "", hideLabels: false, globe: false, lockView: false,
     },
     data: {
       kind: "area",

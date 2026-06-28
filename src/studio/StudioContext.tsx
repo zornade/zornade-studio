@@ -134,6 +134,7 @@ const INITIAL_DESIGN: DesignSettings = {
   customBasemapUrl: "",
   hideLabels: false,
   globe: false,
+  lockView: false,
   extrusionScale: 1,
 };
 

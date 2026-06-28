@@ -225,6 +225,22 @@ function raiseBasemapLabels(map: maplibregl.Map): void {
 }
 
 /**
+ * Run `fn` once the style is safe to mutate. MapLibre's `isStyleLoaded()` is
+ * flaky (it can report `false` even when the style is usable), and
+ * `style.load` only fires for a fresh `setStyle()` — so a deferred handler can
+ * wait forever. The `idle` event always fires after the current render frame,
+ * making it a reliable fallback for applying option toggles (globe, labels)
+ * without a page refresh.
+ */
+function whenStyleReady(map: maplibregl.Map, fn: () => void): void {
+  if (map.isStyleLoaded()) {
+    fn();
+    return;
+  }
+  map.once("idle", fn);
+}
+
+/**
  * Toggle the visibility of every basemap label (symbol) layer. Used for the
  * "hide labels" design option to produce a clean, name-free map. Only the
  * basemap's own symbol layers are affected; data/annotation layers are skipped
@@ -1019,7 +1035,7 @@ export function MapPreview({
   // Toggle basemap labels when the hideLabels option changes (no restyle).
   useEffect(() => {
     const map = mapRef.current;
-    if (map && map.isStyleLoaded()) hideBasemapLabels(map, hideLabels);
+    if (map) whenStyleReady(map, () => hideBasemapLabels(map, hideLabels));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hideLabels]);
 
@@ -1070,12 +1086,10 @@ export function MapPreview({
       // Re-sync data layers after projection change so they are visible on the globe.
       syncData(map);
     };
-    // setProjection requires the style to be fully loaded.
-    if (map.isStyleLoaded()) {
-      apply();
-    } else {
-      map.once("style.load", apply);
-    }
+    // setProjection requires the style to be fully loaded; whenStyleReady falls
+    // back to the always-firing "idle" event so the toggle applies without a
+    // page refresh (style.load only fires for a fresh setStyle, not here).
+    whenStyleReady(map, apply);
   }, [globe]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Re-apply the reader class filter when it changes (without rebuilding data).

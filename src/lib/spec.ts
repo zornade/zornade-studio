@@ -110,6 +110,9 @@ export interface SpecDesign {
   customBasemapUrl?: string;
   /** Hide every basemap label (place/road names). Absent = false (back-compat). */
   hideLabels?: boolean;
+  /** Lock the published embed to the camera captured at publish time instead of
+   * auto-fitting the data. Absent = false (fit to data, back-compat). */
+  lockView?: boolean;
   /** Vertical exaggeration of the 3D extrusion. Absent = 1 (no exaggeration). */
   extrusionScale?: number;
 }
@@ -500,6 +503,7 @@ function makeAreaSpec(
       pointSize: design.pointSize,
       customBasemapUrl: design.customBasemapUrl ?? "",
       ...(design.hideLabels ? { hideLabels: true } : {}),
+      ...(design.lockView ? { lockView: true } : {}),
       // Bivariate maps carry a second variable (label + unit) and a palette
       // choice; emitted only for that render so other area specs stay
       // byte-identical with previously-published embeds.
@@ -607,6 +611,7 @@ function buildPointSpec(state: StudioState & { camera?: StoryCamera | null }, re
       pointSize: design.pointSize,
       customBasemapUrl: design.customBasemapUrl ?? "",
       ...(design.hideLabels ? { hideLabels: true } : {}),
+      ...(design.lockView ? { lockView: true } : {}),
     },
     ...(state.camera ? { camera: state.camera } : {}),
   };
@@ -757,6 +762,7 @@ function buildGeoSpec(state: StudioState & { camera?: StoryCamera | null }): Bui
       pointSize: design.pointSize,
       customBasemapUrl: design.customBasemapUrl ?? "",
       ...(design.hideLabels ? { hideLabels: true } : {}),
+      ...(design.lockView ? { lockView: true } : {}),
     },
     ...(state.camera ? { camera: state.camera } : {}),
   };

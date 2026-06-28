@@ -54,6 +54,7 @@ const design = (over: Partial<DesignSettings> = {}): DesignSettings => ({
   customBasemapUrl: "",
   hideLabels: false,
   globe: false,
+  lockView: false,
   ...over,
 });
 
