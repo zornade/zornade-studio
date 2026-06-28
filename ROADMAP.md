@@ -429,7 +429,7 @@ L'utente incolla **host / utente / password** (credenziali read-only generate a 
    classificazione** (quantile, **natural breaks/Jenks**, intervalli uguali, **soglie manuali**) —
    `quantileBreaks`/`equalBreaks`/`jenksBreaks`/`manualBreaks` in `lib/choropleth.ts`, testati
    (`classification.test.ts`); legenda a gradini e gestione no-data. **Geometrie attive
-   (`public/geo/`, generate da `scripts/build_geo.py`): Paesi** (177, Natural Earth 1:110m,
+   (`public/geo/`, generate da `scripts/build_geo.py`): Paesi** (242, Natural Earth 1:50m,
    **pubblico dominio**; join per nome IT/EN, ISO-A3 o ISO-A2), **Regioni** (20), **Province** (107) e
    **Comuni** (7.899) italiani (openpolis/geojson-italy, **CC-BY-4.0**, dati © ISTAT; join per nome,
    sigla o codice ISTAT). Il join (`joinChoropleth`) prova in ordine **codice → nome → alias**.

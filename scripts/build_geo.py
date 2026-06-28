@@ -2,8 +2,8 @@
 """
 Build the join-ready GeoJSON layers shipped under public/geo/.
 
-Sources (verified 2026-06-12):
-- Nations: Natural Earth 1:110m Admin 0 countries — PUBLIC DOMAIN.
+Sources (verified 2026-06-28):
+- Nations: Natural Earth 1:50m Admin 0 countries — PUBLIC DOMAIN.
   https://github.com/nvkelso/natural-earth-vector
 - Italian provinces: openpolis/geojson-italy — CC-BY-4.0 (data © ISTAT).
   https://github.com/openpolis/geojson-italy
@@ -30,7 +30,7 @@ OUT_DIR = os.path.normpath(os.path.join(HERE, "..", "public", "geo"))
 
 NE_COUNTRIES = (
     "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/"
-    "master/geojson/ne_110m_admin_0_countries.geojson"
+    "master/geojson/ne_50m_admin_0_countries.geojson"
 )
 OP_PROVINCES = (
     "https://raw.githubusercontent.com/openpolis/geojson-italy/"
