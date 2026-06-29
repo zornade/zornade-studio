@@ -3,7 +3,7 @@
  * (`src/vendor/sheetjs/xlsx.mjs`, official CDN 0.20.3, Apache-2.0).
  *
  * We only declare the tiny surface we actually use (read + sheet_to_json).
- * The library is vendored — not installed from npm — because the npm `xlsx`
+ * The library is vendored - not installed from npm - because the npm `xlsx`
  * package is frozen at 0.18.5 (pre proto-pollution fix); the official CDN build
  * is the supported, secure distribution (ROADMAP §1.11).
  */

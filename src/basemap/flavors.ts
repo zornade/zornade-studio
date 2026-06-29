@@ -7,7 +7,7 @@
  * stays the visual hero.
  *
  * The newsroom's brand color is NOT baked into these bases: it is layered on
- * top — tastefully and configurably — by {@link makeFlavor}. This keeps the
+ * top - tastefully and configurably - by {@link makeFlavor}. This keeps the
  * basemap legible while letting each redazione's identity come through on
  * admin borders, place labels and (optionally) water.
  */
@@ -19,7 +19,7 @@ export type VariantName = "positron" | "carta" | "ardesia" | "inchiostro";
 
 const clamp01 = (n: number): number => Math.min(1, Math.max(0, n));
 
-/** positron — clean light grey-white. The default; the look you already use. */
+/** positron - clean light grey-white. The default; the look you already use. */
 const POSITRON: Flavor = {
   ...WHITE,
   earth: "#fbfbfb",
@@ -34,7 +34,7 @@ const POSITRON: Flavor = {
   boundaries: "#c2c8cc",
 };
 
-/** carta — warm off-white "paper", for editorial/print-feeling pieces. */
+/** carta - warm off-white "paper", for editorial/print-feeling pieces. */
 const CARTA: Flavor = {
   ...WHITE,
   earth: "#f7f4ee",
@@ -49,7 +49,7 @@ const CARTA: Flavor = {
   boundaries: "#cfc7ba",
 };
 
-/** ardesia — cool slate grey, the greyer Positron cousin. */
+/** ardesia - cool slate grey, the greyer Positron cousin. */
 const ARDESIA: Flavor = {
   ...WHITE,
   earth: "#eef1f2",
@@ -64,7 +64,7 @@ const ARDESIA: Flavor = {
   boundaries: "#b7bfc4",
 };
 
-/** inchiostro — dark "ink" mode for newsrooms with a dark identity. */
+/** inchiostro - dark "ink" mode for newsrooms with a dark identity. */
 const INCHIOSTRO: Flavor = {
   ...DARK,
   water: "#2b2f33",
@@ -93,7 +93,7 @@ export interface NewsroomBrand {
   variant?: VariantName;
   /**
    * How strongly the brand color tints the basemap (admin borders, place
-   * labels and — if enabled — water). Range [0, 1]. Default: 0.35 (subtle).
+   * labels and - if enabled - water). Range [0, 1]. Default: 0.35 (subtle).
    */
   tintStrength?: number;
   /**

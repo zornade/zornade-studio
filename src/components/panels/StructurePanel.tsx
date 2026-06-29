@@ -56,8 +56,8 @@ function colOptions(columns: string[]) {
 
 /**
  * The Struttura step (left panel). Lets the operator review and OVERRIDE how
- * each column is used — geographic level + key, lat/lon, value, category, time,
- * label — and switch the dataset shape (area / point / table). Edits go through
+ * each column is used - geographic level + key, lat/lon, value, category, time,
+ * label - and switch the dataset shape (area / point / table). Edits go through
  * the pure {@link applyMapping}; the right canvas ({@link StructurePreview})
  * shows the data table with a coloured role badge per column.
  */
@@ -68,7 +68,7 @@ export function StructurePanel() {
   );
   const [error, setError] = useState<string | null>(null);
 
-  // Reset the editable mapping only when a *different* dataset (file) loads —
+  // Reset the editable mapping only when a *different* dataset (file) loads -
   // re-mapping the same file keeps fileName+columns identical, so edits persist.
   const dataKey = data ? `${data.fileName}\u0000${data.columns.join(",")}` : "";
   useEffect(() => {
@@ -175,7 +175,7 @@ export function StructurePanel() {
               value={mapping.geoLevel ?? ""}
               onChange={(v) => patch({ geoLevel: (v || null) as GeoLevel | null })}
             >
-              <option value="">— scegli —</option>
+              <option value="">- scegli -</option>
               {Object.values(GEO_LEVELS).map((l) => (
                 <option key={l.id} value={l.id}>
                   {l.label}
@@ -188,7 +188,7 @@ export function StructurePanel() {
               value={mapping.keyColumn ?? ""}
               onChange={(v) => patch({ keyColumn: v || null })}
             >
-              <option value="">— scegli —</option>
+              <option value="">- scegli -</option>
               {colOptions(allColumns)}
             </Select>
           </Field>
@@ -197,7 +197,7 @@ export function StructurePanel() {
               value={mapping.valueColumn ?? ""}
               onChange={(v) => patch({ valueColumn: v || null })}
             >
-              <option value="">— prima numerica —</option>
+              <option value="">- prima numerica -</option>
               {colOptions(valueOptions)}
             </Select>
           </Field>
@@ -209,7 +209,7 @@ export function StructurePanel() {
               value={design.bivariateColumn2}
               onChange={(v) => updateDesign({ bivariateColumn2: v })}
             >
-              <option value="">— automatico (la prossima numerica) —</option>
+              <option value="">- automatico (la prossima numerica) -</option>
               {colOptions(secondValueOptions)}
             </Select>
           </Field>
@@ -218,7 +218,7 @@ export function StructurePanel() {
               value={mapping.categoryColumn ?? ""}
               onChange={(v) => patch({ categoryColumn: v || null })}
             >
-              <option value="">— nessuna —</option>
+              <option value="">- nessuna -</option>
               {colOptions(allColumns)}
             </Select>
           </Field>
@@ -227,7 +227,7 @@ export function StructurePanel() {
               value={mapping.timeColumn ?? ""}
               onChange={(v) => patch({ timeColumn: v || null })}
             >
-              <option value="">— nessuna —</option>
+              <option value="">- nessuna -</option>
               {colOptions(allColumns)}
             </Select>
           </Field>
@@ -242,7 +242,7 @@ export function StructurePanel() {
               value={mapping.latColumn ?? ""}
               onChange={(v) => patch({ latColumn: v || null })}
             >
-              <option value="">— scegli —</option>
+              <option value="">- scegli -</option>
               {colOptions(numericColumns)}
             </Select>
           </Field>
@@ -251,7 +251,7 @@ export function StructurePanel() {
               value={mapping.lonColumn ?? ""}
               onChange={(v) => patch({ lonColumn: v || null })}
             >
-              <option value="">— scegli —</option>
+              <option value="">- scegli -</option>
               {colOptions(numericColumns)}
             </Select>
           </Field>
@@ -260,7 +260,7 @@ export function StructurePanel() {
               value={mapping.valueColumn ?? ""}
               onChange={(v) => patch({ valueColumn: v || null })}
             >
-              <option value="">— uniforme —</option>
+              <option value="">- uniforme -</option>
               {colOptions(valueOptions)}
             </Select>
           </Field>
@@ -269,7 +269,7 @@ export function StructurePanel() {
               value={mapping.categoryColumn ?? ""}
               onChange={(v) => patch({ categoryColumn: v || null })}
             >
-              <option value="">— nessuna —</option>
+              <option value="">- nessuna -</option>
               {colOptions(allColumns)}
             </Select>
           </Field>
@@ -278,7 +278,7 @@ export function StructurePanel() {
               value={mapping.nameColumn ?? ""}
               onChange={(v) => patch({ nameColumn: v || null })}
             >
-              <option value="">— nessuna —</option>
+              <option value="">- nessuna -</option>
               {colOptions(allColumns)}
             </Select>
           </Field>
@@ -293,7 +293,7 @@ export function StructurePanel() {
               value={mapping.valueColumn ?? ""}
               onChange={(v) => patch({ valueColumn: v || null })}
             >
-              <option value="">— nessuna —</option>
+              <option value="">- nessuna -</option>
               {colOptions(numericColumns)}
             </Select>
           </Field>
@@ -302,7 +302,7 @@ export function StructurePanel() {
               value={mapping.categoryColumn ?? ""}
               onChange={(v) => patch({ categoryColumn: v || null })}
             >
-              <option value="">— nessuna —</option>
+              <option value="">- nessuna -</option>
               {colOptions(allColumns)}
             </Select>
           </Field>
@@ -311,7 +311,7 @@ export function StructurePanel() {
               value={mapping.nameColumn ?? ""}
               onChange={(v) => patch({ nameColumn: v || null })}
             >
-              <option value="">— nessuna —</option>
+              <option value="">- nessuna -</option>
               {colOptions(allColumns)}
             </Select>
           </Field>
@@ -323,13 +323,13 @@ export function StructurePanel() {
         <PanelSection title="Assi del grafico" hint="Per i grafici dai dati senza geografia.">
           <Field label="Asse X (categoria / tempo)">
             <Select value={design.chartX} onChange={(v) => updateDesign({ chartX: v })}>
-              <option value="">— automatico —</option>
+              <option value="">- automatico -</option>
               {colOptions(allColumns)}
             </Select>
           </Field>
           <Field label="Asse Y (valore)">
             <Select value={design.chartY} onChange={(v) => updateDesign({ chartY: v })}>
-              <option value="">— automatico —</option>
+              <option value="">- automatico -</option>
               {colOptions(numericColumns)}
             </Select>
           </Field>
@@ -338,7 +338,7 @@ export function StructurePanel() {
               value={design.chartSeries}
               onChange={(v) => updateDesign({ chartSeries: v })}
             >
-              <option value="">— nessuna —</option>
+              <option value="">- nessuna -</option>
               {colOptions(allColumns)}
             </Select>
           </Field>

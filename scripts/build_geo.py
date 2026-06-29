@@ -3,9 +3,9 @@
 Build the join-ready GeoJSON layers shipped under public/geo/.
 
 Sources (verified 2026-06-28):
-- Nations: Natural Earth 1:50m Admin 0 countries — PUBLIC DOMAIN.
+- Nations: Natural Earth 1:50m Admin 0 countries - PUBLIC DOMAIN.
   https://github.com/nvkelso/natural-earth-vector
-- Italian provinces: openpolis/geojson-italy — CC-BY-4.0 (data © ISTAT).
+- Italian provinces: openpolis/geojson-italy - CC-BY-4.0 (data © ISTAT).
   https://github.com/openpolis/geojson-italy
 
 Output schema matches the existing public/geo/regioni.geojson so the same
@@ -136,7 +136,7 @@ def build_municipalities(tmp: str) -> None:
     _write(out, "comuni.geojson")
 
 
-# Join-key fields per level — MUST mirror GEO_LEVELS in src/lib/choropleth.ts
+# Join-key fields per level - MUST mirror GEO_LEVELS in src/lib/choropleth.ts
 # (joinField, nameField, aliasFields). Used to build the keys index.
 LEVEL_KEY_FIELDS = {
     "paesi": ["iso_a3", "name", "iso_a2", "name_en"],
@@ -147,7 +147,7 @@ LEVEL_KEY_FIELDS = {
 
 
 def _normalise_key(raw) -> str:
-    """Mirror of normaliseKey() in src/lib/choropleth.ts — keep in sync."""
+    """Mirror of normaliseKey() in src/lib/choropleth.ts - keep in sync."""
     import re
     import unicodedata
 
@@ -168,7 +168,7 @@ def build_keys_index() -> None:
     """
     Emit public/geo/keys.json: { level: [normalised join keys] } for every level
     whose geometry exists. Powers value-based geo-level resolution in the app
-    (lib/choropleth.ts resolveGeoJoin) — far smaller than loading geometries.
+    (lib/choropleth.ts resolveGeoJoin) - far smaller than loading geometries.
     """
     index: dict[str, list[str]] = {}
     for level, fields in LEVEL_KEY_FIELDS.items():

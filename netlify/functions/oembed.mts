@@ -7,7 +7,7 @@
  * iframe.
  *
  * Security: the `url` must be one of OUR embeds (allowed origin + `/embed/`
- * path) — this keeps the endpoint from being used as an open proxy. The title
+ * path) - this keeps the endpoint from being used as an open proxy. The title
  * is read from the embed page's own `<title>` (same origin we just validated).
  *
  * Optional environment variables:

@@ -5,7 +5,7 @@ import { buildDatasetFromCsv, buildDatasetFromTable } from "./build-dataset";
  * Characterization tests for the dataset ingestion core. They pin which shape
  * (point / area / table) a given table resolves to, plus the user-facing error
  * branches. In the test environment `loadGeoKeys` cannot fetch the keys index,
- * so the area path uses name-based geo detection — deterministic and offline.
+ * so the area path uses name-based geo detection - deterministic and offline.
  */
 
 describe("buildDatasetFromTable", () => {

@@ -1,5 +1,5 @@
 /**
- * Semantic column profiling — the data side of the "what did we understand?"
+ * Semantic column profiling - the data side of the "what did we understand?"
  * step (ROADMAP §1.12.2). For every column it assigns a *semantic type* with a
  * confidence score and basic statistics, so the viz-compatibility engine
  * (lib/viz-compat.ts) and the UI can decide which visualisations make sense.

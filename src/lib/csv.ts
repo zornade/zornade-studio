@@ -3,7 +3,7 @@
  *
  * Handles the common cases produced by spreadsheets: comma or semicolon
  * delimiters, quoted fields, escaped quotes ("") and CRLF/LF line endings.
- * It is intentionally small — not a full RFC-4180 implementation — and is
+ * It is intentionally small - not a full RFC-4180 implementation - and is
  * sufficient for the tabular data newsrooms paste or upload.
  */
 

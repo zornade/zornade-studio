@@ -13,14 +13,14 @@
  * for it to appear in the UI and become reachable through the proxy. The only
  * intentionally hard-coded piece is {@link SOURCE_BLACKLIST}: sources that were
  * verified to be permanently down/unreachable are listed there and hidden from
- * the user — but the `probe:portals` script re-checks them every run, so a
+ * the user - but the `probe:portals` script re-checks them every run, so a
  * source that comes back online can be promoted again.
  *
  * Every entry below was verified live (real `success: true` / HTTP 200 with a
  * non-empty catalogue) on 2026-06-22.
  */
 
-/** Catalogue platform — determines which adapter the proxy uses. */
+/** Catalogue platform - determines which adapter the proxy uses. */
 export type SourceKind = "ckan" | "socrata" | "dcat";
 
 /** Geographic reach of a source (used for grouping/labelling only). */
@@ -216,7 +216,7 @@ export interface BlacklistEntry {
   id: string;
   /** Why it is blacklisted (human readable, shown only in probe reports). */
   reason: string;
-  /** ISO date (YYYY-MM-DD) when it was added — used to re-check staleness. */
+  /** ISO date (YYYY-MM-DD) when it was added - used to re-check staleness. */
   since: string;
 }
 
@@ -237,7 +237,7 @@ export function isBlacklisted(idOrUrl: string): boolean {
   return blacklistIds.has(idOrUrl);
 }
 
-/** Sources that are NOT blacklisted — what the UI should show. */
+/** Sources that are NOT blacklisted - what the UI should show. */
 export function activeSources(): OpenDataSource[] {
   return OPEN_DATA_SOURCES.filter((s) => !blacklistIds.has(s.id));
 }

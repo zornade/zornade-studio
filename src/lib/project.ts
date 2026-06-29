@@ -1,7 +1,7 @@
 /**
  * Project save / load (ROADMAP O2.9).
  *
- * A "project" is the **full editable** Studio state — unlike the published spec
+ * A "project" is the **full editable** Studio state - unlike the published spec
  * (lib/spec.ts), which is a minimal, immutable snapshot for embedding. Saving a
  * project lets the operator close the editor and reopen the exact same map
  * (data, columns, viz type, design, brand) to keep working on it.

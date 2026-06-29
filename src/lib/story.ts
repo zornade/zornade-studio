@@ -1,5 +1,5 @@
 /**
- * Scrollytelling story model (O4.1) — pure, tested.
+ * Scrollytelling story model (O4.1) - pure, tested.
  *
  * A *story* is an ordered list of **steps** layered over a published map. Each
  * step carries narrative text (title + body) and a **camera** (centre, zoom,

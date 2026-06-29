@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""adsb_etl.py — Estrai traiettorie ADS-B da adsb.lol/globe_history per area e finestra temporale.
+"""adsb_etl.py - Estrai traiettorie ADS-B da adsb.lol/globe_history per area e finestra temporale.
 
 Fonte dati: https://github.com/adsblol/globe_history_2026 (ODbL 1.0 + CC0)
 Attribuzione obbligatoria negli embed: "© adsb.lol contributors (ODbL)"
@@ -508,7 +508,7 @@ def main() -> None:
             "source": "adsb.lol/globe_history",
             "license": "ODbL 1.0",
             "attribution": (
-                "© adsb.lol contributors (ODbL) — "
+                "© adsb.lol contributors (ODbL) - "
                 "opendatacommons.org/licenses/odbl/1.0/"
             ),
             "date": args.date,

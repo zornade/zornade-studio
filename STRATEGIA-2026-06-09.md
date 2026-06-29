@@ -1,11 +1,11 @@
-# Zornade Studio — Strumento di produzione interno per mappe e visualizzazioni editoriali
+# Zornade Studio - Strumento di produzione interno per mappe e visualizzazioni editoriali
 
 > **Nome prodotto confermato:** **Zornade Studio** (dominio target: `studio.zornade.com`).
 
 > **Data:** 9 giugno 2026 · **Versione:** 2 (sostituisce la precedente analisi)
 > **Contesto:** dovendo comunque produrre mappe/visualizzazioni per Altreconomia e per altre
-> redazioni, l'obiettivo è dotarsi di **uno strumento di produzione interno** — una "versione Zornade
-> di Flourish/Felt/Datawrapper" — che **io** (operatore singolo) uso per creare le mappe, che poi le
+> redazioni, l'obiettivo è dotarsi di **uno strumento di produzione interno** - una "versione Zornade
+> di Flourish/Felt/Datawrapper" - che **io** (operatore singolo) uso per creare le mappe, che poi le
 > redazioni **embeddano** nei loro siti. Ogni embed **punta a Zornade** (attribuzione → brand + SEO).
 > Modello iniziale: **pagamento a mappa**; evoluzione futura possibile: open source **oppure** SaaS a
 > sé stante.
@@ -105,9 +105,9 @@ Servono per due ragioni: (a) capire **cosa eviterei di pagare** facendo in casa;
 | Prodotto | Free | Piano pro/white-label | Enterprise | Note |
 |---|---|---|---|---|
 | **Datawrapper** | Sì (con attribuzione) | **Custom: $599/mese o $5.990/anno** (10 utenti, white-label, SVG/PDF, no attribuzione; +$21/utente/mese; +$249/mese per tema extra) | Custom: self-host, SSO, SLA | Standard nelle redazioni. Niente geodati italiani pronti. |
-| **Flourish** (Canva) | Sì (con attribuzione) | **Publisher** (team, scrollytelling, no attribuzione, 1 tema, live data, export HTML) — **prezzo nascosto** (~$29/utente/mese; ~$199/mese 10 utenti) | SSO, live rendering API, temi multipli | Forte su storytelling/scrollytelling. |
+| **Flourish** (Canva) | Sì (con attribuzione) | **Publisher** (team, scrollytelling, no attribuzione, 1 tema, live data, export HTML) - **prezzo nascosto** (~$29/utente/mese; ~$199/mese 10 utenti) | SSO, live rendering API, temi multipli | Forte su storytelling/scrollytelling. |
 | **Infogram** (Prezi) | Sì | Pro $19/mese; **Business $67/mese** (white-label, logo, SQL/iframe); **Team $149/mese** | Custom: subdominio brandizzato, SSO | Riferimento utile per fasce di prezzo. |
-| **Felt** | Personal gratis | **Professional** (10 seat, embed, dashboard, plugin QGIS) — prezzo non pubblico | PostGIS/Snowflake live sync, REST API+SDK, SSO, EU residency | GIS cloud, molto forte sulle mappe; dati di default negli USA. |
+| **Felt** | Personal gratis | **Professional** (10 seat, embed, dashboard, plugin QGIS) - prezzo non pubblico | PostGIS/Snowflake live sync, REST API+SDK, SSO, EU residency | GIS cloud, molto forte sulle mappe; dati di default negli USA. |
 | **Observable** | Sì | A editor (~$25/editor/mese, storico) | Custom | Pricing non recuperabile (CSP); Framework OSS in possibile declino. |
 
 **Lettura per il caso "a mappa".** Una redazione che oggi vuole una mappa interattiva su misura o
@@ -149,7 +149,7 @@ attribuzione a Zornade).
 **Librerie di grafica "di moda" valutate (2026-06-12).** Chart.js (MIT), ApexCharts (MIT), Plotly.js
 (MIT), Recharts (MIT), Nivo (MIT), visx (MIT), D3 (ISC), TradingView Lightweight Charts (Apache-2.0):
 le licenze sono **tutte permissive** e quindi compatibili. **Verdetto:** non si aggiunge un quarto
-runtime di grafici — **Observable Plot** (statistici) + **Apache ECharts** (ricchi/animati/3D) coprono
+runtime di grafici - **Observable Plot** (statistici) + **Apache ECharts** (ricchi/animati/3D) coprono
 l'intero catalogo, e Plotly.js (~3 MB) o i wrapper React (Recharts/Nivo/visx) sarebbero ridondanti e
 pesanti. L'unica **aggiunta strategica** è **deck.gl (MIT)** per le mappe GPU (heatmap/hexbin/flussi/3D),
 che nessun altro motore copre altrettanto bene. La mappatura completa tipo-di-viz → motore è in
@@ -206,7 +206,7 @@ Ogni visualizzazione è un **documento JSON dichiarativo** separato dal motore d
 - **Scrollytelling** → sequenza di *step* (testo + spec di viz), trigger con **Scrollama**.
 
 Vantaggi: estensione **additiva** (nuovo tipo di viz = nuova mappatura `spec → renderer`); **doppio
-output** dalla stessa spec — interattivo (iframe) **e** statico (SVG/PNG) per email/stampa/anteprime
+output** dalla stessa spec - interattivo (iframe) **e** statico (SVG/PNG) per email/stampa/anteprime
 social/SEO e come fallback; **snapshot immutabili** alla pubblicazione (l'embed di un articolo non
 cambia se in seguito ritocco il progetto).
 
@@ -218,7 +218,7 @@ cambia se in seguito ritocco il progetto).
 
    > **Nota di coerenza con l'implementazione (2026-06-12).** Esistono **due percorsi di join**, non in
    > conflitto: **(a)** per i **CSV caricati dall'utente** il join è **client-side** nel browser contro
-   > le geometrie bundled (oggi `src/lib/choropleth.ts`, livello regioni; ROADMAP O1.3) — zero
+   > le geometrie bundled (oggi `src/lib/choropleth.ts`, livello regioni; ROADMAP O1.3) - zero
    > infrastruttura, embed statico; **(b)** per i **dataset DB Zornade** (OMI/rischio/solare) il join è
    > **server-side in PostGIS** dietro il proxy read-only (ROADMAP O3.1), dove le geometrie già
    > risiedono. La semplificazione topologica qui sotto resta uno step di **build** in entrambi i casi.
@@ -244,14 +244,14 @@ legenda, tooltip, formattazione numeri/date in italiano, annotazioni, dimensioni
 > Spaces è **già nello stack** (vedi `grafana/terraform/`: bucket/policy/CORS in regione **fra1**, UE,
 > con pattern Terraform riutilizzabili) → zero nuovi vendor. È **S3-compatibile con CDN incluso**:
 > **$5/mese** = 250 GiB storage **+ 1 TiB di egress incluso**, poi **$0,01/GiB**. Stima: l'embed serve
-> solo HTML+JS (~320 KB gz, cacheato) + il GeoJSON della singola mappa (~0,2–0,5 MB) — la **basemap
+> solo HTML+JS (~320 KB gz, cacheato) + il GeoJSON della singola mappa (~0,2–0,5 MB) - la **basemap
 > resta esterna** (OpenFreeMap) → ~0,5–1 MB/visualizzazione → **~1–2 milioni di view/mese** dentro il
 > TiB incluso. **L'egress è ampiamente coperto** alla scala editoriale prevista. Poiché Spaces è
 > S3-compatibile, la migrazione futura a **Garage** (AGPL, europeo, self-host) è a basso costo.
 > **Salvaguardia non negoziabile**: gli embed puntano sempre a un **dominio Zornade**
 > (es. `studio.zornade.com/embed/…` o `maps.zornade.com`), **mai** all'URL grezzo del provider, così
 > cambiare storage non rompe un solo embed già pubblicato. *(Avvertenza: quando si self-hosterà la
-> **basemap PMTiles**, quei tile pesanti sposteranno l'egress — è il momento giusto per passare al
+> **basemap PMTiles**, quei tile pesanti sposteranno l'egress - è il momento giusto per passare al
 > self-hosting.)*
 
 - Embed = **snapshot statico** (HTML + asset) su **DO Spaces (CDN)**, versionato/immutabile, dietro
@@ -317,14 +317,14 @@ margine ricorrente arriva dai **retainer**.
 
 ## 10. Roadmap a fasi
 
-- **Fase 0 — Spike (giorni).** PoC: CSV per comune → join PostGIS → coropletica MapLibre + basemap
+- **Fase 0 - Spike (giorni).** PoC: CSV per comune → join PostGIS → coropletica MapLibre + basemap
   PMTiles → embed iframe responsive con attribuzione. Valida il flusso end-to-end.
-- **Fase 1 — MVP studio interno.** Upload dati; libreria geodati Zornade + geo-join; 1 mappa + 2–3
+- **Fase 1 - MVP studio interno.** Upload dati; libreria geodati Zornade + geo-join; 1 mappa + 2–3
   grafici (Vega-Lite) + tabella; tema cliente (font/colori/logo/semplificazione); pubblicazione embed
   + oEmbed WordPress; export PNG/SVG. **Lo uso per le prime mappe di Altreconomia.**
-- **Fase 2 — Suite completa.** Scrollytelling (Scrollama); annotazioni; più tipi di mappa
+- **Fase 2 - Suite completa.** Scrollytelling (Scrollama); annotazioni; più tipi di mappa
   (bubble/punti/categorie); versioning/snapshot; libreria temi clienti.
-- **Fase 3 — Packaging.** Pulizia, documentazione, eventuale rilascio **open source** del core e/o
+- **Fase 3 - Packaging.** Pulizia, documentazione, eventuale rilascio **open source** del core e/o
   layer multi-tenant per il **SaaS self-serve**.
 
 ---

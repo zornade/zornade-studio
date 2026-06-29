@@ -6,7 +6,7 @@
  * (the region is actually "Friuli-Venezia Giulia"). Instead we **geocode** the
  * user's text with Nominatim (fuzzy, multilingual, CORS `*` verified
  * 2026-06-16) to get the matching administrative boundary's OSM id, then query
- * Overpass by **area id** — exact and robust.
+ * Overpass by **area id** - exact and robust.
  *
  * Overpass area id convention: relation → 3600000000 + osmId; way → 2400000000
  * + osmId. Nodes can't be areas, so we only accept relation/way boundaries.

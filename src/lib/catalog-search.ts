@@ -1,7 +1,7 @@
 /**
  * Catalogue search adapters (CKAN + Socrata), shared by the server proxy
  * (`netlify/functions/ckan.mts`) and the `probe:portals` script so the exact
- * same normalisation logic is exercised in production and in the health probe —
+ * same normalisation logic is exercised in production and in the health probe -
  * no duplicated, drifting copies.
  *
  * Pure and dependency-free: the caller injects a `fetch` implementation (the
@@ -195,7 +195,7 @@ async function searchSocrata(
 //     objects keyed by language code.
 //
 // This adapter normalises all of the above so every surfaced dataset has a
-// clean, loadable resource list — verified live by `probe:portals`.
+// clean, loadable resource list - verified live by `probe:portals`.
 
 /** A value that may be a plain string or a {lang: string} translation map. */
 type MaybeLangMap = string | Record<string, string> | null | undefined;

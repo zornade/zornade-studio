@@ -92,7 +92,7 @@ export function BboxPickerMap({ value, onChange, fullscreen = false }: Props) {
       minZoom: 0.5,
       maxZoom: 14,
       attributionControl: false,
-      // Disable rotation and pitch — unnecessary for bbox selection
+      // Disable rotation and pitch - unnecessary for bbox selection
       dragRotate: false,
       pitchWithRotate: false,
       keyboard: false,
@@ -224,7 +224,7 @@ export function BboxPickerMap({ value, onChange, fullscreen = false }: Props) {
         {/* MapLibre container */}
         <div ref={containerRef} className="absolute inset-0" />
 
-        {/* Transparent pointer-capture overlay — only active in draw mode */}
+        {/* Transparent pointer-capture overlay - only active in draw mode */}
         {drawActive && (
           <div
             className="absolute inset-0"
@@ -242,7 +242,7 @@ export function BboxPickerMap({ value, onChange, fullscreen = false }: Props) {
           style={{ zIndex: 11 }}
         />
 
-        {/* Mode toggle — segmented control, visible only in fullscreen mode */}
+        {/* Mode toggle - segmented control, visible only in fullscreen mode */}
         {fullscreen && (
           <div className="absolute left-3 top-3 z-20 flex gap-1 rounded-lg bg-white/95 p-1 shadow-md backdrop-blur">
             <button

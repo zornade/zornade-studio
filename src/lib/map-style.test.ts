@@ -31,9 +31,9 @@ describe("lightSpec", () => {
   it("returns a map-anchored directional light", () => {
     expect(lightSpec()).toEqual({
       anchor: "map",
-      color: "#ffffff",
-      intensity: 0.55,
-      position: [1.5, 215, 40],
+      color: "#fff7ec",
+      intensity: 0.45,
+      position: [1.5, 215, 35],
     });
   });
 });

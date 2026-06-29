@@ -1,5 +1,5 @@
 /**
- * probe:portals — live health check for every open-data source in the registry.
+ * probe:portals - live health check for every open-data source in the registry.
  *
  * Run with:  npm run probe:portals  [-- options]
  *
@@ -86,7 +86,7 @@ if (sources.length === 0) {
 // --- resource downloadability ----------------------------------------------
 
 /**
- * A resource is "loadable" if it answers 200 with a data content-type — NOT an
+ * A resource is "loadable" if it answers 200 with a data content-type - NOT an
  * HTML landing page (mirrors the /api/fetch proxy's 415 rule). We read only the
  * headers and then cancel the body so we never download large files.
  */
@@ -116,7 +116,7 @@ async function checkResource(url: string, format: string): Promise<ResourceCheck
   }
 }
 
-/** Retry an async op once on failure, with a short pause — tolerates slow PA portals. */
+/** Retry an async op once on failure, with a short pause - tolerates slow PA portals. */
 async function withRetry<T>(op: () => Promise<T>, attempts = 2): Promise<T> {
   let last: unknown;
   for (let i = 0; i < attempts; i += 1) {
@@ -180,7 +180,7 @@ function pad(s: string, n: number): string {
 
 async function main(): Promise<void> {
   console.log(
-    `probe:portals — ${sources.length} fonti · samples=${SAMPLES} · risorse/dataset=${RES_PER}` +
+    `probe:portals - ${sources.length} fonti · samples=${SAMPLES} · risorse/dataset=${RES_PER}` +
       `${CHECK_RESOURCES ? "" : " · solo-API"} · timeout=${TIMEOUT}ms\n`,
   );
 
@@ -204,7 +204,7 @@ async function main(): Promise<void> {
   const toPromote = reports.filter((r) => r.blacklisted && r.apiOk);
   const deadResourceSources = reports.filter((r) => r.apiOk && r.resourcesDead > 0);
 
-  console.log("\n— Riconciliazione blacklist —");
+  console.log("\n- Riconciliazione blacklist -");
   if (toBlacklist.length === 0 && toPromote.length === 0) {
     console.log("Nessuna modifica suggerita: stato coerente con il registry.");
   }
@@ -219,7 +219,7 @@ async function main(): Promise<void> {
     for (const r of toPromote) console.log(`    - ${r.id} (${r.label})`);
   }
   if (deadResourceSources.length > 0) {
-    console.log("\n  Fonti con risorse morte (campione) — link rotti lato portale, gestiti a runtime:");
+    console.log("\n  Fonti con risorse morte (campione) - link rotti lato portale, gestiti a runtime:");
     for (const r of deadResourceSources) {
       console.log(`    - ${pad(r.id, 18)} ${r.resourcesDead} risorse non scaricabili su ${r.resourcesOk + r.resourcesDead} controllate`);
     }

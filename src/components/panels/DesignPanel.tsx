@@ -381,7 +381,7 @@ export function DesignPanel() {
                 onChange={(e) => updateDesign({ flowFromLat: e.target.value })}
                 className={inputCls}
               >
-                <option value="">—</option>
+                <option value="">-</option>
                 {data.numericColumns.map((c) => (
                   <option key={c} value={c}>{c}</option>
                 ))}
@@ -393,7 +393,7 @@ export function DesignPanel() {
                 onChange={(e) => updateDesign({ flowFromLon: e.target.value })}
                 className={inputCls}
               >
-                <option value="">—</option>
+                <option value="">-</option>
                 {data.numericColumns.map((c) => (
                   <option key={c} value={c}>{c}</option>
                 ))}
@@ -405,7 +405,7 @@ export function DesignPanel() {
                 onChange={(e) => updateDesign({ flowToLat: e.target.value })}
                 className={inputCls}
               >
-                <option value="">—</option>
+                <option value="">-</option>
                 {data.numericColumns.map((c) => (
                   <option key={c} value={c}>{c}</option>
                 ))}
@@ -417,7 +417,7 @@ export function DesignPanel() {
                 onChange={(e) => updateDesign({ flowToLon: e.target.value })}
                 className={inputCls}
               >
-                <option value="">—</option>
+                <option value="">-</option>
                 {data.numericColumns.map((c) => (
                   <option key={c} value={c}>{c}</option>
                 ))}
@@ -430,7 +430,7 @@ export function DesignPanel() {
               onChange={(e) => updateDesign({ flowValue: e.target.value })}
               className={inputCls}
             >
-              <option value="">— nessuna —</option>
+              <option value="">- nessuna -</option>
               {data.numericColumns.map((c) => (
                 <option key={c} value={c}>{c}</option>
               ))}

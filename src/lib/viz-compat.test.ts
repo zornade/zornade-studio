@@ -81,7 +81,7 @@ describe("evaluateCompatibility", () => {
   });
 
   it("opts.hasGeoPoint forces point maps on even without name-based lat/lon", () => {
-    // Columns NOT named lat/lon — the profile alone wouldn't detect points.
+    // Columns NOT named lat/lon - the profile alone wouldn't detect points.
     const cols = ["x", "y", "nome"];
     const rows = [
       { x: "41.9", y: "12.5", nome: "Roma" },

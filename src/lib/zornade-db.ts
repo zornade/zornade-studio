@@ -116,7 +116,7 @@ const SEMESTRE_RE = /^20(1[5-9]|2[0-5])_[12]$/;
 /**
  * Validate and normalise a raw request object (from the client) into a typed
  * {@link DbQueryRequest}, or return an error. The proxy calls this so it never
- * builds a query from untrusted free-form input — only whitelisted options.
+ * builds a query from untrusted free-form input - only whitelisted options.
  */
 export function parseDbRequest(
   raw: unknown,
@@ -193,7 +193,7 @@ export function describeDbRequest(req: DbQueryRequest): {
 
 /**
  * Convert proxy rows into a tabular { columns, rows } ready for the area
- * dataset builder. Columns: `codice_istat`, `comune`, `valore` — plus `periodo`
+ * dataset builder. Columns: `codice_istat`, `comune`, `valore` - plus `periodo`
  * for temporal (multi-semester) OMI, which drives the time slider. The
  * geo-resolve step matches `codice_istat` (or `comune`) against the comuni
  * geometry.

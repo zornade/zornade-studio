@@ -74,10 +74,10 @@ describe("buildEmbedHtml", () => {
 
   it("injects the shared sky/light config into the renderer (single source of truth)", () => {
     expect(html).toContain("map.setSky(E.globe?");
-    expect(html).toContain('{"atmosphere-blend":["interpolate",["linear"],["zoom"],0,0.8,5,0.3,7,0]}');
+    expect(html).toContain('{"atmosphere-blend":["interpolate",["linear"],["zoom"],0,1,5,0.45,7,0]}');
     expect(html).toContain('"sky-color":"#a9d3ff"');
     expect(html).toContain(
-      'map.setLight({"anchor":"map","color":"#ffffff","intensity":0.55,"position":[1.5,215,40]})',
+      'map.setLight({"anchor":"map","color":"#fff7ec","intensity":0.45,"position":[1.5,215,35]})',
     );
     // The old per-renderer inlined branch must be gone.
     expect(html).not.toContain("if(E.globe){map.setSky");

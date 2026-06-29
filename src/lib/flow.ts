@@ -1,5 +1,5 @@
 /**
- * Flow map geometry (O4 maps) — pure, tested.
+ * Flow map geometry (O4 maps) - pure, tested.
  *
  * Turns origin→destination rows (two coordinate pairs each) into curved arcs
  * (quadratic Bézier, bowed perpendicular to the chord) ready for a MapLibre

@@ -84,7 +84,7 @@ interface StudioContextValue extends StudioState {
   /**
    * OSM bbox-pick mode: when true, the right-side canvas shows a full-size
    * BboxPickerMap instead of the empty state.
-   * View state — not serialised.
+   * View state - not serialised.
    */
   bboxPickMode: boolean;
   setBboxPickMode: (active: boolean) => void;
@@ -334,7 +334,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
 
   // Best-effort autosave of the current session to localStorage. Wrapped so a
   // quota error (e.g. a very large dataset) degrades gracefully instead of
-  // throwing — the explicit "Salva progetto" file is the reliable path.
+  // throwing - the explicit "Salva progetto" file is the reliable path.
   useEffect(() => {
     writeAutosave({ step, project, dataSource, vizType, preset, brand, design, data, annotations, storySteps });
   }, [step, project, dataSource, vizType, preset, brand, design, data, annotations, storySteps]);

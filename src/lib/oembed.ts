@@ -1,5 +1,5 @@
 /**
- * oEmbed provider helpers (O3.5) — pure, dependency-free, testable.
+ * oEmbed provider helpers (O3.5) - pure, dependency-free, testable.
  *
  * WordPress (and other consumers) auto-embed a pasted Zornade Studio URL by
  * discovering the `<link rel="alternate" type="application/json+oembed">` tag in
@@ -53,7 +53,7 @@ function clampDimension(
 /**
  * Whether `url` is a Zornade Studio embed we are willing to describe. Only URLs
  * whose origin is in `allowedOrigins` and whose path starts with `/embed/` are
- * accepted — mirroring the published snapshot key layout.
+ * accepted - mirroring the published snapshot key layout.
  */
 export function isAllowedEmbedUrl(
   url: string,

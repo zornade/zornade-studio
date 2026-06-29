@@ -1,5 +1,5 @@
 /**
- * Cartogram geometry (O4 maps) — pure, tested.
+ * Cartogram geometry (O4 maps) - pure, tested.
  *
  * Two honest, deterministic variants (the contiguous Gastner–Newman cartogram
  * is research-grade and has no mature permissive library, so it is out of scope):
@@ -12,7 +12,7 @@
  *
  * Both consume features that already carry a numeric `__value` (mirroring the
  * choropleth join), and emit a FeatureCollection ready for the existing fill
- * paint (coloured by value) — the editor and the embed render them the same way.
+ * paint (coloured by value) - the editor and the embed render them the same way.
  */
 
 import { featureCentroid } from "./centroid";

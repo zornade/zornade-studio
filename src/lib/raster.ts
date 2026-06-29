@@ -1,5 +1,5 @@
 /**
- * Raster basemap helpers (O4 maps) — pure, tested.
+ * Raster basemap helpers (O4 maps) - pure, tested.
  *
  * Builds a MapLibre raster `StyleSpecification` from a tile URL template, so a
  * satellite/aerial or any external XYZ/WMS layer can be used as the map
@@ -17,9 +17,9 @@ export type RasterUrlKind = "xyz" | "wms" | "invalid";
 
 /**
  * Classify a raster tile URL template:
- *  - `xyz`  — has `{z}`, `{x}` and `{y}` placeholders (XYZ/WMTS tiles);
- *  - `wms`  — has a `{bbox-epsg-3857}` placeholder (WMS GetMap, Web-Mercator);
- *  - `invalid` — neither (can't be used as a tile template).
+ *  - `xyz`  - has `{z}`, `{x}` and `{y}` placeholders (XYZ/WMTS tiles);
+ *  - `wms`  - has a `{bbox-epsg-3857}` placeholder (WMS GetMap, Web-Mercator);
+ *  - `invalid` - neither (can't be used as a tile template).
  */
 export function classifyRasterUrl(url: string): RasterUrlKind {
   const u = url.trim();
@@ -60,3 +60,64 @@ export function buildRasterStyle(
     ],
   } as StyleSpecification;
 }
+
+/**
+ * Standalone "rilievo" basemap: a free DEM (Tilezen / AWS Open Data, terrarium
+ * encoding) rendered as a soft hypsometric color-relief tint plus a
+ * multidirectional hillshade on top. No vector tiles, no API key. Hillshade
+ * uses the multidirectional method (MapLibre 5.5+) and color-relief is a
+ * dedicated layer type (MapLibre 5.6+) — both unlocked by 5.24. The data
+ * layers and labels are drawn above this by the renderer.
+ */
+export function buildReliefStyle(): StyleSpecification {
+  return {
+    version: 8,
+    sources: {
+      dem: {
+        type: "raster-dem",
+        tiles: [
+          "https://elevation-tiles-prod.s3.amazonaws.com/terrarium/{z}/{x}/{y}.png",
+        ],
+        encoding: "terrarium",
+        tileSize: 256,
+        maxzoom: 13,
+        attribution:
+          "DEM © Tilezen / Mapzen · AWS Open Data · NASA SRTM",
+      },
+    },
+    layers: [
+      { id: "relief-bg", type: "background", paint: { "background-color": "#eef3f7" } },
+      {
+        id: "color-relief",
+        type: "color-relief",
+        source: "dem",
+        paint: {
+          "color-relief-opacity": 0.6,
+          "color-relief-color": [
+            "interpolate",
+            ["linear"],
+            ["elevation"],
+            0, "#c8e0c8",
+            200, "#e6e2bf",
+            600, "#d9c39a",
+            1200, "#bfa17a",
+            2000, "#a98b6f",
+            3000, "#f2f2f2",
+          ],
+        },
+      },
+      {
+        id: "hillshade",
+        type: "hillshade",
+        source: "dem",
+        paint: {
+          "hillshade-method": "multidirectional",
+          "hillshade-exaggeration": 0.5,
+          "hillshade-shadow-color": "#4a4a4a",
+          "hillshade-highlight-color": "#ffffff",
+        },
+      },
+    ],
+  } as unknown as StyleSpecification;
+}
+

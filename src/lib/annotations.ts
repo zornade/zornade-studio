@@ -2,13 +2,13 @@
  * Custom map annotations (ROADMAP O3.4).
  *
  * The editor lets the operator place four kinds of **geo-anchored** annotations
- * on top of the map — they are stored in lng/lat so they stay glued to the
+ * on top of the map - they are stored in lng/lat so they stay glued to the
  * geography while the reader pans/zooms:
  *
- *  - **marker** — a pin with an optional text label;
- *  - **text**   — a free-standing text label;
- *  - **line**   — a segment, optionally with an arrow head at the end;
- *  - **area**   — a highlight shape (rectangle or circle).
+ *  - **marker** - a pin with an optional text label;
+ *  - **text**   - a free-standing text label;
+ *  - **line**   - a segment, optionally with an arrow head at the end;
+ *  - **area**   - a highlight shape (rectangle or circle).
  *
  * This module is **pure and deterministic** (no DOM, no side effects): it owns
  * the data model, the small bit of geodesy needed to turn the primitives into
@@ -117,7 +117,7 @@ export const ANNOTATION_PALETTE: string[] = [
   "#ffffff", // white
 ];
 
-/** Mean Earth radius (metres) — for distance + offset, kept consistent. */
+/** Mean Earth radius (metres) - for distance + offset, kept consistent. */
 const EARTH_R = 6371008.8;
 /** Metres per degree of latitude (and of longitude at the equator). */
 const M_PER_DEG = (Math.PI / 180) * EARTH_R;
@@ -269,7 +269,7 @@ export function arrowBarbs(start: LngLat, end: LngLat): [LngLat, LngLat] {
  *  - `__width`   stroke width (px),
  *  - `__opacity` fill opacity (areas; 1 for lines),
  *  - `__id`      the source annotation id.
- * Markers and text labels are **not** included here — they are rendered as DOM
+ * Markers and text labels are **not** included here - they are rendered as DOM
  * markers (see {@link markerAnnotations}).
  */
 export function annotationsToGeoJson(
@@ -373,7 +373,7 @@ function clamp(v: number, lo: number, hi: number): number {
  * spec) into a clean `Annotation[]`. Unknown/invalid entries are dropped and
  * numeric fields are clamped, so a malformed input degrades to "fewer / safer
  * annotations" instead of crashing the renderer. Text is **not** HTML-escaped
- * here — escaping happens at the render boundary.
+ * here - escaping happens at the render boundary.
  */
 export function sanitizeAnnotations(value: unknown): Annotation[] {
   if (!Array.isArray(value)) return [];

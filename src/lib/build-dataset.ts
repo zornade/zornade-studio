@@ -59,8 +59,8 @@ export async function buildDatasetFromTable(
 
   // 1) POINT path has priority: explicit lat/lon columns are unambiguous
   // geometry the user supplied on purpose. Detection requires the column to be
-  // *named* lat/lon (+ in range), so real choropleth files — which have no such
-  // columns — are never stolen by this branch.
+  // *named* lat/lon (+ in range), so real choropleth files - which have no such
+  // columns - are never stolen by this branch.
   const profile = profileColumns(columns, rows);
   const latCol = profile.columns.find((c) => c.type === "geo-point-lat")?.name;
   const lonCol = profile.columns.find((c) => c.type === "geo-point-lon")?.name;

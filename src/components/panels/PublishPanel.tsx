@@ -107,7 +107,7 @@ export function PublishPanel() {
         pixelRatio: 2,
         cacheBust: true,
         // The map tiles are same-origin/CORS-enabled; skip nodes that taint the
-        // canvas just in case (defensive — keeps the export from failing hard).
+        // canvas just in case (defensive - keeps the export from failing hard).
         filter: (el) =>
           !(el instanceof HTMLElement && el.dataset.exportIgnore === "true"),
       });
@@ -227,7 +227,7 @@ export function PublishPanel() {
   // The embed snippet only makes sense once a real, immutable URL exists.
   const embed = publishedUrl
     ? `<!--
-  Mappa realizzata con Zornade Studio — https://zornade.com/studio
+  Mappa realizzata con Zornade Studio - https://zornade.com/studio
   ATTRIBUZIONE OBBLIGATORIA. Questa mappa contiene dati © OpenStreetMap (licenza
   ODbL) ed elaborazioni proprietarie Zornade. Il mantenimento dei crediti e del
   link a zornade.com è richiesto dalle licenze dei dati (ODbL) e dai Termini di
@@ -237,7 +237,7 @@ export function PublishPanel() {
 <figure style="margin:0">
   <iframe src="${publishedUrl}" width="100%" height="520" frameborder="0" scrolling="no" title="${project.title}" loading="lazy"></iframe>
   <figcaption style="font:13px/1.45 system-ui,-apple-system,sans-serif;color:#475569;margin-top:6px">
-    <a href="${publishedUrl}" target="_blank" rel="noopener">${project.title} — Mappa di Zornade</a> · Dati © OpenStreetMap
+    <a href="${publishedUrl}" target="_blank" rel="noopener">${project.title} - Mappa di Zornade</a> · Dati © OpenStreetMap
   </figcaption>
 </figure>`
     : "";
@@ -554,8 +554,8 @@ export function PublishPanel() {
       <PanelSection title="Analytics" hint="Engagement dell'embed pubblicato.">
         <div className="grid grid-cols-2 gap-2">
           {[
-            { label: "Visualizzazioni", value: "—", icon: TrendingUp },
-            { label: "Interazioni", value: "—", icon: Share2 },
+            { label: "Visualizzazioni", value: "-", icon: TrendingUp },
+            { label: "Interazioni", value: "-", icon: Share2 },
           ].map((m) => {
             const Icon = m.icon;
             return (

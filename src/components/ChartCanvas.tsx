@@ -22,7 +22,7 @@ function loadPlot(): Promise<PlotModule> {
   return plotPromise;
 }
 
-/** Italian number formatting — identical to the choropleth tooltip/legend. */
+/** Italian number formatting - identical to the choropleth tooltip/legend. */
 const fmt = new Intl.NumberFormat("it-IT", { maximumFractionDigits: 2 });
 
 /** Minimal HTML escaping for tooltip content (mirrors MapPreview). */

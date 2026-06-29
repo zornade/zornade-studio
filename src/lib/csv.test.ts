@@ -14,7 +14,7 @@ describe("csv smoke", () => {
   });
 });
 
-describe("parseCsv — delimiter detection on a sample", () => {
+describe("parseCsv - delimiter detection on a sample", () => {
   it("detects ; , tab and pipe", () => {
     expect(parseCsv("a;b;c\n1;2;3\n").columns).toEqual(["a", "b", "c"]);
     expect(parseCsv("a,b\n1,2\n").columns).toEqual(["a", "b"]);
@@ -31,7 +31,7 @@ describe("parseCsv — delimiter detection on a sample", () => {
   });
 });
 
-describe("parseNumber — robustness (ROADMAP §1.12.3)", () => {
+describe("parseNumber - robustness (ROADMAP §1.12.3)", () => {
   it("keeps existing behaviour (no regressions)", () => {
     expect(parseNumber("1.234,56")).toBe(1234.56);
     expect(parseNumber("12,19")).toBeCloseTo(12.19);
@@ -60,7 +60,7 @@ describe("parseNumber — robustness (ROADMAP §1.12.3)", () => {
     expect(parseNumber("(12,5)")).toBeCloseTo(-12.5);
   });
   it("treats explicit null tokens and non-numbers as null", () => {
-    for (const t of ["n.d.", "n/d", "N/A", "-", "–", "—", "..", "ciao", "ND"]) {
+    for (const t of ["n.d.", "n/d", "N/A", "-", "–", "-", "..", "ciao", "ND"]) {
       expect(parseNumber(t), `token ${t}`).toBeNull();
     }
   });

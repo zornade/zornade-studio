@@ -1,5 +1,5 @@
 /**
- * Snapshot specification — the "spec-driven" serialisation of a published map
+ * Snapshot specification - the "spec-driven" serialisation of a published map
  * (STRATEGIA §6.2). A spec is a **self-contained, versioned JSON** that holds
  * everything needed to re-render a map independently of the live editor state:
  * project texts, geo level, the minimal joined data, and the design.
@@ -277,7 +277,7 @@ export const MAX_PUBLISH_POINTS = 5000;
 
 /**
  * Higher cap for AGGREGATING point renders (heatmap / hexbin). These never draw
- * the points one-by-one — they sum them into a density surface or a hex grid —
+ * the points one-by-one - they sum them into a density surface or a hex grid -
  * so a much larger cloud stays performant, and the inline payload is just bare
  * coordinates. The 5000 cap is meant for renders that draw a marker per point
  * (points / locator / dot-density), where too many degrade the map and the file.
@@ -334,7 +334,7 @@ export function buildSpec(state: StudioState & { camera?: StoryCamera | null }):
     return buildChartSpec(state, state.vizType as ChartRender);
   }
   // Custom geometry (the user's own Shapefile/KML/GeoJSON) publishes by its
-  // dataset kind, regardless of the catalog vizType — it IS a map.
+  // dataset kind, regardless of the catalog vizType - it IS a map.
   if (state.data?.kind === "geo") {
     return buildGeoSpec(state);
   }
@@ -652,7 +652,7 @@ function buildStorySpec(state: StudioState): BuildSpecResult {
 
 /**
  * Build a flow-map spec: arcs between origin/destination coordinate columns,
- * emitted as a custom-geometry (line) spec. No bundled geometry needed — the
+ * emitted as a custom-geometry (line) spec. No bundled geometry needed - the
  * arcs are computed from the data rows. Capped at {@link MAX_PUBLISH_FEATURES}.
  */
 function buildFlowSpec(state: StudioState): BuildSpecResult {
@@ -804,7 +804,7 @@ function buildChartSpec(state: StudioState, render: ChartRender): BuildSpecResul
     };
   }
 
-  // bar / line / area / scatter — mirror ChartCanvas's preparation exactly.
+  // bar / line / area / scatter - mirror ChartCanvas's preparation exactly.
   const roles = chartColumnRoles(data.columns, data.rows);
   const axes = resolveChartAxes(render, roles, design);
   if (!axes.x || !axes.y) {

@@ -1,5 +1,5 @@
 /**
- * Heatmap paint builder (O4.x maps) — pure, tested.
+ * Heatmap paint builder (O4.x maps) - pure, tested.
  *
  * Produces the MapLibre `heatmap` layer paint object from the data's value
  * range and the chosen colour ramp. The density weight is driven by the value

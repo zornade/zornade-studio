@@ -4,7 +4,7 @@
  * "dirty" dataset as produced by Italian PA / Excel exports, with the expected
  * outcome encoded so the tests are deterministic and self-documenting.
  *
- * Keep raw strings verbatim (including \r\n where relevant) — the point is to
+ * Keep raw strings verbatim (including \r\n where relevant) - the point is to
  * exercise the real parser, not a cleaned-up version.
  */
 

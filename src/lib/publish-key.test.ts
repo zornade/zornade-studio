@@ -48,7 +48,7 @@ describe("slugify", () => {
   it("makes URL-safe accent-free slugs", () => {
     expect(slugify("Arrivi à Forlì 2024!")).toBe("arrivi-a-forli-2024");
     expect(slugify("")).toBe("mappa");
-    expect(slugify("—")).toBe("mappa");
+    expect(slugify("-")).toBe("mappa");
   });
 });
 

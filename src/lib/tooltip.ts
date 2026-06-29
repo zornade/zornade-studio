@@ -33,7 +33,7 @@ export function escapeHtml(s: string): string {
 /**
  * Return the distinct dataset columns referenced by a template (excluding the
  * reserved `nome`/`valore` tokens), so the caller can carry exactly those
- * columns onto the features / into the spec — and no more.
+ * columns onto the features / into the spec - and no more.
  */
 export function templateColumns(template: string): string[] {
   const out: string[] = [];

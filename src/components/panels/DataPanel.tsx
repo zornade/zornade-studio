@@ -726,7 +726,7 @@ function UploadSource() {
           : await parseKml((await readFileSmart(file)).text);
         out = buildGeoDataset(fc, file.name);
       } else if (name.endsWith(".tif") || name.endsWith(".tiff")) {
-        // GeoTIFF is raster, not vector — a different render path (in arrivo).
+        // GeoTIFF is raster, not vector - a different render path (in arrivo).
         setError(
           "Il GeoTIFF (raster) è in arrivo. Per ora: CSV, Excel, GeoJSON, Shapefile (.zip/.shp), KML e KMZ.",
         );
@@ -752,7 +752,7 @@ function UploadSource() {
     }
     setData(out.dataset);
     // Default the title from the file name (a file has no title metadata), only
-    // if the operator hasn't already set one — never overwrite manual input.
+    // if the operator hasn't already set one - never overwrite manual input.
     if (!project.title || project.title === "Mappa senza titolo") {
       const t = titleFromFileName(file.name);
       if (t) updateProject({ title: t });
@@ -1094,7 +1094,7 @@ function OsmSource() {
       </Field>
 
       {scopeMode === "place" && (
-        <Field label="Luogo" hint="Città, regione, paese — ovunque nel mondo">
+        <Field label="Luogo" hint="Città, regione, paese - ovunque nel mondo">
           <input
             value={placeName}
             onChange={(e) => setPlaceName(e.target.value)}
@@ -1143,7 +1143,7 @@ function OsmSource() {
             <p className="text-xs text-amber-700">{resolveError}</p>
           )}
 
-          {/* Editable coordinate field — stays in sync with the drawn bbox */}
+          {/* Editable coordinate field - stays in sync with the drawn bbox */}
           <Field label="Coordinate (minLon,minLat,maxLon,maxLat)" hint="Modifica manualmente se necessario">
             <input
               value={bboxRaw}
@@ -1420,7 +1420,7 @@ function EurostatSource() {
   const [innerStep, setInnerStep] = useState<EurostatStep>("list");
   const [selected, setSelected] = useState<EurostatDataset | null>(null);
   const [geo, setGeo] = useState<"paese" | "nuts2" | "nuts3">("nuts2");
-  // Filtro paese opzionale — ISO-2 maiuscolo (es. "IT", "DE"). Vuoto = tutta l'UE.
+  // Filtro paese opzionale - ISO-2 maiuscolo (es. "IT", "DE"). Vuoto = tutta l'UE.
   const [country, setCountry] = useState("IT");
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);

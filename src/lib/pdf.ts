@@ -1,5 +1,5 @@
 /**
- * Minimal single-page PDF writer (O3.5) — pure, dependency-free, testable.
+ * Minimal single-page PDF writer (O3.5) - pure, dependency-free, testable.
  *
  * The editor rasterises a map/chart to a JPEG (via `html-to-image`) and this
  * module wraps that JPEG into a valid one-page PDF using a `DCTDecode` image

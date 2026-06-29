@@ -1,11 +1,11 @@
 /**
- * Data-table helpers (O3.5) — pure, dependency-free, testable.
+ * Data-table helpers (O3.5) - pure, dependency-free, testable.
  *
  * Two outputs share one source so the editor download and the published embed
  * stay consistent:
- *  - `rowsToCsv` — an RFC-4180 CSV string of the dataset for the in-editor
+ *  - `rowsToCsv` - an RFC-4180 CSV string of the dataset for the in-editor
  *    "Scarica CSV" download (accessible, machine-readable raw data).
- *  - `accessibleTableHtml` — a semantic `<table>` (caption + `<th scope>`),
+ *  - `accessibleTableHtml` - a semantic `<table>` (caption + `<th scope>`),
  *    inlined **visually-hidden** in the embed so screen readers can read the
  *    underlying data of an otherwise canvas-only (WebGL) map.
  *

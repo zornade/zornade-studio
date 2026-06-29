@@ -1,7 +1,7 @@
 /**
  * Integration test for the thematic maps (O4.0): runs the EXACT data pipelines
  * that MapCanvas feeds to MapLibre, but against the REAL bundled geometry and
- * the REAL example CSVs — so we verify end-to-end (parse → join → geometry)
+ * the REAL example CSVs - so we verify end-to-end (parse → join → geometry)
  * without needing a WebGL context. This is the strongest check available in a
  * headless environment for the map data flow.
  */

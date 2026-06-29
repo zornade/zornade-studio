@@ -14,7 +14,7 @@ import type { OsmTagFilter } from "../studio/catalog";
 
 /**
  * Public Overpass endpoints. Ordered fastest-first, but {@link runOverpass}
- * does NOT just try them in sequence — it races them with a staggered start
+ * does NOT just try them in sequence - it races them with a staggered start
  * (hedged requests), so a slow or dead mirror can't stall the search. CORS
  * (`Access-Control-Allow-Origin: *`) and reachability re-verified 2026-06-26:
  * `overpass.osm.ch` (~0.5s) and `maps.mail.ru` (~0.9s) were the fastest with
@@ -175,7 +175,7 @@ function formatAddress(tags: Record<string, string>): string {
  * valid response wins and every other in-flight request is aborted. A failing
  * mirror (HTTP error, network error, timeout, or an empty 200 with a runtime
  * remark) immediately escalates to the next one. This makes the search robust
- * to a slow or dead mirror — total wall time is bounded by the *fastest*
+ * to a slow or dead mirror - total wall time is bounded by the *fastest*
  * responder, not the sum of per-endpoint timeouts.
  *
  * A genuinely empty result (HTTP 200, `elements: []`, no runtime remark) is a

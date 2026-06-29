@@ -1,4 +1,4 @@
-# Zornade Studio — Roadmap funzionalità completa
+# Zornade Studio - Roadmap funzionalità completa
 
 > Obiettivo: alternativa interna a Datawrapper/Flourish/Infogram/Felt, ma con il **moat Zornade**
 > (geodati italiani + query OSM + query DB Zornade). Si sviluppano **prima le funzionalità più
@@ -6,11 +6,11 @@
 >
 > Aggiornato: 2026-06-12.
 >
-> **Revisione 2026-06-12.** Aggiunte **§1.11 — Strategia di rendering**, **§1.12 — Strategia dati
-> (profilazione, robustezza, compatibilità viz, soglie di confidenza e di volume)** e **§1.13 —
+> **Revisione 2026-06-12.** Aggiunte **§1.11 - Strategia di rendering**, **§1.12 - Strategia dati
+> (profilazione, robustezza, compatibilità viz, soglie di confidenza e di volume)** e **§1.13 -
 > Testing & golden file**; la §5 della STRATEGIA è stata ampliata con la valutazione delle librerie di
 > grafica "di moda". **Tutti i numeri (versioni, licenze, pesi gzip, release MapLibre v5, caveat
-> SheetJS) sono verificati su fonte ufficiale** — npm registry, Bundlephobia, release notes — non a
+> SheetJS) sono verificati su fonte ufficiale** - npm registry, Bundlephobia, release notes - non a
 > memoria. Il catalogo dell'app (`src/studio/catalog.tsx`) elenca **tutti** i tipi previsti con stato
 > **“presto”**, così l'interfaccia mostra l'intera ambizione mentre le funzionalità arrivano a ondate.
 
@@ -93,8 +93,8 @@ Dallo schema PostGIS/Supabase reale. Tutto interrogabile in sola lettura (creden
 - URL live (Google Sheets / CSV remoto), auto-refresh
 - API / JSON + connettori open data (ISTAT, Socrata/CKAN, portali regionali)
 - Tile/WMS esterni come layer di sfondo
-- **Query OSM (Overpass)** — vedi §2
-- **Query DB Zornade (sola lettura)** — vedi §3
+- **Query OSM (Overpass)** - vedi §2
+- **Query DB Zornade (sola lettura)** - vedi §3
 - Geo-join automatico su CAP / comune / provincia / regione
 - **Trasformazioni dati**: unione di più dataset (join), colonne calcolate, filtri righe, pulizia
 
@@ -109,7 +109,7 @@ Dallo schema PostGIS/Supabase reale. Tutto interrogabile in sola lettura (creden
 ### 1.7 Pubblicazione & export
 - Embed responsive (iframe + resizer no-GPL) + varianti mobile dedicate
 - Snapshot statico immutabile su **DO Spaces (CDN)** dietro dominio Zornade ("funziona per sempre";
-  decisione 2026-06-15, vedi STRATEGIA §6.5 — self-hosting Garage più avanti)
+  decisione 2026-06-15, vedi STRATEGIA §6.5 - self-hosting Garage più avanti)
 - oEmbed (WordPress)
 - Export PNG / SVG / PDF + grafica social / poster / alta risoluzione per stampa
 - Export animazione GIF / MP4
@@ -161,8 +161,8 @@ quindi il costo reale a runtime è inferiore.
 | **deck.gl** | 9.3.4 | **MIT** (OpenJS) | ~442 KB (meta) | Overlay **GPU** su MapLibre per layer pesanti/aggregati: heatmap, hexbin, dot-density, flussi (Arc/Trips), 3D. Import per-pacchetto (`@deck.gl/aggregation-layers`, `@deck.gl/geo-layers`…). |
 | **Observable Plot** | 0.6.17 | **ISC** | ~125 KB | Grafici **statistici** (motore primario, output **SVG** → ottimo per snapshot statico): barre/linee/aree/dispersione/bolle/istogramma/box plot/beeswarm/ridgeline/dumbbell/slope. |
 | **Apache ECharts** | 6.1.0 | **Apache-2.0** | ~359 KB (full) | Grafici **ricchi/relazionali/animati/3D** dove Plot è debole: torta/ciambella, funnel, gauge, sankey, chord, rete, treemap, sunburst, parallel, radar, calendar, candele, `themeRiver`→streamgraph, `pictorialBar`→waffle, bar chart race. |
-| *(aux)* **Vega-Lite** | 6.4.3 | **BSD-3-Clause** | — | **Formato di spec** + via di export, **non** terzo runtime di default (eviterebbe di gonfiare il bundle). |
-| *(aux)* **TanStack Table** · **d3-cloud** · **Scrollama** | 8.21.3 · 1.2.9 · 3.2.0 | **MIT** · **BSD-3** · **MIT** | — | Tabella headless con sparkline (Plot) · word cloud · scrollytelling. |
+| *(aux)* **Vega-Lite** | 6.4.3 | **BSD-3-Clause** | - | **Formato di spec** + via di export, **non** terzo runtime di default (eviterebbe di gonfiare il bundle). |
+| *(aux)* **TanStack Table** · **d3-cloud** · **Scrollama** | 8.21.3 · 1.2.9 · 3.2.0 | **MIT** · **BSD-3** · **MIT** | - | Tabella headless con sparkline (Plot) · word cloud · scrollytelling. |
 
 **Mappatura completa tipo-di-viz → motore** (tutti i tipi sono già a catalogo con stato “presto”):
 
@@ -183,9 +183,9 @@ quindi il costo reale a runtime è inferiore.
 
 | Formato | Libreria | Versione | Licenza | Nota di conformità / rischio |
 |---|---|---|---|---|
-| CSV / TSV | parser interno (`lib/csv.ts`) | — | proprietario | Da irrobustire (§1.12.3). Zero dipendenze. |
+| CSV / TSV | parser interno (`lib/csv.ts`) | - | proprietario | Da irrobustire (§1.12.3). Zero dipendenze. |
 | Excel `.xlsx/.xls` | **SheetJS (`xlsx`)** | 0.20.3 | **Apache-2.0** | ⚠️ **Non installare da npm**: il registry è fermo a **0.18.5** (bug noto, confermato dalla doc SheetJS) e precede il fix di prototype-pollution della 0.19.3. Installare dal **tarball ufficiale CDN** (`https://cdn.sheetjs.com/xlsx-0.20.3/…`) e **vendorizzarlo** nel repo. |
-| GeoJSON / JSON | nativo (`JSON.parse`) | — | — | Validazione struttura `FeatureCollection`. |
+| GeoJSON / JSON | nativo (`JSON.parse`) | - | - | Validazione struttura `FeatureCollection`. |
 | Shapefile `.shp/.zip` | **`shapefile`** | 0.6.6 | **BSD-3-Clause** | Streaming `.shp`+`.dbf`; gestire CRS (riproiezione a WGS84 con proj4 se non 4326). |
 | KML / KMZ / GPX | **`@tmcw/togeojson`** | 7.1.2 | **BSD-2-Clause** | KMZ = unzip lato client prima del parse. |
 | GeoTIFF (raster) | **`geotiff`** | 3.0.5 | **MIT** | Per anteprima/overlay; lazy (~3,8 MB unpacked). |
@@ -214,7 +214,7 @@ servono. Obiettivo: **JS iniziale ≤ ~350 KB gz**; ogni motore aggiuntivo è un
 > i dati caricati? **(b)** come scavalcare la disomogeneità delle fonti (nomi colonne, formati numerici,
 > delimitatori, codifiche, date, chiavi geografiche)?
 >
-> **Principio guida — affidabilità = determinismo + trasparenza + correzione.** Nessuna euristica è
+> **Principio guida - affidabilità = determinismo + trasparenza + correzione.** Nessuna euristica è
 > infallibile: ogni rilevamento produce un **profilo con punteggio di confidenza**, viene **mostrato
 > all'utente** e resta **sempre correggibile** con un override manuale. Mai un fallimento silenzioso.
 
@@ -237,12 +237,12 @@ flowchart LR
 
 **Moduli previsti** (additivi, nessuno ancora implementato salvo i rudimenti in `lib/csv.ts` e
 `lib/choropleth.ts`):
-- `lib/ingest/decode.ts` — codifica → testo.
-- `lib/ingest/sniff.ts` — formato + delimitatore.
-- `lib/ingest/clean.ts` — normalizzazione struttura tabellare.
-- `lib/profile.ts` — profilazione semantica delle colonne (il cuore).
-- `lib/geo-resolve.ts` — riconoscimento ruolo/livello geografico + alias.
-- `lib/viz-compat.ts` — regole profilo → viz.
+- `lib/ingest/decode.ts` - codifica → testo.
+- `lib/ingest/sniff.ts` - formato + delimitatore.
+- `lib/ingest/clean.ts` - normalizzazione struttura tabellare.
+- `lib/profile.ts` - profilazione semantica delle colonne (il cuore).
+- `lib/geo-resolve.ts` - riconoscimento ruolo/livello geografico + alias.
+- `lib/viz-compat.ts` - regole profilo → viz.
 
 #### 1.12.2 · Tassonomia dei tipi semantici di colonna
 
@@ -263,14 +263,14 @@ sia per la compatibilità viz.
 **Punteggio di confidenza (regole concrete, calibrate sui default già nel codice).** Ogni colonna
 riceve, per ogni tipo candidato, un punteggio `0–1`; si assegna il tipo col punteggio massimo. Le
 soglie sono **parametri versionati** (un solo file di costanti), validati e ritarati con i golden file
-(§1.13) — non numeri "a sensazione". Valori di partenza proposti:
+(§1.13) - non numeri "a sensazione". Valori di partenza proposti:
 
 | Segnale | Soglia di partenza | Origine |
 |---|---|---|
 | **quantitative** | ≥ **0,85** delle celle non vuote parse-abili a numero | innalza l'attuale `0,60` di `detectNumericColumns`, troppo permissivo per decidere il *tipo* |
 | **temporal** | ≥ 0,85 delle celle non vuote parse-abili a data/periodo | nuovo parser date IT/ISO |
 | **geo-key (per nome)** | ≥ **0,90** dei valori distinti combaciano col dizionario del livello (dopo `normaliseKey`) | coerente con la logica di join esistente |
-| **geo-key (per codice)** | ≥ 0,95 dei valori sono codici validi del livello (ISTAT/CAP, lunghezza attesa) | — |
+| **geo-key (per codice)** | ≥ 0,95 dei valori sono codici validi del livello (ISTAT/CAP, lunghezza attesa) | - |
 | **geo-point** | lat in `[-90,90]` **e** lon in `[-180,180]` per ≥ 0,95 delle righe | range geografici |
 | **categorical** | cardinalità distinti ≤ `max(20, 5 % righe)` e non quantitative | euristica cardinalità |
 | **identifier** | cardinalità distinti ≥ 0,95 delle righe | quasi-unicità |
@@ -303,7 +303,7 @@ Tecniche concrete per ogni asse di variabilità (frequenti negli export di PA/Ex
   *(oggi `detectDelimiter` guarda solo l'header: spostare la decisione sul campione.)*
 - **Numeri (locale IT).** Oltre a quanto già coperto, gestire **`€`/`$` e unità** (`kWh`, `ha`, `/m²`)
   rimuovendo i caratteri non numerici di contorno, **negativi tra parentesi** `(1.234)`→`-1234`, e
-  l'insieme esplicito di **token-nullo** `n.d.`, `n/d`, `-`, `–`, `—`, `N/A`, `ND`, `..` → `null`.
+  l'insieme esplicito di **token-nullo** `n.d.`, `n/d`, `-`, `–`, `-`, `N/A`, `ND`, `..` → `null`.
   *(estende `parseNumber`.)*
 - **Date (locale IT).** `gg/mm/aaaa`, `gg-mm-aa`, `aaaa-mm-gg`, `aaaa`, `2024 S1`/`I sem`, `gen-2024`,
   trimestri → normalizzazione a ISO + **granularità** (anno/semestre/mese/giorno) per il time-slider.
@@ -360,7 +360,7 @@ catalogo e restituisce, per ciascuno, `{ compatibile, punteggio, requisiti manca
 Per non degradare il browser, la pipeline cambia strategia in base al numero di righe. Soglie di
 partenza (da validare con i golden file, §1.13). Il numero di feature dipende dal livello geografico:
 **decine** per regioni (~20) e province (~107), **migliaia** per comuni (~7.900) e zone CAP (9.228,
-secondo §0) — quindi le soglie sotto coprono comodamente anche il caso comunale/CAP a piena Italia:
+secondo §0) - quindi le soglie sotto coprono comodamente anche il caso comunale/CAP a piena Italia:
 
 | Righe | Strategia |
 |---|---|
@@ -372,11 +372,11 @@ secondo §0) — quindi le soglie sotto coprono comodamente anche il caso comuna
 #### 1.13 · Testing & golden file (come garantiamo l'affidabilità)
 
 > Un sistema che vive di euristiche è affidabile **solo se misurato**. Ogni euristica di §1.12 ha test
-> deterministici su **file reali sporchi**, non sintetici. Stack di test: **Vitest** (MIT) — coerente
+> deterministici su **file reali sporchi**, non sintetici. Stack di test: **Vitest** (MIT) - coerente
 > con Vite già in uso.
 
 - **Corpus di golden file** in `src/lib/__fixtures__/` con casi reali:
-  - CSV `;`-separato, virgolettato, **CRLF**, colonna vuota finale e chiave per **nome regione** —
+  - CSV `;`-separato, virgolettato, **CRLF**, colonna vuota finale e chiave per **nome regione** -
     esattamente il file ISTAT "Arrivi per regione" che inizialmente rendeva tutto grigio (regressione
     già corretta nel join codice-o-nome: diventa un test permanente).
   - Export Excel salvato come CSV in **Windows-1252** (accenti `città`, `così`).
@@ -422,11 +422,11 @@ L'utente incolla **host / utente / password** (credenziali read-only generate a 
 
 ## 4 · Roadmap a ondate (prima il più facile)
 
-### Onda 1 — Fondamenta (in corso)
+### Onda 1 - Fondamenta (in corso)
 - **O1.1** ✅ Basemap PMTiles + sistema flavor + tinta brand
 - **O1.2** ✅ Shell frontend (stepper Dati→Visualizza→Design→Pubblica, UX pulita, font Zornade)
 - **O1.3** ✅ Coropletica da CSV con geo-join client-side + tooltip, con **tutti e 4 i metodi di
-   classificazione** (quantile, **natural breaks/Jenks**, intervalli uguali, **soglie manuali**) —
+   classificazione** (quantile, **natural breaks/Jenks**, intervalli uguali, **soglie manuali**) -
    `quantileBreaks`/`equalBreaks`/`jenksBreaks`/`manualBreaks` in `lib/choropleth.ts`, testati
    (`classification.test.ts`); legenda a gradini e gestione no-data. **Geometrie attive
    (`public/geo/`, generate da `scripts/build_geo.py`): Paesi** (242, Natural Earth 1:50m,
@@ -442,43 +442,43 @@ L'utente incolla **host / utente / password** (credenziali read-only generate a 
    (titolo/legenda/fonte) via **`html-to-image`** (MIT, caricata **lazy**), `preserveDrawingBuffer: true`
    su MapLibre per leggere il canvas WebGL; nodo mappa esposto da `MapCanvas` tramite `exportNodeRef`
    nel contesto. *(Da fare: smoke-test visivo in browser.)*
-   **Embed snapshot — implementato ✅, da attivare con le credenziali.** `lib/spec.ts` (`buildSpec`:
+   **Embed snapshot - implementato ✅, da attivare con le credenziali.** `lib/spec.ts` (`buildSpec`:
    serializzazione **spec-driven** versionata e deterministica) + `lib/publish-key.ts` (path
    **content-addressed** `embed/{slug}/{hash}` → immutabilità) + `lib/embed-html.ts` (embed HTML
    **self-contained**, MapLibre pinnato, **escaping XSS** testato) + `netlify/functions/publish.mts`
    (POST `/api/publish` auth-gated → upload `spec.json`+`index.html` su **DO Spaces** via
    `@aws-sdk/client-s3`) + bottone **“Pubblica”** in `PublishPanel`. **Servizio via proxy Netlify**
    (`netlify.toml`: `/embed/* → bucket CDN`), perché il DNS è su Netlify e il custom-domain DO
-   richiederebbe la delega NS — così l'embed resta su `studio.zornade.com` con TLS Netlify, byte dal
+   richiederebbe la delega NS - così l'embed resta su `studio.zornade.com` con TLS Netlify, byte dal
    CDN Spaces. **Da fare (operativo):** creare il bucket `zornade-studio-embed` (fra1, CDN, public-read),
    generare le Spaces access key e impostare le env su Netlify (`SPACES_KEY/SECRET/BUCKET/REGION`), poi
-   smoke-test. Self-hosting **Garage** (AGPL) più avanti — vedi STRATEGIA §6.5.
+   smoke-test. Self-hosting **Garage** (AGPL) più avanti - vedi STRATEGIA §6.5.
 
-### Onda 2 — Dati & punti
+### Onda 2 - Dati & punti
 - **O2.1** ✅ **Pipeline di profilazione + compatibilità viz** (§1.12). `lib/profile.ts`
    (tipi semantici con confidenza + `THRESHOLDS`), `lib/viz-compat.ts` (`evaluateCompatibility`:
    profilo→viz con motivo del “perché spento”), disambiguazione geografica **value-based**
    (`resolveGeoJoin` + `public/geo/keys.json`). `VisualizePanel` non usa più il set hardcoded e mostra
    il pannello **“cosa abbiamo capito”**; override livello/chiave nel passo Design. *(Restano da fare:
-   parser date più ampio, melt wide→long, decode Win-1252 — §1.12.3.)*
+   parser date più ampio, melt wide→long, decode Win-1252 - §1.12.3.)*
 - **O2.2** ✅ **Suite di test + golden file** (§1.13): **Vitest 3.2.6** + 39 test, tra cui un **corpus di
    20 dataset realistici** (`src/lib/__fixtures__/datasets.ts`) che esercita parsing→profilo→geo-resolve
    →compat→join end-to-end (delimitatori `,;\t|`, numeri/valuta IT, tutti i livelli geo per nome/codice/ISO,
    ACI misto, lat/lon, wide, BOM/accenti). `npm test` = gate.
 - **O2.3a** ✅ **Parser tabellari**: **Excel `.xlsx/.xls`** (SheetJS **0.20.3 Apache-2.0**,
-   **vendorizzato** da CDN ufficiale in `src/vendor/sheetjs/` — mai dalla 0.18.5 di npm — e
+   **vendorizzato** da CDN ufficiale in `src/vendor/sheetjs/` - mai dalla 0.18.5 di npm - e
    **caricato lazy**: chunk separato ~162 KB gz, fuori dal bundle iniziale) e **GeoJSON/JSON**
    (le `properties` delle feature → tabella; nessuna dipendenza). Entrambi confluiscono in
    `buildDatasetFromTable` (geo-resolve + chiave/valore + errori identici al CSV); upload con
    dispatch per estensione in `DataPanel`. Parser puri in `lib/ingest/parse-excel.ts` /
    `parse-geojson.ts`, **testati** (12 test). *(Smoke-test visivo browser da fare.)*
-- **O2.3b** ✅ **Geometrie dell'utente** (Shapefile, KML, KMZ, GeoJSON-con-geometrie) — *vettoriale
+- **O2.3b** ✅ **Geometrie dell'utente** (Shapefile, KML, KMZ, GeoJSON-con-geometrie) - *vettoriale
    completo* (2026-06-17). Un nuovo tipo di dataset **`geo`** (`DatasetState` ora `area | point |
    geo`) porta la geometria caricata dall'utente (quartieri, collegi, bacini…) e la **disegna
    direttamente**: i **poligoni** si colorano per **valore** (coropletica sulle *proprie* geometrie,
    con classificazione) o per **categoria**, **linee** e **punti** ricevono colore/categoria. Parser
    **puri e lazy** (fuori dal bundle iniziale): `lib/ingest/parse-geometry.ts` usa **shpjs** (MIT, con
-   **riproiezione** proj4 — gli shapefile italiani sono in Gauss-Boaga/UTM, non lon/lat),
+   **riproiezione** proj4 - gli shapefile italiani sono in Gauss-Boaga/UTM, non lon/lat),
    **@tmcw/togeojson** (BSD-2, KML→GeoJSON via `DOMParser`) e **fflate** (MIT, unzip del KMZ);
    `lib/geo-dataset.ts` (puro + **testato**, 16 test) costruisce il `GeoDataset` dalle properties e
    prepara il rendering (`__value`/`__cat`/`__name`). Il `MapPreview` rende le collezioni **miste** con
@@ -501,15 +501,15 @@ L'utente incolla **host / utente / password** (credenziali read-only generate a 
    - **Integrazione Design guidata da capability** (`src/studio/design-caps.ts`): ogni viz dichiara i
      blocchi Design che espone (`geoBinding`, `valueLabel`, `colorScale`, `classification`,
      `pointStyle`); il `DesignPanel` mostra **solo** i blocchi dichiarati e il renderer legge gli
-     stessi campi — così ogni viz è coerente col pannello *per costruzione* (niente controlli
+     stessi campi - così ogni viz è coerente col pannello *per costruzione* (niente controlli
      irrilevanti, ogni controllo mostrato è cablato). I punti ora rispettano colore (`pointColor` o
      scala per categoria) e dimensione (`pointSize`).
 - **O2.5** ✅ **Query OSM (Overpass)** con selettore guidato, **indurita** (2026-06-16). `lib/overpass.ts`
-   (puro + testato): `buildOverpassQuery` (preset → Overpass QL, ambito via **area id** Overpass —
-   `area(<id>)->.a` — niente più match per `name`/`admin_level` fragile; nationwide = `ITALY_AREA_ID`
+   (puro + testato): `buildOverpassQuery` (preset → Overpass QL, ambito via **area id** Overpass -
+   `area(<id>)->.a` - niente più match per `name`/`admin_level` fragile; nationwide = `ITALY_AREA_ID`
    = `3600365331`), filtri OR su `nwr`, `overpassToTable` (elements → tabella punti con
-   `lat`/`lon`/`nome`/`categoria`/`indirizzo`), `runOverpass` (fetch **diretto dal browser** — gli
-   endpoint pubblici mandano `Access-Control-Allow-Origin: *`, niente proxy — con **fallback** su più
+   `lat`/`lon`/`nome`/`categoria`/`indirizzo`), `runOverpass` (fetch **diretto dal browser** - gli
+   endpoint pubblici mandano `Access-Control-Allow-Origin: *`, niente proxy - con **fallback** su più
    mirror). `lib/nominatim.ts` (NUOVO, puro + testato): `geocodeArea(query, scope)` risolve il nome
    del luogo **in modo fuzzy** via Nominatim (CORS `*` verificato; `countrycodes=it`,
    `featureType` hint regione→state/comune→city) → boundary amministrativo → area id Overpass
@@ -531,7 +531,7 @@ L'utente incolla **host / utente / password** (credenziali read-only generate a 
    automaticamente). Capability Design: `symbol`→`pointStyle` (dimensione), `category`→nuovo blocco
    `categoryBinding` (scelta colonna categoria) + `colorScale`. `VisualizePanel`/catalogo: entrambe
    **ready**. *(Legenda graduata mostrata per la coropletica; per symbol/category il dato è nel
-   tooltip — legenda dedicata = rifinitura successiva.)*
+   tooltip - legenda dedicata = rifinitura successiva.)*
 - **O2.7** ✅ **Scale colore avanzate** + **check daltonismo**. Aggiunte palette **verificate
    colour-blind-safe**: **Viridis** (CC0/matplotlib), **ColorBrewer** YlGnBu + PuOr (Apache-2.0,
    © C. Brewer), **Okabe–Ito** (categorica). Flag `cvdSafe` curato dalla letteratura su `COLOR_SCALES`
@@ -539,17 +539,17 @@ L'utente incolla **host / utente / password** (credenziali read-only generate a 
    protanopia/deuteranopia/tritanopia; grigi preservati; testata) → anteprima nel Design di come la
    scala appare a chi ha un deficit. **Scelta di onestà:** il verdetto “adatta” usa il **flag curato**,
    non un classificatore a soglia (misurato: nessuna soglia redmean separa pulito Okabe-Ito da palette
-   rischiose — si sovrappongono); la simulazione lascia **verificare a occhio**. Le palette valgono
+   rischiose - si sovrappongono); la simulazione lascia **verificare a occhio**. Le palette valgono
    anche negli **embed** (via `colorsForScale`).
 - **O2.8** ✅ **Tooltip HTML personalizzato** + **filtri per il lettore**. Tooltip: `lib/tooltip.ts`
    (`templateColumns`/`renderTooltipTemplate`, testati) con token `{nome}`/`{valore}`/`{colonna}`;
    l'HTML del template è preservato, i valori dai dati sono **HTML-escaped** (niente injection);
    colonne referenziate incluse nello spec (`SpecDatum.extra`) → identico nell'embed. **Filtri lettore:**
    **legenda cliccabile** sulla coropletica (`lib/class-filter.ts`: `buildClassVisibilityFilter` →
-   espressione MapLibre che mostra/nasconde le classi di valore, testata) — il reader clicca una classe
+   espressione MapLibre che mostra/nasconde le classi di valore, testata) - il reader clicca una classe
    per filtrarla, in editor **e nell'embed pubblicato** (le aree senza dato restano sempre visibili come
    contesto). Capability `tooltipTemplate` + `readerFilters`. *(Geocoder/ricerca indirizzo escluso per
-   ora — richiesta utente.)*
+   ora - richiesta utente.)*
 - **O2.9** ✅ **Salvataggio progetti** (locale; DB più avanti). Già presente l'infrastruttura di
    serializzazione deterministica (`serialiseSpec`/`sortDeep`) e lo `StudioState` è interamente
    serializzabile. Aggiunto `lib/project.ts` (`serialiseProject`/`parseProject`, file versionato
@@ -559,9 +559,9 @@ L'utente incolla **host / utente / password** (credenziali read-only generate a 
    all'avvio** (un refresh accidentale non perde il lavoro; degrada in silenzio se la quota è
    superata). UI nel pannello Pubblica → sezione “Progetto”. *(Persistenza su DB Zornade = step futuro.)*
 
-### Onda 3 — DB Zornade & grafici
+### Onda 3 - DB Zornade & grafici
 - **O3.1** ✅ **Proxy query DB Zornade** (read-only) + dataset guidati. **Audit del DB live**
-   (2026-06-17, Supabase): lo schema reale **diverge** dal repo — `comuni_solar` (7.902 righe,
+   (2026-06-17, Supabase): lo schema reale **diverge** dal repo - `comuni_solar` (7.902 righe,
    **già aggregata per comune**) non era negli schemi, mentre `cap_subcomunali`/`provinces`/`regions`/
    `buildings` sono **vuote** in produzione. I dataset realmente a **livello comune** (verificati,
    copertura ~99-100 %) sono **4**: **OMI** (`omi_historical`, €/m² medi, 22 semestri 2015→2025, con
@@ -585,7 +585,7 @@ L'utente incolla **host / utente / password** (credenziali read-only generate a 
 - **O3.2** ✅ **Grafici base** (barre, linee, aree, dispersione) via **Observable Plot** (ISC, 0.6.17,
    **lazy** → chunk separato ~133 KB gz, fuori dal bundle iniziale) + **tabella**. Nuovo `DatasetState`
    **`table`** (`area | point | geo | table`): un CSV **senza** geografia (categorie + numeri) ora si
-   **carica** invece di dare errore — `buildDatasetFromTable` ripiega su un dataset tabellare quando non
+   **carica** invece di dare errore - `buildDatasetFromTable` ripiega su un dataset tabellare quando non
    trova né chiave area né lat/lon (serve ≥1 colonna numerica). Modulo puro `lib/chart-data.ts`
    (**testato**, 12 test): `chartColumnRoles` (numerico vs etichetta dal profilo), `resolveChartAxes`
    (assi di default sensati, override dal Design), `buildChartPoints` (tipizza le righe, numeri IT,
@@ -604,9 +604,9 @@ L'utente incolla **host / utente / password** (credenziali read-only generate a 
    ordinati. Modulo puro `lib/temporal.ts` (**testato**, 19 test): `periodSortKey` (ordina semestri OMI
    `2015_1`, anni, ISO, trimestri su un'unica scala anno+mese/12), `orderFrames`, `frameLabel`
    (`2015_1`→`2015 S1`), `detectTimeColumn` (colonna con ≥80 % valori-periodo e ≥2 frame), `framesOf`,
-   `rowsForFrame`. **Due sorgenti**: (1) **CSV** — una tabella *wide* (una colonna per anno) viene
+   `rowsForFrame`. **Due sorgenti**: (1) **CSV** - una tabella *wide* (una colonna per anno) viene
    **melted** a lungo via `reshape` e la colonna `periodo` diventa il time-column; una tabella già lunga
-   con colonna temporale viene rilevata; (2) **DB OMI** — opzione "Tutti i semestri (2015→2025)" che
+   con colonna temporale viene rilevata; (2) **DB OMI** - opzione "Tutti i semestri (2015→2025)" che
    carica i **22 semestri**. **Scala condivisa**: `temporalSharedValues` (choropleth.ts) raccoglie i
    valori dipinti su **tutti** i frame (stesso match di `matchedFeatureValues`) → `computeBreaks` **una
    volta** sola, così un colore vale lo stesso valore nel 2015 e nel 2025. `MapCanvas` rende il frame
@@ -650,8 +650,8 @@ L'utente incolla **host / utente / password** (credenziali read-only generate a 
    caricato; nell'embed pubblicato viene inlinata una **tabella nascosta `.sr-only`** (clip) costruita a
    build-time dai dati dello spec → screen reader leggono i valori di una mappa altrimenti solo-canvas
    (WebGL). (2) **Export SVG/PDF**: **SVG vero** solo per i **grafici** (serializza il più grande `<svg>`
-   reso da Observable Plot — esclude la legenda); **PDF** per tutto (mappe + grafici + tabella) via
-   `lib/pdf.ts` puro — `html-to-image` → JPEG, poi `buildJpegPdf` lo incapsula in un PDF 1.3 monopagina
+   reso da Observable Plot - esclude la legenda); **PDF** per tutto (mappe + grafici + tabella) via
+   `lib/pdf.ts` puro - `html-to-image` → JPEG, poi `buildJpegPdf` lo incapsula in un PDF 1.3 monopagina
    (`DCTDecode`, xref byte-accurato, niente nuove dipendenze; `parseJpeg` legge dimensioni/componenti dal
    marker SOF; pagina A4-width con aspect ratio dell'immagine). (3) **oEmbed WordPress**: `lib/oembed.ts`
    (provider rich JSON/XML + `isAllowedEmbedUrl` come guardia SSRF) + Netlify function **`/api/oembed`**
@@ -681,29 +681,29 @@ L'utente incolla **host / utente / password** (credenziali read-only generate a 
    sezioni pertinenti alla viz (Coropletica → Dato/Colore/Classi e legenda; Barre → Grafico; Categorie →
    Colore), e i selettori di colonna/assi sono **spostati** dal Design alla Struttura (niente più
    “Colonna da mappare” né “Assi del grafico” nel Design). 321 test verdi (+17), tsc + build OK (main
-   ~344 KB gz). **Verificato dal vivo** (browser, DOM/SVG — la mappa richiede WebGL assente in test):
+   ~344 KB gz). **Verificato dal vivo** (browser, DOM/SVG - la mappa richiede WebGL assente in test):
    cambio tipo dato → binding e badge corretti + errori guida quando incompleto; mappatura ad aree →
    Coropletica/Simboli/Categorie abilitati; mappatura a punti (lat/lon arbitrari) → Punti/Localizzatore
    abilitati; Design gated per viz. *(Smoke-test mappa vera da fare su browser con WebGL: render
    coropletica/punti/localizzatore con etichette.)*
 - **O4.0** ✅ **Mappe tematiche complete (6 tipi native)** (2026-06-23). Aggiunti e resi selezionabili
    **6 nuovi tipi di mappa**, tutti con MapLibre nativo (nessuna nuova dipendenza) e moduli puri
-   **testati**: **Bivariata** (`lib/bivariate.ts` — join di due colonne valore → classe 0..8, matrice
+   **testati**: **Bivariata** (`lib/bivariate.ts` - join di due colonne valore → classe 0..8, matrice
    3×3 terzili×terzili, palette Stevens teal×rosso, legenda 3×3 in mappa), **Spike map** (`lib/spike.ts`
-   — triangoli ai centroidi, altezza ∝ valore, correzione cos-lat), **Estrusione 3D** (`fill-extrusion`
+   - triangoli ai centroidi, altezza ∝ valore, correzione cos-lat), **Estrusione 3D** (`fill-extrusion`
    nativo, altezza dal valore, camera inclinata a 50° via nuovo prop `pitch` di MapPreview), **Mappa di
-   calore** (`lib/heatmap.ts` — layer `heatmap` nativo, peso dal valore, raggio/intensità scalati sullo
-   zoom), **Esagoni** (`lib/hexbin.ts` — binning esagonale pointy-top in km con proiezione cos-lat,
+   calore** (`lib/heatmap.ts` - layer `heatmap` nativo, peso dal valore, raggio/intensità scalati sullo
+   zoom), **Esagoni** (`lib/hexbin.ts` - binning esagonale pointy-top in km con proiezione cos-lat,
    cella adattiva, conteggio classificato come coropletica), **Densità di punti** (un puntino translucido
    per evento, colore per categoria). `MapPreview`: `DataLayer.kind` += `"heatmap"|"extrusion"` +
    `circleOpacity`/`heatmapPaint`/`extrusionRange`; rimozione layer idempotente; tooltip anche
    sull'estrusione; effetto `pitch`. `MapCanvas`: 6 branch + memos (il join area alimenta anche
    spike/estrusione). **design-caps** esteso (cap `bivariateBinding`) + **nuovi blocchi Design**:
-   “Seconda variabile” (bivariata) e “Stile punti” (colore+dimensione — colma un vuoto: prima
+   “Seconda variabile” (bivariata) e “Stile punti” (colore+dimensione - colma un vuoto: prima
    punti/simboli non erano personalizzabili). Catalogo: i 6 → `ready`; restano `soon` i 4 con blocchi
    pesanti (globo=MapLibre v5, cartogramma=algoritmo di ricerca, flussi=dato O→D, raster/WMS=layer di
    sfondo). Nuovo dato `eventi-punti-italia.csv` (487 punti). 345 test verdi (+24), tsc + build OK
-   (main ~345 KB gz). *(Render WebGL delle 6 mappe da verificare su browser con WebGL — selezionabilità
+   (main ~345 KB gz). *(Render WebGL delle 6 mappe da verificare su browser con WebGL - selezionabilità
    e gating Design già verificati via DOM.)*
 - **O4.0b** ✅ **Rifinitura legende + test d'integrazione su dati reali** (2026-06-23). **Legende**
    completate per le nuove mappe: la legenda a gradini/sfumatura ora copre anche **esagoni** ed
@@ -716,7 +716,7 @@ L'utente incolla **host / utente / password** (credenziali read-only generate a 
    spike genera 20 triangoli con centroidi dentro l'Italia, hexbin aggrega tutti i 487 punti senza
    perdite. 348 test verdi (+3), tsc + build OK. *(WebGL assente nell'ambiente di test confermato:
    render reale delle mappe da verificare sul browser dell'utente.)*
-- **O4.0c** ✅ **Pubblicazione embed — Fase 1: mappe ad aree** (2026-06-23). Finora solo la coropletica
+- **O4.0c** ✅ **Pubblicazione embed - Fase 1: mappe ad aree** (2026-06-23). Finora solo la coropletica
    era incorporabile; ora si pubblicano come **embed interattivo** anche **simboli, categorie, bivariata,
    spike ed estrusione 3D**. Architettura retrocompatibile: lo spec resta `type:"choropleth"` (famiglia
    “mappe ad aree”) + nuovo campo opzionale **`render`** (assente = coropletica, così gli embed già
@@ -725,7 +725,7 @@ L'utente incolla **host / utente / password** (credenziali read-only generate a 
    `makeAreaSpec` + `reduceCategoryDatums`/`reduceBivariateDatums` (category = {key,category};
    bivariata = {key,value,value2}). **Renderer embed** (`embed-html`) esteso: precalcola a build-time
    la color-expression giusta per tipo (step numerico / match categoria / matrice bivariata 3×3) e il
-   renderer inline dispatcha per `render` — **estrusione** = layer `fill-extrusion` + pitch 50°,
+   renderer inline dispatcha per `render` - **estrusione** = layer `fill-extrusion` + pitch 50°,
    **simboli/spike** = centroidi calcolati **runtime** (funzione `centroid()` inline, area-pesata del
    ring maggiore) → cerchi dimensionati / triangoli, **categoria** = legenda a pastiglie, **bivariata** =
    legenda 3×3 + tooltip con i due valori. Ogni testo utente (categorie incluse) è **escaped**.
@@ -736,20 +736,20 @@ L'utente incolla **host / utente / password** (credenziali read-only generate a 
    bivariata sui 20 comuni/regioni reali produce un HTML completo e render-tagged. *(Prossime fasi:
    O4.0d Punti [coordinate inline, limite ~5.000], O4.0e Geometria propria, O4.0f Grafici [Observable
    Plot da CDN]. Render WebGL dell'embed da verificare sul browser dell'utente.)*
-- **O4.0d/e/f** ✅ **Pubblicazione embed — Fasi 2-4: punti, geometria, grafici** (2026-06-23). Ora
+- **O4.0d/e/f** ✅ **Pubblicazione embed - Fasi 2-4: punti, geometria, grafici** (2026-06-23). Ora
    **tutte le visualizzazioni si pubblicano** come embed interattivo. Lo spec è diventato una **union
    discriminata** `VizSpec = ChoroplethSpec | PointSpec | GeoSpec | ChartSpec` (su `type`), con
    `isVizSpec` (= `isChoroplethSpec | isPointSpec | isGeoSpec | isChartSpec`) usato dalla function;
-   `buildEmbedHtml` dispatcha sul `type`. **Fase 2 — Punti** (`PointSpec`): coordinate **inline** nello
+   `buildEmbedHtml` dispatcha sul `type`. **Fase 2 - Punti** (`PointSpec`): coordinate **inline** nello
    spec (niente fetch geometria), limite **5.000 punti** (`MAX_PUBLISH_POINTS`, oltre → errore che
    suggerisce calore/esagoni). `buildPointEmbedHtml` precalcola per render: **punti/localizzatore**
    (cerchi, colore per categoria, dimensione per valore; localizzatore = etichette sempre visibili),
    **densità** (cerchi translucidi), **calore** (`buildHeatmapPaint`, no tooltip), **esagoni**
-   (`hexbin` a build-time → poligoni + classi). **Fase 3 — Geometria propria** (`GeoSpec`): la geometria
+   (`hexbin` a build-time → poligoni + classi). **Fase 3 - Geometria propria** (`GeoSpec`): la geometria
    utente, **preparata** (`prepareGeoRender` → `__value`/`__cat`/`__name`) e inlinata (limite **5.000**
    feature); `buildGeoEmbedHtml` = layer fill+line+circle, colore graduato (valore) o categorico, legenda
-   coerente; pubblica per *kind* dataset a prescindere dal vizType. **Fase 4 — Grafici** (`ChartSpec`):
-   **non è una mappa** — carica **Observable Plot** da CDN **pinnato** (`@observablehq/plot@0.6.17`),
+   coerente; pubblica per *kind* dataset a prescindere dal vizType. **Fase 4 - Grafici** (`ChartSpec`):
+   **non è una mappa** - carica **Observable Plot** da CDN **pinnato** (`@observablehq/plot@0.6.17`),
    inlina i **punti già aggregati** (stesso pipeline puro `chart-data` dell'editor) per bar/line/area/
    scatter (con `tip` nativo di Plot + legenda serie) o le colonne/righe per la **tabella**; i grafici
    hanno priorità sul *kind* (funzionano su qualsiasi dato). `publish.mts` usa `isVizSpec` e salta la
@@ -760,9 +760,9 @@ L'utente incolla **host / utente / password** (credenziali read-only generate a 
    “Pubblica grafico/mappa” secondo la viz. **Coropletica byte-identica** (back-compat totale). 391 test
    verdi (+27: spec +11, embed +15, integrazione +1), tsc + build OK. **Verificato end-to-end** su dati
    reali: punti (487 eventi), geometria, e un grafico a barre dal CSV rinnovabili → buildSpec→
-   buildEmbedHtml produce HTML completo. *(Render runtime degli embed — MapLibre/Plot da CDN — da
+   buildEmbedHtml produce HTML completo. *(Render runtime degli embed - MapLibre/Plot da CDN - da
    verificare sul browser dell'utente. Tooltip bivariata: mostra entrambe le variabili A e B con le
-   rispettive etichette — fix 2026-06-28.)*
+   rispettive etichette - fix 2026-06-28.)*
 - **O4.0g** ✅ **3 dei 4 tipi rinviati: cartogramma, flussi, raster/satellite** (2026-06-23). Aggiunti
    con moduli puri **testati** e zero nuove dipendenze; il **globo 3D** resta rinviato (richiede l'upgrade
    a MapLibre v5 = O4.3). **Cartogramma** (`lib/cartogram.ts`, 7 test) in **due varianti**:
@@ -772,7 +772,7 @@ L'utente incolla **host / utente / password** (credenziali read-only generate a 
    **transform inline** (come spike: la geometria fetchata viene deformata nel renderer). **Flussi**
    (`lib/flow.ts`, 7 test): archi Bézier quadratici (bombati, cos-lat corretti) tra coppie di coordinate
    origine→destinazione; nuovo binding in Design (4 colonne + intensità opzionale); editor disegna linee
-   colorate per valore; **pubblica come GeoSpec** (linee) — `buildFlowSpec` calcola gli archi dai dati
+   colorate per valore; **pubblica come GeoSpec** (linee) - `buildFlowSpec` calcola gli archi dai dati
    (niente geometria bundled). **Raster/satellite** (`lib/raster.ts`, 6 test): `buildRasterStyle`
    costruisce uno stile MapLibre raster da un template XYZ/WMS; nuova preset **Satellite (Esri)** +
    opzione **Raster/WMS personalizzato** con campo URL nel Design; `resolveBasemap` ritorna URL stile
@@ -800,8 +800,8 @@ L'utente incolla **host / utente / password** (credenziali read-only generate a 
    una colonna narrativa scorre sopra e, a ogni passo, **Scrollama** (CDN pinnato `3.2.0`) fa `flyTo` la
    camera dell'iframe. Tutto il testo dei passi è **escaped**; embed self-contained (nessuna pubblicazione
    separata della base). `PublishPanel` pubblica la storia automaticamente quando ci sono passi su una
-   mappa. 432 test verdi (+17: story 9, spec 4, embed 4), tsc + build OK. *(Render runtime — MapLibre +
-   Scrollama da CDN, cattura camera = WebGL — da verificare sul browser dell'utente.)*
+   mappa. 432 test verdi (+17: story 9, spec 4, embed 4), tsc + build OK. *(Render runtime - MapLibre +
+   Scrollama da CDN, cattura camera = WebGL - da verificare sul browser dell'utente.)*
 - **O4.2** Heatmap, hexbin, flussi, estrusione 3D aggregata (deck.gl) + layer raster/satellite/WMS/GeoTIFF
 - **O4.3** Inset/minimappa isole + scale bar + freccia nord + proiezioni + **globo 3D (MapLibre v5)**
 - **O4.4** Grafici avanzati (ECharts: sankey, chord, treemap, bar chart race, radar, calendar heatmap)
@@ -809,7 +809,7 @@ L'utente incolla **host / utente / password** (credenziali read-only generate a 
 - **O4.6** Tab/viste multiple, legende filtranti, URL live auto-refresh, localizzazione multilingua
 - **O4.7** Brand kit per redazione + libreria template + CSS/temi custom
 
-### Onda 5 — Packaging
+### Onda 5 - Packaging
 - **O5.1** Versioning/snapshot immutabili, gestione progetti completa
 - **O5.2** Connettori open data (ISTAT/Socrata/CKAN) + trasformazioni dati (join/colonne calcolate/filtri)
 - **O5.3** Analytics di engagement sugli embed

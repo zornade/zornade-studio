@@ -3,7 +3,7 @@
  *
  * Returns { authed: boolean, user?: string } based on the signed session
  * cookie. Used by the client on load to decide whether to show the app or the
- * login screen. Never trusts client state — the signature is verified here.
+ * login screen. Never trusts client state - the signature is verified here.
  */
 
 import { readCookie, verifyToken } from "./_session.mts";

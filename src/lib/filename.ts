@@ -1,7 +1,7 @@
 /**
  * Derive a human title from a file name: drop the extension, turn separators
  * into spaces, collapse whitespace and capitalise the first letter. Returns ""
- * for opaque names (UUID/hex exports) that carry no human signal — detected by
+ * for opaque names (UUID/hex exports) that carry no human signal - detected by
  * requiring at least one run of 3+ consecutive letters (real words have it,
  * hex/UUID chunks like "ba5f" do not).
  */

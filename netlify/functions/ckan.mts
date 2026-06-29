@@ -8,7 +8,7 @@
  *
  * The set of reachable portals is NOT hard-coded here: it comes from the shared
  * registry {@link OPEN_DATA_SOURCES} (single source of truth, also used by the
- * client UI). That registry doubles as the SSRF whitelist — only its entries
+ * client UI). That registry doubles as the SSRF whitelist - only its entries
  * can be queried. The actual CKAN/Socrata normalisation lives in the shared
  * {@link searchSource} adapter (also exercised by `probe:portals`), so there is
  * a single implementation. Adding a new portal is a one-line registry change.

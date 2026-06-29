@@ -133,7 +133,7 @@ describe("runOverpass (robustness)", () => {
 
   it("treats an empty 200 with a runtime-error remark as a failed mirror", async () => {
     // A mirror missing the area database answers HTTP 200 with elements:[] and
-    // a `remark` runtime error. We must NOT report that as "no results" — we
+    // a `remark` runtime error. We must NOT report that as "no results" - we
     // fall through to the next, working mirror instead.
     const calls: string[] = [];
     const fetchMock = async (url: string) => {

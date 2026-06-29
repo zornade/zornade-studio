@@ -6,10 +6,10 @@
  * GeoJSON as a *table*: each feature's `properties` becomes a row, and the
  * union of all property keys becomes the columns. If the properties carry a
  * geo-key column (e.g. a region name or ISTAT code) and a numeric column, the
- * existing geo-resolve + join produces a choropleth — no new render path.
+ * existing geo-resolve + join produces a choropleth - no new render path.
  *
  * (Rendering the GeoJSON's own geometry as a custom layer is a separate, later
- * step — O2.4+ — once user-supplied geometry has a layer to live on.)
+ * step - O2.4+ - once user-supplied geometry has a layer to live on.)
  *
  * Plain JSON is also accepted when it is an array of flat objects (a common
  * "export to JSON" shape), which maps to rows directly.

@@ -6,10 +6,10 @@
  *
  * The parsing libraries are **lazy-imported** so they stay out of the initial
  * bundle (only loaded when the user actually drops a geometry file):
- *  - `shpjs` (MIT) — shapefile → GeoJSON, **reprojecting** via proj4 (Italian
+ *  - `shpjs` (MIT) - shapefile → GeoJSON, **reprojecting** via proj4 (Italian
  *    shapefiles are usually in Gauss-Boaga/UTM, not lon/lat).
- *  - `@tmcw/togeojson` (BSD-2) — KML → GeoJSON, using the browser DOMParser.
- *  - `fflate` (MIT) — unzip a KMZ (a zip whose payload is a `.kml`).
+ *  - `@tmcw/togeojson` (BSD-2) - KML → GeoJSON, using the browser DOMParser.
+ *  - `fflate` (MIT) - unzip a KMZ (a zip whose payload is a `.kml`).
  */
 
 /** Merge one-or-more shapefile layers into a single FeatureCollection. */

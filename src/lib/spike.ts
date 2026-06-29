@@ -1,5 +1,5 @@
 /**
- * Spike map geometry (O4.x maps) — pure, tested.
+ * Spike map geometry (O4.x maps) - pure, tested.
  *
  * A spike map draws a thin triangle ("spike") at each area's representative
  * point, its height proportional to the value. The triangle is built in

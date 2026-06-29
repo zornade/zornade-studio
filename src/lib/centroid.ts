@@ -1,5 +1,5 @@
 /**
- * Polygon centroid computation (ROADMAP O2.6 — proportional symbol maps).
+ * Polygon centroid computation (ROADMAP O2.6 - proportional symbol maps).
  *
  * A symbol map places a sized bubble at each area's representative point. We
  * use the area-weighted centroid of the polygon's largest ring, which sits

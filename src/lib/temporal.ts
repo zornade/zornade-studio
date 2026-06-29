@@ -1,5 +1,5 @@
 /**
- * Temporal dimension for area datasets (ROADMAP O3.3 — time slider).
+ * Temporal dimension for area datasets (ROADMAP O3.3 - time slider).
  *
  * A *temporal* choropleth is an ordinary {@link AreaDataset} whose rows carry a
  * **period column** (long/tidy form: one row per entity×period). The editor and

@@ -39,7 +39,7 @@ export interface CatalogPortal {
 /**
  * Portals exposed in the UI. Derived from the shared {@link activeSources}
  * registry (single source of truth, also used by the `/api/ckan` proxy), with
- * blacklisted sources already filtered out — so this never drifts from the
+ * blacklisted sources already filtered out - so this never drifts from the
  * server whitelist and a new portal appears automatically.
  */
 export const CATALOG_PORTALS: CatalogPortal[] = activeSources().map((s) => ({

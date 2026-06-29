@@ -28,13 +28,13 @@ import {
 
 /** Hard cap on returned rows (all comune-level queries are ≤ ~7.9k). */
 const MAX_ROWS = 9000;
-/** Per-query statement timeout (ms) — keeps a heavy query from hanging. */
+/** Per-query statement timeout (ms) - keeps a heavy query from hanging. */
 const STATEMENT_TIMEOUT_MS = 8000;
 
 export default async (req: Request): Promise<Response> => {
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
 
-  // 1. Auth — same signed-cookie scheme as the other functions.
+  // 1. Auth - same signed-cookie scheme as the other functions.
   const secret = process.env.STUDIO_SESSION_SECRET;
   if (!secret) return json({ error: "Auth non configurata." }, 500);
   const token = readCookie(req.headers.get("cookie"));
@@ -66,7 +66,7 @@ export default async (req: Request): Promise<Response> => {
     // Supabase pooler presents a self-signed chain that Netlify's CA store
     // doesn't trust, so full verification fails with "self-signed certificate
     // in certificate chain". `ssl: "require"` is the libpq `sslmode=require`
-    // semantics (TLS on, no chain validation) — the documented setup for
+    // semantics (TLS on, no chain validation) - the documented setup for
     // serverless drivers against Supabase. Set here so it holds regardless of
     // whether the connection string carries `?sslmode=...`.
     ssl: "require",
@@ -102,7 +102,7 @@ async function runQuery(
       const maxCol = req.market === "locazione" ? "loc_max_eur_mq" : "compr_max_eur_mq";
       if (req.temporal) {
         // All 22 semesters. A single GROUP BY over the whole history scans ~450k
-        // rows and spills the hash to disk (6–20s — over budget). Instead run one
+        // rows and spills the hash to disk (6–20s - over budget). Instead run one
         // aggregate PER semester: `semestre` is the leading primary-key column,
         // so each is a fast indexed range (~50–100ms). Total ≈ 3s, well under the
         // statement timeout, and never spills. Rows are concatenated long-form.

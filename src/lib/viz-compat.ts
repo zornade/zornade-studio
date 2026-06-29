@@ -3,7 +3,7 @@
  *
  * Given a {@link DataProfile} (column semantic types) plus the value-based geo
  * resolution ({@link GeoResolution} from lib/choropleth.ts), it decides, for
- * every catalog viz type, whether the loaded data supports it — and, if not,
+ * every catalog viz type, whether the loaded data supports it - and, if not,
  * *why* (the missing requirement). This replaces the hardcoded
  * `new Set(["choropleth"])` previously in VisualizePanel.
  *
@@ -156,7 +156,7 @@ const NOT_DATA_DRIVEN: Rule = () => ({
 
 /** Map every catalog viz id to its data requirement. */
 const RULES: Record<string, Rule> = {
-  // Maps — area-based.
+  // Maps - area-based.
   choropleth: NEED_GEO_AREA_VALUE,
   symbol: NEED_GEO_AREA_VALUE,
   bivariate: (s) =>
@@ -167,7 +167,7 @@ const RULES: Record<string, Rule> = {
   cartogram: NEED_GEO_AREA_VALUE,
   spike: NEED_GEO_AREA_VALUE,
   category: NEED_GEO_AREA_CATEGORY,
-  // Maps — point-based.
+  // Maps - point-based.
   points: NEED_GEO_POINT,
   locator: NEED_GEO_POINT,
   dotdensity: NEED_GEO_POINT,
@@ -219,7 +219,7 @@ const RULES: Record<string, Rule> = {
  * Returns a map id → {compatible, score, reason}.
  *
  * `opts` lets the caller override the geo flags with the **committed** dataset
- * shape (the Struttura mapping) rather than the name-based profile guess — e.g.
+ * shape (the Struttura mapping) rather than the name-based profile guess - e.g.
  * after the operator designates lat/lon columns, point maps must light up even
  * when those columns aren't literally named "lat"/"lon".
  */

@@ -24,7 +24,7 @@ type ProjectionSpec = Parameters<maplibregl.Map["setProjection"]>[0];
 export function skySpec(globe: boolean): SkySpec {
   if (globe) {
     return {
-      "atmosphere-blend": ["interpolate", ["linear"], ["zoom"], 0, 0.8, 5, 0.3, 7, 0],
+      "atmosphere-blend": ["interpolate", ["linear"], ["zoom"], 0, 1, 5, 0.45, 7, 0],
     };
   }
   return {
@@ -42,11 +42,11 @@ export function skySpec(globe: boolean): SkySpec {
  * Directional lighting for the 3D extrusion: a light anchored to the map (so the
  * shading stays consistent with the geography as the camera rotates), coming
  * from the upper-left at a moderate elevation. It shades the sides of the
- * extruded shapes and gives them real volume. Harmless for flat maps — only
+ * extruded shapes and gives them real volume. Harmless for flat maps - only
  * `fill-extrusion` layers react to it.
  */
 export function lightSpec(): LightSpec {
-  return { anchor: "map", color: "#ffffff", intensity: 0.55, position: [1.5, 215, 40] };
+  return { anchor: "map", color: "#fff7ec", intensity: 0.45, position: [1.5, 215, 35] };
 }
 
 /** Map projection: globe vs flat mercator. */

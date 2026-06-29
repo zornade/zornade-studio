@@ -3,7 +3,7 @@
  * snapshots (O1.5). The key embeds a slug (readable) plus a short hash of the
  * serialised spec, so:
  *  - the same map content always maps to the same key (idempotent publish),
- *  - any change to the content yields a new key (immutability — an already
+ *  - any change to the content yields a new key (immutability - an already
  *    published embed never changes under the reader's feet).
  *
  * Pure and synchronous (FNV-1a over the spec string) → fully testable without

@@ -2,7 +2,7 @@
  * Loader for the value-based geo-key index (`public/geo/keys.json`).
  *
  * The index holds the normalised join keys of every ready geo level and powers
- * {@link resolveGeoJoin} — telling apart, by actual data values, a comune
+ * {@link resolveGeoJoin} - telling apart, by actual data values, a comune
  * dataset from its parent-province context column. It is fetched once and
  * cached; if it is unavailable the caller falls back to name-based detection.
  */

@@ -157,7 +157,7 @@ export const EMBED_SCROLLAMA_VERSION = "3.2.0";
  * is rendered with its normal embed (forced non-interactive) inside a fixed
  * full-screen `<iframe srcdoc>`; a narrative column scrolls over it and, on each
  * step, flies the iframe's map to that step's camera (via Scrollama from a
- * pinned CDN). All step text is escaped. Self-contained — no separate publish.
+ * pinned CDN). All step text is escaped. Self-contained - no separate publish.
  */
 function buildStoryEmbedHtml(spec: StorySpec, opts: EmbedOptions): string {
   const mlVer = EMBED_MAPLIBRE_VERSION;
@@ -763,7 +763,7 @@ const EMBED_CSS = `
  * published map is identical to the editor preview. Kept as a string so it ships
  * inside the static embed with no build step.
  *
- * NOTE: `nk()` must stay byte-identical to `normaliseKey()` in choropleth.ts —
+ * NOTE: `nk()` must stay byte-identical to `normaliseKey()` in choropleth.ts -
  * it is the only logic duplicated here, because geometry keys are normalised in
  * the browser at runtime (the geometry is fetched, not bundled).
  */
@@ -781,7 +781,7 @@ ${RENDER_PRELUDE}
 // as basemap geometry too, so the data stays above a satellite/WMS basemap.
 function beforeId(){var ls=(map.getStyle().layers||[]),lg=-1,i,t;
   for(i=0;i<ls.length;i++){if(ls[i].id.indexOf("d-")===0)continue;t=ls[i].type;
-    if(t==="fill"||t==="line"||t==="fill-extrusion"||t==="raster")lg=i;}
+    if(t==="fill"||t==="line"||t==="fill-extrusion"||t==="raster"||t==="hillshade"||t==="color-relief")lg=i;}
   for(i=lg+1;i<ls.length;i++){if(ls[i].id.indexOf("d-")!==0)return ls[i].id;}
   return undefined;}
 // Subtle sky + atmospheric haze, serialised from the shared map-style source.
@@ -806,7 +806,9 @@ function build(){
         "fill-extrusion-height":["interpolate",["linear"],
           ["coalesce",["to-number",["get","__value"]],E.min],E.min,Math.max(2000,4800*(E.extrusionScale||1)),E.max,120000*(E.extrusionScale||1)],
         "fill-extrusion-base":0,"fill-extrusion-opacity":0.95,
-        "fill-extrusion-vertical-gradient":true}},before);
+        "fill-extrusion-vertical-gradient":true,
+        "fill-extrusion-color-transition":{duration:500,delay:0},
+        "fill-extrusion-height-transition":{duration:700,delay:0}}},before);
   }else if(E.render==="symbol"||E.render==="spike"){
     map.addLayer({id:"d-line",type:"line",source:"d",
       paint:{"line-color":"#cbd5e1","line-width":0.5}},before);
@@ -831,11 +833,16 @@ function build(){
   }else{
     map.addLayer({id:"d-fill",type:"fill",source:"d",
       paint:{"fill-color":E.fill,
+        "fill-color-transition":{duration:500,delay:0},
+        "fill-opacity-transition":{duration:300,delay:0},
         "fill-opacity":["case",["boolean",["feature-state","hover"],false],0.95,0.82]}},before);
+    map.addLayer({id:"d-cas",type:"line",source:"d",
+      paint:{"line-color":"#0f172a","line-width":1.4,"line-opacity":0.18,"line-blur":0.4}},before);
     map.addLayer({id:"d-line",type:"line",source:"d",
       paint:{"line-color":"#fff",
         "line-width":["case",["boolean",["feature-state","hover"],false],1.6,0.6],
-        "line-opacity":0.55}},before);
+        "line-width-transition":{duration:200,delay:0},
+        "line-opacity":0.6}},before);
     hoverFx();
   }
   if(E.render!=="extrusion")raiseLabels();
@@ -1643,7 +1650,7 @@ ${RENDER_PRELUDE}
 // A raster background counts as geometry too, so the data stays above it.
 function beforeId(){var ls=(map.getStyle().layers||[]),lg=-1,i,t;
   for(i=0;i<ls.length;i++){if(ls[i].id.indexOf("d-")===0)continue;t=ls[i].type;
-    if(t==="fill"||t==="line"||t==="fill-extrusion"||t==="raster")lg=i;}
+    if(t==="fill"||t==="line"||t==="fill-extrusion"||t==="raster"||t==="hillshade"||t==="color-relief")lg=i;}
   for(i=lg+1;i<ls.length;i++){if(ls[i].id.indexOf("d-")!==0)return ls[i].id;}
   return undefined;}
 function sky(){try{map.setSky(E.globe?${SKY_GLOBE_JSON}:${SKY_FLAT_JSON});}catch(e){}}

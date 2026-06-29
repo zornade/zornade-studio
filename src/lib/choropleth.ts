@@ -172,7 +172,7 @@ export interface ResolveOptions {
 
 /**
  * Resolve the geographic level AND key column by matching actual CSV *values*
- * against the real geometry keys of each level — not by guessing from column
+ * against the real geometry keys of each level - not by guessing from column
  * names. This is what tells a *comune* dataset (e.g. ACI "enteTerritoriale")
  * apart from its parent-*provincia* context column, which name-based detection
  * gets wrong.
@@ -180,7 +180,7 @@ export interface ResolveOptions {
  * For every column × level it computes the fraction of cells that match that
  * level's keys; the best wins, with finer levels preferred on near-ties (a
  * comunal key column beats the province context column when both match well).
- * Returns null if nothing matches — the caller can fall back to name hints.
+ * Returns null if nothing matches - the caller can fall back to name hints.
  *
  * @param keysByLevel normalised join keys per level (from /geo/keys.json).
  */
@@ -331,7 +331,7 @@ function minMaxOf(values: number[]): [number, number] {
 }
 
 /**
- * Natural breaks (Fisher–Jenks) — minimises within-class variance, the method
+ * Natural breaks (Fisher–Jenks) - minimises within-class variance, the method
  * cartographers expect for "natural breaks". Uses the classic dynamic-program;
  * for large inputs the sorted values are down-sampled to {@link JENKS_MAX} to
  * keep it fast (breaks computed on a representative subsample are virtually
@@ -518,7 +518,7 @@ export function joinChoropleth(params: JoinParams): JoinResult {
   const features = geojson.features.map((f) => {
     const props = (f.properties as Record<string, unknown>) ?? {};
     // Match the CSV key against the code field, then the human-readable name,
-    // then any alternate code (alias) field — so a dataset keyed by ISO-A3,
+    // then any alternate code (alias) field - so a dataset keyed by ISO-A3,
     // ISO-A2, full name, province code or acronym all join equally well.
     const candidates = [
       props[def.joinField],
@@ -575,7 +575,7 @@ export function joinChoropleth(params: JoinParams): JoinResult {
 }
 
 /**
- * Values actually painted onto features, in feature order — i.e. the exact
+ * Values actually painted onto features, in feature order - i.e. the exact
  * distribution a choropleth renders for this geometry. Mirrors the join in
  * {@link joinChoropleth} (same candidate fields + normalisation) but returns
  * only the numbers, so the publish path can classify on the **same** rendered
@@ -642,7 +642,7 @@ export function temporalSharedValues(params: {
 }
 
 /**
- * Join a **categorical** column onto the geometry (ROADMAP O2.6 — category
+ * Join a **categorical** column onto the geometry (ROADMAP O2.6 - category
  * map). Mirrors {@link joinChoropleth}'s code→name→alias matching, but injects
  * a string `__cat` per matched feature and collects the distinct categories
  * (first-seen order) so the renderer can assign a colour each.

@@ -1,5 +1,5 @@
 /**
- * Hexbin aggregation (O4.x maps) — pure, tested.
+ * Hexbin aggregation (O4.x maps) - pure, tested.
  *
  * Aggregates scattered points into a hexagonal grid and emits one polygon per
  * non-empty cell carrying `__value` (the count, or the summed weight). Used to

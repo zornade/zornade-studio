@@ -5,7 +5,7 @@
  * and streams it back to the browser. This lets the Studio load resources from
  * portals that do not send CORS headers on their files.
  *
- * SECURITY (SSRF mitigation): the target is constrained — only http/https,
+ * SECURITY (SSRF mitigation): the target is constrained - only http/https,
  * only datasets-looking content types, a hard size cap, a timeout, and the
  * hostname must NOT resolve to a private / loopback / link-local address. This
  * prevents using the proxy to reach internal infrastructure.
@@ -75,7 +75,7 @@ export default async (req: Request): Promise<Response> => {
       redirect: "follow",
       // Keep this safely BELOW Netlify's synchronous-function execution limit
       // (~10s). A longer timeout is pointless: the platform would kill the
-      // function first and return an opaque 502 with no JSON body — which the
+      // function first and return an opaque 502 with no JSON body - which the
       // client could only show as a generic "Download fallito". Failing fast
       // here lets us return a clear, actionable error instead.
       signal: AbortSignal.timeout(8500),

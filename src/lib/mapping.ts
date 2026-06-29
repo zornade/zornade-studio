@@ -1,5 +1,5 @@
 /**
- * Dataset mapping (ROADMAP — "Struttura" step). Pure, dependency-light, tested.
+ * Dataset mapping (ROADMAP - "Struttura" step). Pure, dependency-light, tested.
  *
  * A loaded file is auto-detected into a {@link DatasetState} (area/point/geo/
  * table) with column bindings (geo key + level, lat/lon, value, category, time,
@@ -10,7 +10,7 @@
  *  - {@link mappingFromDataset} reads the current bindings into an editable
  *    {@link DatasetMapping};
  *  - {@link applyMapping} rebuilds a {@link DatasetState} from an (edited)
- *    mapping — the inverse — trusting the operator's choices (no re-detection,
+ *    mapping - the inverse - trusting the operator's choices (no re-detection,
  *    so no geo-keys/network needed here);
  *  - {@link kindsAvailable} says which dataset shapes the columns can support,
  *    so the UI only offers viable options;

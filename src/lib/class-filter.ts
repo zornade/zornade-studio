@@ -1,5 +1,5 @@
 /**
- * Reader-facing class filter for choropleths (ROADMAP O2.8 — reader controls).
+ * Reader-facing class filter for choropleths (ROADMAP O2.8 - reader controls).
  *
  * When the operator enables reader filters, the published legend becomes
  * clickable: the reader hides/shows value classes. This module turns the set of
@@ -9,7 +9,7 @@
  * A choropleth with `breaks` of length B has B+1 classes; class `i` covers
  * `[lo_i, hi_i)` where `lo_0 = -∞` and `hi_B = +∞`. A feature is hidden when it
  * has a numeric `__value` that falls in a hidden class. Features without a value
- * (no-data) are always kept — they are context, not a class.
+ * (no-data) are always kept - they are context, not a class.
  *
  * Pure & dependency-free → unit-tested and reusable.
  */

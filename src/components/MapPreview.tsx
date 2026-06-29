@@ -172,7 +172,7 @@ const OWN_LAYER_IDS = new Set<string>([
  *
  * The naive "first symbol layer" heuristic is wrong for OpenMapTiles styles
  * (OpenFreeMap), where an early `water_name` symbol precedes the road/building
- * layers — inserting before it buries the data UNDER the roads. Instead we find
+ * layers - inserting before it buries the data UNDER the roads. Instead we find
  * the last basemap fill/line/extrusion layer and return the id of the next
  * (label) layer. Returns undefined when no label follows → add on top.
  */
@@ -199,7 +199,7 @@ function dataInsertBeforeId(map: maplibregl.Map): string | undefined {
 
 /**
  * Move every basemap label (symbol) layer above the data layers so place names
- * stay readable on top of the overlay. 2D renders only — callers skip the 3D
+ * stay readable on top of the overlay. 2D renders only - callers skip the 3D
  * extrusion path. Mirrors the embed's `raiseLabels`. Annotations (the topmost
  * overlay) are kept above the labels by anchoring them just below the first
  * annotation layer, since syncData can run without re-syncing annotations.
@@ -218,7 +218,7 @@ function raiseBasemapLabels(map: maplibregl.Map): void {
       try {
         map.moveLayer(l.id, annotAnchor);
       } catch {
-        /* layer removed during a concurrent restyle — ignore. */
+        /* layer removed during a concurrent restyle - ignore. */
       }
     }
   }
@@ -227,7 +227,7 @@ function raiseBasemapLabels(map: maplibregl.Map): void {
 /**
  * Run `fn` once the style is safe to mutate. MapLibre's `isStyleLoaded()` is
  * flaky (it can report `false` even when the style is usable), and
- * `style.load` only fires for a fresh `setStyle()` — so a deferred handler can
+ * `style.load` only fires for a fresh `setStyle()` - so a deferred handler can
  * wait forever. The `idle` event always fires after the current render frame,
  * making it a reliable fallback for applying option toggles (globe, labels)
  * without a page refresh.
@@ -253,7 +253,7 @@ function hideBasemapLabels(map: maplibregl.Map, hide: boolean): void {
       try {
         map.setLayoutProperty(l.id, "visibility", hide ? "none" : "visible");
       } catch {
-        /* layer removed during a concurrent restyle — ignore. */
+        /* layer removed during a concurrent restyle - ignore. */
       }
     }
   }
@@ -269,7 +269,7 @@ function applySky(map: maplibregl.Map, globe: boolean): void {
   try {
     map.setSky(skySpec(globe));
   } catch {
-    /* setSky unsupported by the current renderer — ignore. */
+    /* setSky unsupported by the current renderer - ignore. */
   }
 }
 
@@ -285,14 +285,14 @@ function applyLight(map: maplibregl.Map): void {
   try {
     map.setLight(lightSpec());
   } catch {
-    /* setLight unsupported by the current renderer — ignore. */
+    /* setLight unsupported by the current renderer - ignore. */
   }
 }
 
 /**
  * Apply the map projection (globe vs flat mercator). setStyle() resets the
  * projection to the style's default (mercator), so this MUST be re-applied
- * after every (re)style — otherwise the globe silently reverts to flat when the
+ * after every (re)style - otherwise the globe silently reverts to flat when the
  * user changes basemap, language or font while the globe toggle is still on.
  * setProjection throws on a renderer without globe support (pre-v5), so guard it.
  */
@@ -300,7 +300,7 @@ function applyProjection(map: maplibregl.Map, globe: boolean): void {
   try {
     map.setProjection(projectionSpec(globe));
   } catch {
-    /* globe projection unsupported by the current renderer — ignore. */
+    /* globe projection unsupported by the current renderer - ignore. */
   }
 }
 
@@ -339,7 +339,7 @@ function localizeLabels(map: maplibregl.Map, lang = "it"): void {
     try {
       map.setLayoutProperty(layer.id, "text-field", localized);
     } catch {
-      /* layer removed mid-restyle — ignore. */
+      /* layer removed mid-restyle - ignore. */
     }
   }
 }
@@ -471,6 +471,8 @@ export function MapPreview({
           "fill-extrusion-base": 0,
           "fill-extrusion-opacity": 0.95,
           "fill-extrusion-vertical-gradient": true,
+          "fill-extrusion-color-transition": { duration: 500, delay: 0 },
+          "fill-extrusion-height-transition": { duration: 700, delay: 0 },
         },
       });
       applyDataFilter(map);
@@ -533,7 +535,7 @@ export function MapPreview({
     if (layer.kind === "geo") {
       // The user's own geometry. MapLibre applies a `fill` layer only to
       // polygons, a `line` layer to polygons (outline) + lines, and a `circle`
-      // layer only to points — so one source with three layers renders mixed
+      // layer only to points - so one source with three layers renders mixed
       // collections correctly. Polygons are coloured by value/category (FILL,
       // which the tooltip is bound to); lines and points get their own colour.
       map.addLayer(
@@ -777,7 +779,7 @@ export function MapPreview({
     // Hover tooltip: a cursor-following DOM element (NOT a geo-anchored popup).
     // A MapLibre Popup pins to a lng/lat ground point; with the map pitched (3D
     // extrusion) or on the globe, that ground point projects to a screen spot
-    // far from the cursor — behind/below tall bars — so the tooltip drifts and
+    // far from the cursor - behind/below tall bars - so the tooltip drifts and
     // the auto-reanchoring makes it jump and flicker. A `<div>` positioned at
     // the mouse pixel (`e.point`) always sits next to the cursor, in 2D, 3D and
     // on the globe alike. Same look as the chart tooltip (`studio-chart-tip`).
@@ -804,7 +806,7 @@ export function MapPreview({
     // mouseenter/leave handlers flicker badly on a pitched/globe 3D view: the
     // cursor constantly crosses the gaps between extruded bars (and the sky
     // behind them), firing leave→enter in quick succession. Querying the
-    // rendered features once per move — and hiding only when nothing is hit —
+    // rendered features once per move - and hiding only when nothing is hit -
     // is stable both in 2D and on the globe.
     const HOVER_LAYERS = [EXTRUSION, FILL, LINE, GEO_POINT];
 
@@ -1002,7 +1004,7 @@ export function MapPreview({
   //
   // setStyle() loads asynchronously (especially an external style URL) and
   // wipes custom sources/layers. We must wait for the NEW style to finish
-  // loading before re-adding the choropleth — calling syncData synchronously
+  // loading before re-adding the choropleth - calling syncData synchronously
   // would add layers while the old style is still reported as loaded, and they
   // would then be removed when the new style takes over (the data "disappears"
   // when switching basemap). The "idle" event fires once the new style is
@@ -1071,7 +1073,7 @@ export function MapPreview({
         // For a tilted 3D extrusion, frame the data with the tilt (like the
         // published embed) instead of zooming out to the whole planet: at the
         // whole-world zoom the extruded bars shrink to specks and the tilt
-        // reads as broken. The pitch must be passed explicitly — fitBounds /
+        // reads as broken. The pitch must be passed explicitly - fitBounds /
         // easeTo only carry the camera fields you give them, so without it the
         // globe transition would drop the tilt. For flat globe maps (pitch 0)
         // keep the classic whole-planet view centred on [0, 20].

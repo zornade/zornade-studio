@@ -6,7 +6,7 @@
  * plain points and the user's own geometry) is a branch here. The function is
  * deterministic: given the already-computed joins/aggregations plus the design
  * settings it returns the paint description, with no React, MapLibre or DOM
- * dependency — so it is unit-testable in isolation. It was extracted verbatim
+ * dependency - so it is unit-testable in isolation. It was extracted verbatim
  * from MapCanvas's `dataLayer` memo; the branch order is significant (the first
  * matching branch wins).
  */

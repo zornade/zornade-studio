@@ -1,12 +1,12 @@
 /**
- * Design capability registry — which Design-panel controls each visualisation
+ * Design capability registry - which Design-panel controls each visualisation
  * exposes (the integration contract between viz types and the Design step).
  *
  * The Design panel renders a control block **only** if the active visualisation
  * declares the matching capability, and the renderer reads the same design
  * fields. Adding a new visualisation therefore means: (1) declare its
  * capabilities here, (2) reuse an existing block or add one guarded by a new
- * capability. This keeps every viz coherent with Design by construction —
+ * capability. This keeps every viz coherent with Design by construction -
  * controls that don't apply never show, and every shown control is wired.
  *
  * Universal sections (texts, font & logo, brand, basemap, interactivity) are

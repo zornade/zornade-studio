@@ -31,7 +31,7 @@ export interface EurostatDim {
   id: string;
   /** Label leggibile. */
   label: string;
-  /** Valori selezionabili — se presente, mostrare come filtro opzionale. */
+  /** Valori selezionabili - se presente, mostrare come filtro opzionale. */
   values?: Record<string, string>;
 }
 
@@ -498,7 +498,7 @@ export const EUROSTAT_DATASETS: EurostatDataset[] = [
     landing: "https://ec.europa.eu/eurostat/databrowser/view/EDUC_UOE_ENRP01",
   },
 
-  // === LAVORO — salari ======================================================
+  // === LAVORO - salari ======================================================
   {
     code: "EARN_SES_ANNUAL",
     label: "Salari annui per settore, professione, sesso",
@@ -559,7 +559,7 @@ export function searchCurated(query: string): EurostatDataset[] {
 export function geoLabel(geo: EurostatGeo): string {
   return {
     paese: "Livello paese (UE+)",
-    nuts2: "NUTS2 — regioni (tutti i paesi UE)",
-    nuts3: "NUTS3 — province (tutti i paesi UE)",
+    nuts2: "NUTS2 - regioni (tutti i paesi UE)",
+    nuts3: "NUTS3 - province (tutti i paesi UE)",
   }[geo];
 }

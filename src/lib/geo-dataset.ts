@@ -8,7 +8,7 @@
  * (so the data panel and profiling work as usual) and remember which geometry
  * primitives are present, so the renderer can draw polygons, lines and points
  * with the right layers. If a numeric property is chosen, polygons are coloured
- * by value — a choropleth on the user's **own** geometry.
+ * by value - a choropleth on the user's **own** geometry.
  *
  * This module is pure (no parser/library imports) and unit-tested. The format
  * readers (shapefile/KML/KMZ) live in `lib/ingest/parse-geometry.ts` and feed a
@@ -176,7 +176,7 @@ export interface GeoRender {
 
 /**
  * Inject the render fields (`__value`, `__cat`, `__name`) onto each feature so
- * the MapLibre paint expressions can read them — mirroring how `joinChoropleth`
+ * the MapLibre paint expressions can read them - mirroring how `joinChoropleth`
  * prepares bundled geometry. Pure and testable; the renderer stays "dumb".
  */
 export function prepareGeoRender(

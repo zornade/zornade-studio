@@ -92,7 +92,7 @@ export interface CatalogGroup {
   items: CatalogItem[];
 }
 
-/** Visualisation catalog — covers the competitor feature set; "soon" = roadmap. */
+/** Visualisation catalog - covers the competitor feature set; "soon" = roadmap. */
 export const VIZ_GROUPS: CatalogGroup[] = [
   {
     id: "maps",
@@ -161,17 +161,17 @@ export const DATA_SOURCES: CatalogItem[] = [
   { id: "url", label: "URL live", desc: "Google Sheets / CSV remoto", icon: Link2, status: "soon" },
   { id: "api", label: "API / Open data", desc: "ISTAT, Socrata, CKAN, JSON", icon: Plug, status: "soon" },
   { id: "osm", label: "OpenStreetMap", desc: "Porti, telecamere, scuole…", icon: Globe2, status: "ready" },
-  { id: "zornade-db", label: "Database Zornade", desc: "Prezzi OMI, solare, popolazione, edifici — per comune", icon: Database, status: "ready" },
+  { id: "zornade-db", label: "Database Zornade", desc: "Prezzi OMI, solare, popolazione, edifici - per comune", icon: Database, status: "ready" },
 ];
 
 /**
  * Data sources grouped by their **provenance**, so the user immediately sees
  * where each source comes from. Buckets, Zornade moat first:
- *  - `zornade` — exclusive Zornade data (the competitive advantage).
- *  - `italia`  — official Italian open data (national / regional / municipal).
- *  - `europa`  — European open data (data.europa.eu, Eurostat).
- *  - `mondo`   — worldwide sources (OpenStreetMap).
- *  - `own`     — bring-your-own data (file / paste / URL / API).
+ *  - `zornade` - exclusive Zornade data (the competitive advantage).
+ *  - `italia`  - official Italian open data (national / regional / municipal).
+ *  - `europa`  - European open data (data.europa.eu, Eurostat).
+ *  - `mondo`   - worldwide sources (OpenStreetMap).
+ *  - `own`     - bring-your-own data (file / paste / URL / API).
  * `id` matches a `DataSourceKind`, except the catalogue entries
  * (`catalog-it` / `catalog-eu`) which open a dedicated search screen scoped to
  * Italian or European portals rather than selecting a `dataSource`.
@@ -192,7 +192,7 @@ export const SOURCE_GROUPS: SourceGroup[] = [
       {
         id: "zornade-db",
         label: "Database Zornade",
-        desc: "Prezzi OMI, solare, popolazione, edifici — per comune",
+        desc: "Prezzi OMI, solare, popolazione, edifici - per comune",
         icon: Database,
         status: "ready",
       },
@@ -206,7 +206,7 @@ export const SOURCE_GROUPS: SourceGroup[] = [
       {
         id: "catalog-it",
         label: "Open data italiani",
-        desc: "dati.gov.it, regioni, comuni — cerca per tema",
+        desc: "dati.gov.it, regioni, comuni - cerca per tema",
         icon: Landmark,
         status: "ready",
       },
@@ -220,7 +220,7 @@ export const SOURCE_GROUPS: SourceGroup[] = [
       {
         id: "catalog-eu",
         label: "Open data europei",
-        desc: "data.europa.eu — 1,7M dataset di tutta la UE",
+        desc: "data.europa.eu - 1,7M dataset di tutta la UE",
         icon: Flag,
         status: "ready",
       },
@@ -263,7 +263,7 @@ export const SOURCE_GROUPS: SourceGroup[] = [
 /* -------------------------------------------------------------------------- */
 /*  Curated catalogue of authoritative Italian (and EU) open-data sources.    */
 /*                                                                            */
-/*  Every entry links to the official service that EXPOSES the data — the     */
+/*  Every entry links to the official service that EXPOSES the data - the     */
 /*  user connects/downloads there, Zornade Studio does not fetch it. URLs and */
 /*  endpoints were verified reachable. Searchable by name, provider, theme    */
 /*  and keywords. Not all sources are geographic.                            */
@@ -328,7 +328,7 @@ export const DATA_CATALOG: DataSourceEntry[] = [
   },
   {
     id: "eurostat-gisco",
-    name: "GISCO — confini europei (NUTS)",
+    name: "GISCO - confini europei (NUTS)",
     provider: "Eurostat",
     category: "cartografia",
     description:
@@ -354,7 +354,7 @@ export const DATA_CATALOG: DataSourceEntry[] = [
   },
   {
     id: "rndt",
-    name: "RNDT — Repertorio Nazionale Dati Territoriali",
+    name: "RNDT - Repertorio Nazionale Dati Territoriali",
     provider: "AgID",
     category: "cartografia",
     description:
@@ -421,7 +421,7 @@ export const DATA_CATALOG: DataSourceEntry[] = [
   {
     id: "mef-redditi",
     name: "Dichiarazioni dei redditi",
-    provider: "MEF — Dip. Finanze",
+    provider: "MEF - Dip. Finanze",
     category: "economia",
     description:
       "Redditi dichiarati e imposte per comune e regione, serie storiche annuali.",
@@ -555,7 +555,7 @@ export const DATA_CATALOG: DataSourceEntry[] = [
   // --- Rischio e territorio --------------------------------------------------
   {
     id: "ispra-idrogeo",
-    name: "IdroGEO — dissesto idrogeologico",
+    name: "IdroGEO - dissesto idrogeologico",
     provider: "ISPRA",
     category: "rischio",
     description:
@@ -709,7 +709,7 @@ export const DATA_CATALOG: DataSourceEntry[] = [
   // --- Elezioni --------------------------------------------------------------
   {
     id: "eligendo",
-    name: "Eligendo — risultati elettorali",
+    name: "Eligendo - risultati elettorali",
     provider: "Ministero dell'Interno",
     category: "elezioni",
     description:
@@ -769,7 +769,7 @@ export const DATA_CATALOG: DataSourceEntry[] = [
   // --- Portali e cataloghi ---------------------------------------------------
   {
     id: "dati-gov",
-    name: "dati.gov.it — catalogo nazionale",
+    name: "dati.gov.it - catalogo nazionale",
     provider: "AgID",
     category: "portali",
     description:
@@ -903,7 +903,7 @@ export function accessLabel(a: DataAccess): string {
   return ACCESS_META[a];
 }
 
-/** Curated OSM (Overpass) point searches — "Cosa cerchi?". */
+/** Curated OSM (Overpass) point searches - "Cosa cerchi?". */
 export interface OsmTagFilter {
   key: string;
   /** Tag value; omit to match any value of the key. */
@@ -927,7 +927,7 @@ export interface OsmPreset {
  * harbours alike.
  */
 export const OSM_PRESETS: OsmPreset[] = [
-  // — Trasporti —
+  // - Trasporti -
   { id: "ports", group: "Trasporti", label: "Porti e marina", tag: "leisure=marina / harbour", filters: [{ key: "leisure", value: "marina" }, { key: "harbour", value: "yes" }, { key: "seamark:type", value: "harbour" }] },
   { id: "rail", group: "Trasporti", label: "Stazioni ferroviarie", tag: "railway=station", filters: [{ key: "railway", value: "station" }] },
   { id: "bus", group: "Trasporti", label: "Fermate del bus", tag: "highway=bus_stop", filters: [{ key: "highway", value: "bus_stop" }] },
@@ -937,7 +937,7 @@ export const OSM_PRESETS: OsmPreset[] = [
   { id: "parking", group: "Trasporti", label: "Parcheggi", tag: "amenity=parking", filters: [{ key: "amenity", value: "parking" }] },
   { id: "bikeshare", group: "Trasporti", label: "Bike sharing", tag: "amenity=bicycle_rental", filters: [{ key: "amenity", value: "bicycle_rental" }] },
 
-  // — Sanità —
+  // - Sanità -
   { id: "hospitals", group: "Sanità", label: "Ospedali", tag: "amenity=hospital", filters: [{ key: "amenity", value: "hospital" }] },
   { id: "pharmacies", group: "Sanità", label: "Farmacie", tag: "amenity=pharmacy", filters: [{ key: "amenity", value: "pharmacy" }] },
   { id: "clinics", group: "Sanità", label: "Ambulatori e medici", tag: "amenity=clinic / doctors", filters: [{ key: "amenity", value: "clinic" }, { key: "amenity", value: "doctors" }] },
@@ -945,13 +945,13 @@ export const OSM_PRESETS: OsmPreset[] = [
   { id: "vets", group: "Sanità", label: "Veterinari", tag: "amenity=veterinary", filters: [{ key: "amenity", value: "veterinary" }] },
   { id: "defib", group: "Sanità", label: "Defibrillatori (DAE)", tag: "emergency=defibrillator", filters: [{ key: "emergency", value: "defibrillator" }] },
 
-  // — Istruzione —
+  // - Istruzione -
   { id: "schools", group: "Istruzione", label: "Scuole", tag: "amenity=school", filters: [{ key: "amenity", value: "school" }] },
   { id: "kindergarten", group: "Istruzione", label: "Asili e materne", tag: "amenity=kindergarten", filters: [{ key: "amenity", value: "kindergarten" }] },
   { id: "universities", group: "Istruzione", label: "Università", tag: "amenity=university", filters: [{ key: "amenity", value: "university" }] },
   { id: "libraries", group: "Istruzione", label: "Biblioteche", tag: "amenity=library", filters: [{ key: "amenity", value: "library" }] },
 
-  // — Servizi pubblici e sicurezza —
+  // - Servizi pubblici e sicurezza -
   { id: "police", group: "Servizi pubblici", label: "Polizia e carabinieri", tag: "amenity=police", filters: [{ key: "amenity", value: "police" }] },
   { id: "firestation", group: "Servizi pubblici", label: "Vigili del fuoco", tag: "amenity=fire_station", filters: [{ key: "amenity", value: "fire_station" }] },
   { id: "townhall", group: "Servizi pubblici", label: "Municipi", tag: "amenity=townhall", filters: [{ key: "amenity", value: "townhall" }] },
@@ -959,7 +959,7 @@ export const OSM_PRESETS: OsmPreset[] = [
   { id: "courthouse", group: "Servizi pubblici", label: "Tribunali", tag: "amenity=courthouse", filters: [{ key: "amenity", value: "courthouse" }] },
   { id: "surveillance", group: "Servizi pubblici", label: "Telecamere di sorveglianza", tag: "man_made=surveillance", filters: [{ key: "man_made", value: "surveillance" }] },
 
-  // — Cultura e turismo —
+  // - Cultura e turismo -
   { id: "museums", group: "Cultura e turismo", label: "Musei", tag: "tourism=museum", filters: [{ key: "tourism", value: "museum" }] },
   { id: "worship", group: "Cultura e turismo", label: "Luoghi di culto", tag: "amenity=place_of_worship", filters: [{ key: "amenity", value: "place_of_worship" }] },
   { id: "monuments", group: "Cultura e turismo", label: "Monumenti e memoriali", tag: "historic=monument / memorial", filters: [{ key: "historic", value: "monument" }, { key: "historic", value: "memorial" }] },
@@ -969,7 +969,7 @@ export const OSM_PRESETS: OsmPreset[] = [
   { id: "hotels", group: "Cultura e turismo", label: "Hotel e alloggi", tag: "tourism=hotel / guest_house", filters: [{ key: "tourism", value: "hotel" }, { key: "tourism", value: "guest_house" }] },
   { id: "attractions", group: "Cultura e turismo", label: "Attrazioni turistiche", tag: "tourism=attraction", filters: [{ key: "tourism", value: "attraction" }] },
 
-  // — Commercio e ristorazione —
+  // - Commercio e ristorazione -
   { id: "supermarkets", group: "Commercio", label: "Supermercati", tag: "shop=supermarket", filters: [{ key: "shop", value: "supermarket" }] },
   { id: "markets", group: "Commercio", label: "Mercati", tag: "amenity=marketplace", filters: [{ key: "amenity", value: "marketplace" }] },
   { id: "banks", group: "Commercio", label: "Banche", tag: "amenity=bank", filters: [{ key: "amenity", value: "bank" }] },
@@ -977,7 +977,7 @@ export const OSM_PRESETS: OsmPreset[] = [
   { id: "restaurants", group: "Commercio", label: "Ristoranti", tag: "amenity=restaurant", filters: [{ key: "amenity", value: "restaurant" }] },
   { id: "bars", group: "Commercio", label: "Bar e caffè", tag: "amenity=bar / cafe", filters: [{ key: "amenity", value: "bar" }, { key: "amenity", value: "cafe" }] },
 
-  // — Ambiente e svago —
+  // - Ambiente e svago -
   { id: "parks", group: "Ambiente e svago", label: "Parchi e giardini", tag: "leisure=park / garden", filters: [{ key: "leisure", value: "park" }, { key: "leisure", value: "garden" }] },
   { id: "playgrounds", group: "Ambiente e svago", label: "Aree gioco", tag: "leisure=playground", filters: [{ key: "leisure", value: "playground" }] },
   { id: "sports", group: "Ambiente e svago", label: "Impianti sportivi", tag: "leisure=sports_centre / pitch", filters: [{ key: "leisure", value: "sports_centre" }, { key: "leisure", value: "pitch" }] },

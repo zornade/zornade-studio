@@ -8,7 +8,7 @@
  *
  * The embed is served to readers through the Netlify proxy
  * (`studio.zornade.com/embed/* → Spaces CDN`, see netlify.toml), so it always
- * sits behind a Zornade domain — storage can later move to self-hosted Garage
+ * sits behind a Zornade domain - storage can later move to self-hosted Garage
  * without breaking any published embed.
  *
  * Required environment variables (Netlify → Site settings → Environment):
@@ -39,7 +39,7 @@ const DEFAULT_GEO = "https://studio.zornade.com/geo";
 export default async (req: Request): Promise<Response> => {
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
 
-  // 1. Auth — same signed-cookie scheme as the other functions.
+  // 1. Auth - same signed-cookie scheme as the other functions.
   const secret = process.env.STUDIO_SESSION_SECRET;
   if (!secret) return json({ error: "Auth non configurata." }, 500);
   const token = readCookie(req.headers.get("cookie"));
@@ -76,7 +76,7 @@ export default async (req: Request): Promise<Response> => {
     return json({ error: "Corpo della richiesta non valido." }, 400);
   }
 
-  // 4. Build artefacts. The public URL targets the actual index.html object —
+  // 4. Build artefacts. The public URL targets the actual index.html object -
   // the Spaces CDN does not auto-resolve a directory index for a trailing slash.
   const keys = publishKeys(spec);
   const selfUrl = `${baseUrl}/${keys.embed}`;

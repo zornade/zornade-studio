@@ -6,11 +6,11 @@
  * (severity 1.0), the de-facto standard embedded in many tools. The matrices'
  * rows sum to 1, so achromatic (grey) colours are preserved. This is an
  * **approximation** meant to *preview* how a palette reads to colour-blind
- * viewers — not a clinical tool.
+ * viewers - not a clinical tool.
  *
  * Design note: we deliberately do **not** auto-classify a palette as
  * "safe/unsafe" from a runtime metric. Empirically (redmean distance) no single
- * threshold separates documented-safe palettes (Okabe–Ito) from risky ones —
+ * threshold separates documented-safe palettes (Okabe–Ito) from risky ones -
  * they overlap. So the editor's "colour-blind-safe" badge is driven by a
  * **curated flag** sourced from the published palettes (palettes.ts
  * `cvdSafe`), and this module provides the **visual simulation** so the operator
@@ -89,7 +89,7 @@ export function simulatePalette(colors: string[], type: CvdType): string[] {
  * Perceptual-ish colour distance ("redmean"): a cheap weighted-RGB metric that
  * tracks human perception better than plain Euclidean RGB. Range ~0..765.
  * Exposed for callers that want a rough difference (not used to auto-classify
- * palettes — see the design note above).
+ * palettes - see the design note above).
  */
 export function colorDistance(a: string, b: string): number {
   const ca = hexToRgb(a);

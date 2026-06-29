@@ -92,7 +92,7 @@ describe("catalog-search · Socrata adapter", () => {
           permalink: "https://www.dati.lombardia.it/d/abcd-1234",
         },
         {
-          // federated result from another domain — own domain must be used for the URL
+          // federated result from another domain - own domain must be used for the URL
           resource: { id: "wxyz-9999", name: "Friuli pop", type: "dataset" },
           metadata: { domain: "www.dati.friuliveneziagiulia.it" },
           permalink: "https://www.dati.friuliveneziagiulia.it/d/wxyz-9999",

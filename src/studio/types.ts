@@ -194,7 +194,7 @@ export interface GeoDataset extends DatasetBase {
 /**
  * Plain tabular data with no geographic dimension: a CSV of categories and
  * numbers (e.g. "regione, arrivi" or "anno, valore"). It feeds the chart
- * pipeline only — there is nothing to put on a map. Charts read `columns`/
+ * pipeline only - there is nothing to put on a map. Charts read `columns`/
  * `rows`; the editor lets the operator pick which column is the axis/series.
  */
 export interface TableDataset extends DatasetBase {

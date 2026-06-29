@@ -1,5 +1,5 @@
 /**
- * Bivariate choropleth (O4.x maps) — pure, tested.
+ * Bivariate choropleth (O4.x maps) - pure, tested.
  *
  * A bivariate map colours each area by the combination of TWO variables: each
  * variable is split into 3 classes (terciles) and the pair (a, b) selects one

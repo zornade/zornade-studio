@@ -9,7 +9,7 @@
  * so the React `ChartCanvas` stays a thin Observable Plot wrapper.
  *
  * It is engine-agnostic: it returns plain arrays of `{ x, y, series }` (or the
- * raw rows for the table), never Plot marks — the renderer maps those to marks.
+ * raw rows for the table), never Plot marks - the renderer maps those to marks.
  */
 
 import { parseNumber } from "./csv";
@@ -36,9 +36,9 @@ export interface ChartAxes {
 
 /** Which columns are sensible candidates for each axis role. */
 export interface ChartColumnRoles {
-  /** Categorical/temporal/identifier columns — candidate x-axis / series. */
+  /** Categorical/temporal/identifier columns - candidate x-axis / series. */
   labelColumns: string[];
-  /** Numeric columns — candidate y-axis (and x for scatter). */
+  /** Numeric columns - candidate y-axis (and x for scatter). */
   numericColumns: string[];
 }
 
