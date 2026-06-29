@@ -37,6 +37,7 @@ import { buildDatasetFromCsv, buildDatasetFromTable } from "../../lib/build-data
 import {
   buildOverpassQuery,
   runOverpass,
+  runOverpassAdaptive,
   overpassToTable,
   type OsmScope,
 } from "../../lib/overpass";
@@ -963,16 +964,23 @@ function OsmSource() {
     setError(null);
     setInfo(null);
     try {
-      let scope: OsmScope;
+      let elements;
       let where = "";
+
+      const onProgress = (n: number) =>
+        setInfo(`Scarico dati OSM… ${n} aree analizzate.`);
 
       if (scopeMode === "bbox") {
         if (!effectiveBbox) {
           setError("Disegna un'area sulla mappa o inserisci le coordinate.");
           return;
         }
-        scope = { kind: "bbox", ...effectiveBbox };
         where = `bbox(${effectiveBbox.west.toFixed(2)},${effectiveBbox.south.toFixed(2)},${effectiveBbox.east.toFixed(2)},${effectiveBbox.north.toFixed(2)})`;
+        elements = await runOverpassAdaptive(
+          preset.filters,
+          { bbox: effectiveBbox },
+          { onProgress },
+        );
       } else {
         // place mode: geocode to area id (supports worldwide)
         const { geocodeArea } = await import("../../lib/nominatim");
@@ -981,12 +989,21 @@ function OsmSource() {
           setError(`Luogo "${placeName.trim()}" non trovato. Controlla il nome.`);
           return;
         }
-        scope = { kind: "area", areaId: area.areaId };
         where = area.displayName.split(",")[0] || placeName.trim();
+        if (area.bbox) {
+          // Tile the area's bounding box, clipping results to the boundary.
+          elements = await runOverpassAdaptive(
+            preset.filters,
+            { bbox: area.bbox, areaId: area.areaId },
+            { onProgress },
+          );
+        } else {
+          // No bbox from Nominatim: fall back to a single area-id query.
+          const scope: OsmScope = { kind: "area", areaId: area.areaId };
+          elements = await runOverpass(buildOverpassQuery(preset.filters, scope));
+        }
       }
 
-      const query = buildOverpassQuery(preset.filters, scope);
-      const elements = await runOverpass(query);
       const table = overpassToTable(elements, preset.filters);
       if (table.rows.length === 0) {
         setError(

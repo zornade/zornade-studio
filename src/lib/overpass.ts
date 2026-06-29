@@ -108,10 +108,92 @@ export function buildOverpassQuery(
 /** A raw Overpass element (only the fields we read). */
 export interface OverpassElement {
   type: "node" | "way" | "relation";
+  /** OSM id, used to de-duplicate features that straddle two tiles. */
+  id?: number;
   lat?: number;
   lon?: number;
   center?: { lat: number; lon: number };
   tags?: Record<string, string>;
+}
+
+/** A bounding box in decimal degrees. */
+export interface Bbox {
+  south: number;
+  west: number;
+  north: number;
+  east: number;
+}
+
+/**
+ * Build a **single-tile** Overpass query: every filter is matched on
+ * nodes/ways/relations within a bounding box, optionally also constrained to an
+ * administrative area. Querying by bbox uses Overpass' spatial index and is
+ * dramatically faster than scanning a whole `area()` (a nationwide `area()`
+ * query times out), which is why {@link runOverpassAdaptive} tiles large scopes
+ * into bbox sub-queries. When `areaId` is given, results are additionally
+ * clipped to that boundary (`(area.a)` + bbox filters are AND-combined), so a
+ * region/country search returns only features inside the administrative area.
+ */
+export function buildTileQuery(
+  filters: OsmTagFilter[],
+  tile: Bbox,
+  areaId?: number,
+  timeoutSec = 25,
+): string {
+  const bboxStr = `${tile.south},${tile.west},${tile.north},${tile.east}`;
+  const areaSel = areaId != null ? "(area.a)" : "";
+  const areaDef = areaId != null ? `area(${areaId})->.a;\n` : "";
+  const body = filters
+    .map((f) => `  nwr${selector(f)}${areaSel}(${bboxStr});`)
+    .join("\n");
+  return (
+    `[out:json][timeout:${timeoutSec}];\n` +
+    areaDef +
+    `(\n${body}\n);\n` +
+    `out center ${OVERPASS_MAX};`
+  );
+}
+
+/** Split a bbox into its four equal quadrants (used to refine a heavy tile). */
+export function splitQuad(b: Bbox): Bbox[] {
+  const midLat = (b.south + b.north) / 2;
+  const midLon = (b.west + b.east) / 2;
+  return [
+    { south: b.south, west: b.west, north: midLat, east: midLon },
+    { south: b.south, west: midLon, north: midLat, east: b.east },
+    { south: midLat, west: b.west, north: b.north, east: midLon },
+    { south: midLat, west: midLon, north: b.north, east: b.east },
+  ];
+}
+
+/**
+ * Target side length (degrees) of an initial grid tile. A scope wider/taller
+ * than this is split up-front so we never fire a single nationwide query that
+ * is guaranteed to time out. ~3° keeps each tile well under the 2000-feature
+ * cap for typical POI densities; anything still too dense is refined further.
+ */
+export const TILE_DEG = 3;
+
+/** Build the initial (non-adaptive) grid of tiles covering a bbox. */
+export function initialGrid(b: Bbox): Bbox[] {
+  const width = b.east - b.west;
+  const height = b.north - b.south;
+  const cols = Math.max(1, Math.ceil(width / TILE_DEG));
+  const rows = Math.max(1, Math.ceil(height / TILE_DEG));
+  const dLon = width / cols;
+  const dLat = height / rows;
+  const tiles: Bbox[] = [];
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      tiles.push({
+        south: b.south + r * dLat,
+        north: b.south + (r + 1) * dLat,
+        west: b.west + c * dLon,
+        east: b.west + (c + 1) * dLon,
+      });
+    }
+  }
+  return tiles;
 }
 
 export interface OverpassTable {
@@ -313,6 +395,120 @@ export async function runOverpass(
 
     launchNext();
   });
+}
+
+/** Max recursive refinement depth per initial tile (4 → up to 256 sub-tiles). */
+const MAX_TILE_DEPTH = 4;
+/** Hard ceiling on the total number of tile queries, as a runaway safeguard. */
+const MAX_TILES = 256;
+/** How many tile queries run at once (kept low to avoid mirror rate limits). */
+const TILE_CONCURRENCY = 3;
+
+/** Run `fn` over `items` with a bounded number of concurrent executions. */
+async function mapPool<T, R>(
+  items: T[],
+  limit: number,
+  fn: (item: T) => Promise<R>,
+): Promise<R[]> {
+  const results: R[] = new Array(items.length);
+  let cursor = 0;
+  const worker = async () => {
+    for (;;) {
+      const idx = cursor++;
+      if (idx >= items.length) return;
+      results[idx] = await fn(items[idx]);
+    }
+  };
+  const n = Math.min(Math.max(1, limit), items.length);
+  await Promise.all(Array.from({ length: n }, worker));
+  return results;
+}
+
+/** De-dup key for an element: stable OSM id, or its coordinates as a fallback. */
+function elementKey(el: OverpassElement): string {
+  if (el.id != null) return `${el.type}/${el.id}`;
+  const lat = el.lat ?? el.center?.lat;
+  const lon = el.lon ?? el.center?.lon;
+  return `${el.type}/${lat},${lon}`;
+}
+
+/**
+ * Run an Overpass search over a potentially large scope **without timing out**,
+ * by splitting it into bounding-box tiles (see {@link buildTileQuery}). The
+ * scope is first covered by an {@link initialGrid}; any tile that the server
+ * refuses (timeout/heavy) or that comes back truncated at the {@link OVERPASS_MAX}
+ * cap is recursively re-split into quadrants ({@link splitQuad}) up to
+ * {@link MAX_TILE_DEPTH}. Tiles run with bounded concurrency and results are
+ * merged and de-duplicated by OSM id (features straddling a tile edge are
+ * returned by both tiles).
+ *
+ * This is the high-level entry point the UI should use; {@link runOverpass} is
+ * the per-tile network runner (one hedged request across mirrors).
+ *
+ * @param scope bounding box to cover, plus an optional admin `areaId` to clip to.
+ * @param opts.onProgress called with the running count of processed tiles.
+ * Rejects only when **every** tile failed and nothing could be collected.
+ */
+export async function runOverpassAdaptive(
+  filters: OsmTagFilter[],
+  scope: { bbox: Bbox; areaId?: number },
+  opts: { endpoints?: string[]; onProgress?: (processed: number) => void } = {},
+): Promise<OverpassElement[]> {
+  const merged = new Map<string, OverpassElement>();
+  const errors: string[] = [];
+  let processed = 0;
+  let totalTiles = 0;
+
+  let tiles = initialGrid(scope.bbox);
+  let depth = 0;
+
+  while (tiles.length > 0 && totalTiles < MAX_TILES) {
+    const results = await mapPool(tiles, TILE_CONCURRENCY, async (tile) => {
+      totalTiles += 1;
+      const query = buildTileQuery(filters, tile, scope.areaId);
+      try {
+        const els = await runOverpass(query, opts.endpoints);
+        return { tile, els, ok: true as const };
+      } catch (e) {
+        return {
+          tile,
+          els: [] as OverpassElement[],
+          ok: false as const,
+          msg: e instanceof Error ? e.message : "errore di rete",
+        };
+      } finally {
+        processed += 1;
+        opts.onProgress?.(processed);
+      }
+    });
+
+    const next: Bbox[] = [];
+    const canRefine = depth < MAX_TILE_DEPTH && totalTiles < MAX_TILES;
+    for (const r of results) {
+      const truncated = r.ok && r.els.length >= OVERPASS_MAX;
+      if ((!r.ok || truncated) && canRefine) {
+        next.push(...splitQuad(r.tile));
+      } else if (r.ok) {
+        for (const el of r.els) {
+          const key = elementKey(el);
+          if (!merged.has(key)) merged.set(key, el);
+        }
+      } else {
+        errors.push(r.msg);
+      }
+    }
+    tiles = next;
+    depth += 1;
+  }
+
+  if (merged.size === 0 && errors.length > 0) {
+    throw new Error(
+      "I server OpenStreetMap non hanno risposto. " +
+        "Riprova tra poco o restringi l'ambito (es. per comune). " +
+        `Dettagli: ${errors.slice(0, 3).join(" · ")}.`,
+    );
+  }
+  return [...merged.values()];
 }
 
 /** Short host label for error messages (e.g. "overpass-api.de"). */

@@ -1,10 +1,15 @@
 import { describe, it, expect } from "vitest";
 import {
   buildOverpassQuery,
+  buildTileQuery,
+  splitQuad,
+  initialGrid,
+  TILE_DEG,
   overpassToTable,
   runOverpass,
   isRuntimeError,
   OVERPASS_MAX,
+  type Bbox,
   type OverpassElement,
 } from "./overpass";
 
@@ -36,6 +41,62 @@ describe("buildOverpassQuery", () => {
   it("supports a key-only filter (any value)", () => {
     const q = buildOverpassQuery([{ key: "man_made" }], { kind: "nationwide" });
     expect(q).toContain('nwr["man_made"](area.a);');
+  });
+});
+
+describe("buildTileQuery", () => {
+  const tile: Bbox = { south: 44, west: 9, north: 45, east: 10 };
+
+  it("constrains each filter to the tile bbox (south,west,north,east)", () => {
+    const q = buildTileQuery([{ key: "amenity", value: "school" }], tile);
+    expect(q).toContain('nwr["amenity"="school"](44,9,45,10);');
+    expect(q).not.toContain("area(");
+    expect(q).toContain(`out center ${OVERPASS_MAX};`);
+  });
+
+  it("clips to an admin area when areaId is given (area + bbox combined)", () => {
+    const q = buildTileQuery(
+      [{ key: "amenity", value: "school" }],
+      tile,
+      3600179296,
+    );
+    expect(q).toContain("area(3600179296)->.a;");
+    expect(q).toContain('nwr["amenity"="school"](area.a)(44,9,45,10);');
+  });
+});
+
+describe("splitQuad", () => {
+  it("splits a bbox into four equal, gap-free quadrants", () => {
+    const b: Bbox = { south: 0, west: 0, north: 10, east: 20 };
+    const quads = splitQuad(b);
+    expect(quads).toHaveLength(4);
+    // Quadrants share the midpoint and together cover the original box.
+    expect(quads).toEqual([
+      { south: 0, west: 0, north: 5, east: 10 },
+      { south: 0, west: 10, north: 5, east: 20 },
+      { south: 5, west: 0, north: 10, east: 10 },
+      { south: 5, west: 10, north: 10, east: 20 },
+    ]);
+  });
+});
+
+describe("initialGrid", () => {
+  it("returns a single tile for a scope smaller than TILE_DEG", () => {
+    const b: Bbox = { south: 45, west: 9, north: 45.5, east: 9.5 };
+    expect(initialGrid(b)).toHaveLength(1);
+  });
+
+  it("tiles a large scope into ceil(width/TILE_DEG) x ceil(height/TILE_DEG)", () => {
+    const b: Bbox = { south: 36, west: 6, north: 47, east: 19 }; // ~ Italy
+    const cols = Math.ceil((b.east - b.west) / TILE_DEG);
+    const rows = Math.ceil((b.north - b.south) / TILE_DEG);
+    const grid = initialGrid(b);
+    expect(grid).toHaveLength(cols * rows);
+    // Grid covers the full bbox exactly.
+    expect(Math.min(...grid.map((t) => t.south))).toBeCloseTo(b.south);
+    expect(Math.max(...grid.map((t) => t.north))).toBeCloseTo(b.north);
+    expect(Math.min(...grid.map((t) => t.west))).toBeCloseTo(b.west);
+    expect(Math.max(...grid.map((t) => t.east))).toBeCloseTo(b.east);
   });
 });
 

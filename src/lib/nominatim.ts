@@ -15,6 +15,8 @@
  * This is fine for interactive, on-demand searches.
  */
 
+import type { Bbox } from "./overpass";
+
 export const NOMINATIM_ENDPOINT = "https://nominatim.openstreetmap.org/search";
 
 /** Scope hint → Nominatim `featureType` (helps disambiguate same-named places). */
@@ -36,6 +38,11 @@ export interface GeocodedArea {
   /** OSM type of the matched boundary. */
   osmType: "relation" | "way";
   osmId: number;
+  /**
+   * Bounding box of the boundary, when Nominatim reports one. Used to tile a
+   * large area into fast bbox sub-queries (see runOverpassAdaptive).
+   */
+  bbox?: Bbox;
 }
 
 interface NominatimResult {
@@ -44,6 +51,8 @@ interface NominatimResult {
   display_name?: string;
   class?: string;
   type?: string;
+  /** [south, north, west, east] as strings, per the Nominatim API. */
+  boundingbox?: [string, string, string, string];
 }
 
 /** Convert an OSM relation/way id to an Overpass area id, or null for nodes. */
@@ -90,6 +99,18 @@ export async function geocodeArea(
   return pickArea(results);
 }
 
+/** Parse Nominatim's [south, north, west, east] string box into a Bbox. */
+function parseBoundingBox(
+  box: [string, string, string, string] | undefined,
+): Bbox | undefined {
+  if (!box) return undefined;
+  const [south, north, west, east] = box.map(Number);
+  if ([south, north, west, east].some((n) => !Number.isFinite(n))) {
+    return undefined;
+  }
+  return { south, north, west, east };
+}
+
 /** Pick the first usable administrative boundary (relation/way) from results. */
 export function pickArea(results: NominatimResult[]): GeocodedArea | null {
   // Prefer an administrative boundary; fall back to any relation/way result.
@@ -108,6 +129,7 @@ export function pickArea(results: NominatimResult[]): GeocodedArea | null {
       displayName: r.display_name ?? "",
       osmType: r.osm_type as "relation" | "way",
       osmId: r.osm_id,
+      bbox: parseBoundingBox(r.boundingbox),
     };
   }
   return null;
