@@ -13,20 +13,29 @@
 import type { OsmTagFilter } from "../studio/catalog";
 
 /**
- * Public Overpass endpoints. Ordered fastest-first, but {@link runOverpass}
- * does NOT just try them in sequence - it races them with a staggered start
- * (hedged requests), so a slow or dead mirror can't stall the search. CORS
- * (`Access-Control-Allow-Origin: *`) and reachability re-verified 2026-06-26:
- * `overpass.osm.ch` (~0.5s) and `maps.mail.ru` (~0.9s) were the fastest with
- * CORS enabled; `overpass-api.de` works but is often slow/overloaded; the last
- * two are kept as best-effort fallbacks (they were timing out on 2026-06-26 but
- * recover over time, and hedging makes a dead mirror harmless).
+ * Public Overpass endpoints. {@link runOverpass} does NOT just try them in
+ * sequence - it races them with a staggered start (hedged requests), so a slow
+ * or dead mirror can't stall the search.
+ *
+ * **Every endpoint here MUST cover the whole planet.** Regional mirrors are
+ * banned: `overpass.osm.ch` (Switzerland-only) used to be listed first because
+ * it was the fastest responder, but it answered HTTP 200 with an empty
+ * `elements` array (and no runtime remark) for any feature outside Switzerland.
+ * Since an empty 200 without a remark is treated as a *valid* "no results" that
+ * wins the hedge race immediately, that mirror silently broke every search
+ * outside CH (e.g. "Nessun defibrillatore trovato" over Italy). Removed
+ * 2026-06-28. Only full-planet mirrors below, so an empty result is genuine.
+ *
+ * CORS (`Access-Control-Allow-Origin: *`) and global coverage verified
+ * 2026-06-28 against the OSM wiki "Overpass API/Public instances" list:
+ * - `maps.mail.ru` - full planet, fast (~0.9s), no rate limit, CORS *.
+ * - `overpass-api.de` - FOSSGIS main instance, full planet, CORS *.
+ * - `overpass.private.coffee` - ex `overpass.kumi.systems` (renamed), full
+ *   planet, no rate limit, CORS *. Kept as best-effort fallback.
  */
 export const OVERPASS_ENDPOINTS = [
-  "https://overpass.osm.ch/api/interpreter",
   "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
   "https://overpass-api.de/api/interpreter",
-  "https://overpass.kumi.systems/api/interpreter",
   "https://overpass.private.coffee/api/interpreter",
 ];
 
