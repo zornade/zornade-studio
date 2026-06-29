@@ -497,6 +497,7 @@ export function MapCanvas() {
         dataFilter={dataFilter}
         pitch={pitch}
         globe={design.globe}
+        dataOpacity={design.dataOpacity ?? 1}
         onMapReady={(api) => {
           mapApiRef.current = api;
         }}

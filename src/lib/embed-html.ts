@@ -639,6 +639,7 @@ function buildAreaEmbedHtml(
     pointColor: d.pointColor || BRAND_TEAL,
     pointSize: d.pointSize || 7,
     extrusionScale: d.extrusionScale ?? 1,
+    dataOpacity: d.dataOpacity ?? 1,
     valueRange: { min: classes.min, max: classes.max },
     legendColors,
     breaks: classes.breaks,
@@ -798,6 +799,7 @@ map.on("load",function(){ready=true;if(E.globe){try{map.setProjection({type:"glo
 fetch(E.geoUrl).then(function(r){return r.json();}).then(function(g){GEO=g;if(ready)build();});
 function build(){
   var noData=paint(E.keyed);
+  var DO=(E.dataOpacity==null?1:E.dataOpacity);
   map.addSource("d",{type:"geojson",data:GEO,generateId:true});
   var before=beforeId();
   if(E.render==="extrusion"){
@@ -805,7 +807,7 @@ function build(){
       paint:{"fill-extrusion-color":E.fill,
         "fill-extrusion-height":["interpolate",["linear"],
           ["coalesce",["to-number",["get","__value"]],E.min],E.min,Math.max(2000,4800*(E.extrusionScale||1)),E.max,120000*(E.extrusionScale||1)],
-        "fill-extrusion-base":0,"fill-extrusion-opacity":0.95,
+        "fill-extrusion-base":0,"fill-extrusion-opacity":0.95*DO,
         "fill-extrusion-vertical-gradient":true,
         "fill-extrusion-color-transition":{duration:500,delay:0},
         "fill-extrusion-height-transition":{duration:700,delay:0}}},before);
@@ -818,16 +820,16 @@ function build(){
         paint:{"circle-color":E.pointColor,
           "circle-radius":["interpolate",["linear"],["to-number",["get","__value"],E.min],
             E.min,Math.max(2,E.pointSize*0.6),E.max,E.pointSize*2.8],
-          "circle-stroke-color":"#fff","circle-stroke-width":1,"circle-opacity":0.9}});
+          "circle-stroke-color":"#fff","circle-stroke-width":1,"circle-opacity":0.9*DO}});
     }else{
       map.addLayer({id:"d-fill",type:"fill",source:"dm",
-        paint:{"fill-color":E.pointColor,"fill-opacity":0.85}});
+        paint:{"fill-color":E.pointColor,"fill-opacity":0.85*DO}});
     }
   }else if(E.render==="cartogram"){
     var carto=cartogram();
     map.addSource("dm",{type:"geojson",data:carto});
     map.addLayer({id:"d-fill",type:"fill",source:"dm",
-      paint:{"fill-color":E.fill,"fill-opacity":0.85}},before);
+      paint:{"fill-color":E.fill,"fill-opacity":0.85*DO}},before);
     map.addLayer({id:"d-line",type:"line",source:"dm",
       paint:{"line-color":"#fff","line-width":0.5}},before);
   }else{
@@ -835,14 +837,14 @@ function build(){
       paint:{"fill-color":E.fill,
         "fill-color-transition":{duration:500,delay:0},
         "fill-opacity-transition":{duration:300,delay:0},
-        "fill-opacity":["case",["boolean",["feature-state","hover"],false],0.95,0.82]}},before);
+        "fill-opacity":["case",["boolean",["feature-state","hover"],false],0.95*DO,0.82*DO]}},before);
     map.addLayer({id:"d-cas",type:"line",source:"d",
-      paint:{"line-color":"#0f172a","line-width":1.4,"line-opacity":0.18,"line-blur":0.4}},before);
+      paint:{"line-color":"#0f172a","line-width":1.4,"line-opacity":0.18*DO,"line-blur":0.4}},before);
     map.addLayer({id:"d-line",type:"line",source:"d",
       paint:{"line-color":"#fff",
         "line-width":["case",["boolean",["feature-state","hover"],false],1.6,0.6],
         "line-width-transition":{duration:200,delay:0},
-        "line-opacity":0.6}},before);
+        "line-opacity":0.6*DO}},before);
     hoverFx();
   }
   if(E.render!=="extrusion")raiseLabels();
@@ -1583,6 +1585,7 @@ function buildGeoEmbedHtml(spec: GeoSpec, opts: EmbedOptions): string {
     circleColor,
     circleRadius: d.pointSize,
     nameField: "__name",
+    dataOpacity: d.dataOpacity ?? 1,
     basemapStyle: resolveBasemap(d.basemap, d.customBasemapUrl ?? ""),
     hideLabels: !!d.hideLabels,
     center: (spec.camera?.center ?? (spec.globe ? [0, 20] : [12.5, 42])) as [number, number],
@@ -1660,15 +1663,16 @@ var map=new maplibregl.Map({container:"map",
 map.addControl(new maplibregl.AttributionControl({compact:true,customAttribution:'<a href="https://zornade.com/studio" target="_blank" rel="noopener">Fatto con Zornade Studio</a>'}));
 map.on("load",function(){if(E.globe){try{map.setProjection({type:"globe"});}catch(e){}}sky();loc();if(E.hideLabels)hideLbl();build();});
 function build(){
+  var DO=(E.dataOpacity==null?1:E.dataOpacity);
   map.addSource("d",{type:"geojson",data:E.geojson});
   var before=beforeId();
   map.addLayer({id:"d-fill",type:"fill",source:"d",
-    paint:{"fill-color":E.fillColor,"fill-opacity":0.7}},before);
+    paint:{"fill-color":E.fillColor,"fill-opacity":0.7*DO}},before);
   map.addLayer({id:"d-line",type:"line",source:"d",
     paint:{"line-color":E.lineColor,"line-width":1.2}},before);
   map.addLayer({id:"d-point",type:"circle",source:"d",
     paint:{"circle-color":E.circleColor,"circle-radius":E.circleRadius||5,
-      "circle-stroke-color":"#fff","circle-stroke-width":1,"circle-opacity":0.9}},before);
+      "circle-stroke-color":"#fff","circle-stroke-width":1,"circle-opacity":0.9*DO}},before);
   raiseLabels();
   if(E.lockView&&E.hasCamera)applyView();else fit(E.pitch);
   if(E.showLegend)legend();

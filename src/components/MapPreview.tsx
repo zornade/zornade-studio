@@ -117,6 +117,8 @@ interface MapPreviewProps {
   pitch?: number;
   /** Switch to spherical globe projection. Default false. */
   globe?: boolean;
+  /** Global opacity multiplier for the data overlay (0.1–1). Default 1. */
+  dataOpacity?: number;
   /** Receives the imperative camera API (for scrollytelling authoring). */
   onMapReady?: (api: {
     getCamera: () => StoryCamera;
@@ -186,7 +188,9 @@ function dataInsertBeforeId(map: maplibregl.Map): string | undefined {
       l.type === "fill" ||
       l.type === "line" ||
       l.type === "fill-extrusion" ||
-      l.type === "raster"
+      l.type === "raster" ||
+      l.type === "hillshade" ||
+      (l.type as string) === "color-relief"
     ) {
       lastGeom = i;
     }
@@ -362,6 +366,7 @@ export function MapPreview({
   onExitTool,
   pitch = 0,
   globe = false,
+  dataOpacity = 1,
   onMapReady,
 }: MapPreviewProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -382,6 +387,9 @@ export function MapPreview({
   /** Live hide-labels flag read by the once-bound load/restyle handlers. */
   const hideLabelsRef = useRef<boolean>(hideLabels);
   hideLabelsRef.current = hideLabels;
+  /** Live global data-opacity multiplier read by the syncData builder. */
+  const dataOpacityRef = useRef<number>(dataOpacity);
+  dataOpacityRef.current = dataOpacity;
   /** Feature id currently under the cursor (for the hover highlight). */
   const hoveredIdRef = useRef<number | string | null>(null);
   /** Imperative hide for the cursor tooltip, set once the map is built. */
@@ -410,6 +418,8 @@ export function MapPreview({
       map.once("idle", () => syncData(map));
       return;
     }
+    // Global data-opacity multiplier (0.1–1) applied to every viz type.
+    const op = dataOpacityRef.current ?? 1;
     if (map.getLayer(GEO_POINT)) map.removeLayer(GEO_POINT);
     if (map.getLayer(LABEL)) map.removeLayer(LABEL);
     if (map.getLayer(HEATMAP)) map.removeLayer(HEATMAP);
@@ -469,7 +479,7 @@ export function MapPreview({
             maxH,
           ] as unknown as maplibregl.ExpressionSpecification,
           "fill-extrusion-base": 0,
-          "fill-extrusion-opacity": 0.95,
+          "fill-extrusion-opacity": 0.95 * op,
           "fill-extrusion-vertical-gradient": true,
           "fill-extrusion-color-transition": { duration: 500, delay: 0 },
           "fill-extrusion-height-transition": { duration: 700, delay: 0 },
@@ -495,7 +505,7 @@ export function MapPreview({
               (layer.circleRadius as maplibregl.ExpressionSpecification) ?? 5,
             "circle-stroke-color": "#ffffff",
             "circle-stroke-width": 1,
-            "circle-opacity": layer.circleOpacity ?? 0.9,
+            "circle-opacity": (layer.circleOpacity ?? 0.9) * op,
           },
         },
         firstSymbol,
@@ -547,7 +557,7 @@ export function MapPreview({
             "fill-color":
               (layer.fillColor as maplibregl.ExpressionSpecification) ??
               BRAND_TEAL,
-            "fill-opacity": 0.7,
+            "fill-opacity": 0.7 * op,
           },
         },
         firstSymbol,
@@ -580,7 +590,7 @@ export function MapPreview({
               (layer.circleRadius as maplibregl.ExpressionSpecification) ?? 5,
             "circle-stroke-color": "#ffffff",
             "circle-stroke-width": 1,
-            "circle-opacity": 0.9,
+            "circle-opacity": 0.9 * op,
           },
         },
         firstSymbol,
@@ -602,8 +612,8 @@ export function MapPreview({
           "fill-opacity": [
             "case",
             ["boolean", ["feature-state", "hover"], false],
-            0.95,
-            0.82,
+            0.95 * op,
+            0.82 * op,
           ] as unknown as maplibregl.ExpressionSpecification,
         },
       },
@@ -1032,7 +1042,7 @@ export function MapPreview({
     const map = mapRef.current;
     if (map) syncData(map);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dataLayer]);
+  }, [dataLayer, dataOpacity]);
 
   // Toggle basemap labels when the hideLabels option changes (no restyle).
   useEffect(() => {

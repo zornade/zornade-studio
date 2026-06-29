@@ -136,6 +136,7 @@ const INITIAL_DESIGN: DesignSettings = {
   globe: false,
   lockView: false,
   extrusionScale: 1,
+  dataOpacity: 1,
 };
 
 /** localStorage key for the best-effort session autosave. */

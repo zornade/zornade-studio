@@ -314,6 +314,29 @@ export function DesignPanel() {
         </PanelSection>
       )}
 
+      {/* ---- Opacità dati (globale) ---- */}
+      {showGlobe && (
+        <PanelSection
+          title="Opacità dati"
+          hint="Trasparenza globale del livello dati: lascia intravedere di più o di meno la basemap."
+        >
+          <Field label={`Opacità · ${Math.round((design.dataOpacity ?? 1) * 100)}%`}>
+            <input
+              type="range"
+              min={0.1}
+              max={1}
+              step={0.05}
+              value={design.dataOpacity ?? 1}
+              onChange={(e) => updateDesign({ dataOpacity: Number(e.target.value) })}
+              className="w-full accent-zornade"
+            />
+            <p className="mt-1 text-[11px] text-slate-400">
+              Vale per ogni tipo: coropleta, punti, geometrie, estrusione 3D, cartogramma.
+            </p>
+          </Field>
+        </PanelSection>
+      )}
+
       {/* ---- Tipo di cartogramma ---- */}
       {caps.has("cartogramKind") && (
         <PanelSection

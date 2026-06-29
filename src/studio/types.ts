@@ -108,6 +108,12 @@ export interface DesignSettings {
    * them. Default 1 (no exaggeration).
    */
   extrusionScale?: number;
+  /**
+   * Global opacity of the data overlay (0.1–1), applied to every viz type
+   * (choropleth, points, geo, 3D extrusion, cartogram). Lets the basemap show
+   * through more or less. Default 1.
+   */
+  dataOpacity?: number;
 }
 
 /**

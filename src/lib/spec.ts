@@ -115,6 +115,8 @@ export interface SpecDesign {
   lockView?: boolean;
   /** Vertical exaggeration of the 3D extrusion. Absent = 1 (no exaggeration). */
   extrusionScale?: number;
+  /** Global opacity of the data overlay (0.1–1). Absent = 1. */
+  dataOpacity?: number;
 }
 
 export interface ChoroplethSpec {
@@ -520,6 +522,7 @@ function makeAreaSpec(
       ...(render === "extrusion" && (design.extrusionScale ?? 1) !== 1
         ? { extrusionScale: design.extrusionScale }
         : {}),
+      ...((design.dataOpacity ?? 1) !== 1 ? { dataOpacity: design.dataOpacity } : {}),
     },
     ...(state.camera ? { camera: state.camera } : {}),
   };
@@ -612,6 +615,7 @@ function buildPointSpec(state: StudioState & { camera?: StoryCamera | null }, re
       customBasemapUrl: design.customBasemapUrl ?? "",
       ...(design.hideLabels ? { hideLabels: true } : {}),
       ...(design.lockView ? { lockView: true } : {}),
+      ...((design.dataOpacity ?? 1) !== 1 ? { dataOpacity: design.dataOpacity } : {}),
     },
     ...(state.camera ? { camera: state.camera } : {}),
   };
@@ -763,6 +767,7 @@ function buildGeoSpec(state: StudioState & { camera?: StoryCamera | null }): Bui
       customBasemapUrl: design.customBasemapUrl ?? "",
       ...(design.hideLabels ? { hideLabels: true } : {}),
       ...(design.lockView ? { lockView: true } : {}),
+      ...((design.dataOpacity ?? 1) !== 1 ? { dataOpacity: design.dataOpacity } : {}),
     },
     ...(state.camera ? { camera: state.camera } : {}),
   };
