@@ -26,6 +26,15 @@ describe("designCaps", () => {
     expect(designCaps("does-not-exist").size).toBe(0);
   });
 
+  it("markerStyle is exposed by the point/locator maps only", () => {
+    expect(designCaps("points").has("markerStyle")).toBe(true);
+    expect(designCaps("locator").has("markerStyle")).toBe(true);
+    // Proportional symbols / spike encode magnitude via their own size/shape.
+    expect(designCaps("symbol").has("markerStyle")).toBe(false);
+    expect(designCaps("spike").has("markerStyle")).toBe(false);
+    expect(designCaps("choropleth").has("markerStyle")).toBe(false);
+  });
+
   it("symbol exposes geo binding, value label, colour scale and point styling", () => {
     const caps = designCaps("symbol");
     expect(caps.has("geoBinding")).toBe(true);
@@ -59,6 +68,7 @@ describe("designCaps", () => {
       "classification",
       "categoryBinding",
       "pointStyle",
+      "markerStyle",
       "tooltipTemplate",
       "readerFilters",
       "chartAxes",

@@ -36,8 +36,44 @@ import { hexbin } from "./hexbin";
 import { buildHeatmapPaint } from "./heatmap";
 import { nonContiguousCartogram, dorlingCartogram } from "./cartogram";
 import { buildFlows } from "./flow";
+import {
+  usesMarkerLayer,
+  markerSvgTemplate,
+  markerAnchor,
+  markerPixelSize,
+} from "./markers";
 
 const NO_DATA_COLOR = DEFAULT_NO_DATA_COLOR;
+
+/**
+ * Build the marker descriptor for a locator/point layer, or `undefined` when
+ * the plain circle layer should be used (default circle shape, no icon) so the
+ * historical rendering - and the published embed - stay byte-identical.
+ */
+function buildMarkerDescriptor(
+  design: DesignSettings,
+  categories: string[],
+  palette: string[],
+): DataLayer["marker"] {
+  if (!usesMarkerLayer(design.pointShape, design.pointIconPath)) return undefined;
+  const shape = design.pointShape || "circle";
+  return {
+    template: markerSvgTemplate(
+      shape,
+      design.pointIconPath,
+      design.pointIconW,
+      design.pointIconH,
+    ),
+    shape,
+    iconKey: design.pointIcon || "none",
+    anchor: markerAnchor(shape),
+    sizePx: markerPixelSize(design.pointSize),
+    defaultColor: design.pointColor,
+    categories: categories.length
+      ? categories.map((value, i) => ({ value, color: palette[i % palette.length] }))
+      : undefined,
+  };
+}
 
 /** Symbol-map bubbles: point features plus the value range for radius scaling. */
 export interface SymbolPoints {
@@ -311,6 +347,11 @@ export function buildDataLayer(args: BuildDataLayerArgs): DataLayer | null {
       circleRadius: Math.max(4, design.pointSize),
       nameField: "__name",
       showLabels: true,
+      marker: buildMarkerDescriptor(
+        design,
+        data.categoryColumn ? points.categories : [],
+        categoryPalette,
+      ),
       valueLabel,
       valueUnit: design.valueUnit || undefined,
       tooltipTemplate: design.tooltipTemplate,
@@ -336,6 +377,11 @@ export function buildDataLayer(args: BuildDataLayerArgs): DataLayer | null {
         design.pointSize,
       ),
       nameField: data.nameColumn || data.categoryColumn ? "__name" : undefined,
+      marker: buildMarkerDescriptor(
+        design,
+        data.categoryColumn ? points.categories : [],
+        categoryPalette,
+      ),
       valueLabel,
       valueUnit: design.valueUnit || undefined,
       tooltipTemplate: design.tooltipTemplate,

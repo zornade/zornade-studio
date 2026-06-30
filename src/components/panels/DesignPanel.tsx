@@ -37,6 +37,7 @@ import {
 } from "../../lib/annotations";
 import { designCaps, supportsGlobe } from "../../studio/design-caps";
 import { BIVARIATE_PALETTES, DEFAULT_BIVARIATE_PALETTE_ID } from "../../lib/bivariate";
+import { MarkerStyleControls } from "./MarkerStyleControls";
 
 const PRESET_OPTIONS: { id: PresetChoice; label: string }[] = [
   ...NEWSROOM_KIT_LIST.map((k) => ({ id: k.id as PresetChoice, label: k.label })),
@@ -684,6 +685,16 @@ export function DesignPanel() {
               />
             </Field>
           </div>
+        </PanelSection>
+      )}
+
+      {/* ---- Marker personalizzati (mappa localizzatore / punti) ---- */}
+      {caps.has("markerStyle") && (
+        <PanelSection
+          title="Marker"
+          hint="Forma del marker e icona (FontAwesome) per i punti."
+        >
+          <MarkerStyleControls design={design} updateDesign={updateDesign} />
         </PanelSection>
       )}
 

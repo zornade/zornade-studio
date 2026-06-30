@@ -26,6 +26,8 @@ export type DesignCapability =
   | "categoryBinding"
   /** Point styling: uniform colour + base size. */
   | "pointStyle"
+  /** Marker styling: shape + FontAwesome icon (locator / plain point maps). */
+  | "markerStyle"
   /** Custom HTML tooltip template. */
   | "tooltipTemplate"
   /** Reader-facing clickable legend filter (choropleth). */
@@ -42,12 +44,12 @@ export type DesignCapability =
 /** Capabilities per visualisation type (catalog id → blocks). */
 export const VIZ_DESIGN_CAPS: Record<string, DesignCapability[]> = {
   choropleth: ["geoBinding", "valueLabel", "colorScale", "classification", "tooltipTemplate", "readerFilters"],
-  points: ["valueLabel", "colorScale", "pointStyle", "tooltipTemplate"],
+  points: ["valueLabel", "colorScale", "pointStyle", "markerStyle", "tooltipTemplate"],
   // Proportional symbols: area-joined value drawn as sized bubbles at centroids.
   symbol: ["geoBinding", "valueLabel", "colorScale", "pointStyle", "tooltipTemplate"],
   // Category map: areas coloured by a categorical column.
   category: ["geoBinding", "categoryBinding", "colorScale", "tooltipTemplate"],
-  locator: ["pointStyle"],
+  locator: ["pointStyle", "markerStyle"],
   // Cartogram: areas resized by value (non-contiguous) or Dorling circles.
   cartogram: ["cartogramKind", "valueLabel", "colorScale", "classification", "tooltipTemplate"],
   // Flow map: arcs between origin/destination coordinate pairs.

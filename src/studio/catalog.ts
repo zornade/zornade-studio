@@ -929,13 +929,32 @@ export interface OsmPreset {
 export const OSM_PRESETS: OsmPreset[] = [
   // - Trasporti -
   { id: "ports", group: "Trasporti", label: "Porti e marina", tag: "leisure=marina / harbour", filters: [{ key: "leisure", value: "marina" }, { key: "harbour", value: "yes" }, { key: "seamark:type", value: "harbour" }] },
+  { id: "ferry", group: "Trasporti", label: "Terminal traghetti", tag: "amenity=ferry_terminal", filters: [{ key: "amenity", value: "ferry_terminal" }] },
   { id: "rail", group: "Trasporti", label: "Stazioni ferroviarie", tag: "railway=station", filters: [{ key: "railway", value: "station" }] },
+  { id: "subway", group: "Trasporti", label: "Metropolitana", tag: "station=subway", filters: [{ key: "station", value: "subway" }, { key: "railway", value: "subway_entrance" }] },
+  { id: "tram", group: "Trasporti", label: "Fermate del tram", tag: "railway=tram_stop", filters: [{ key: "railway", value: "tram_stop" }] },
   { id: "bus", group: "Trasporti", label: "Fermate del bus", tag: "highway=bus_stop", filters: [{ key: "highway", value: "bus_stop" }] },
+  { id: "busstation", group: "Trasporti", label: "Autostazioni", tag: "amenity=bus_station", filters: [{ key: "amenity", value: "bus_station" }] },
+  { id: "taxi", group: "Trasporti", label: "Posteggi taxi", tag: "amenity=taxi", filters: [{ key: "amenity", value: "taxi" }] },
   { id: "airports", group: "Trasporti", label: "Aeroporti", tag: "aeroway=aerodrome", filters: [{ key: "aeroway", value: "aerodrome" }] },
+  { id: "heliports", group: "Trasporti", label: "Eliporti / piazzole", tag: "aeroway=heliport / helipad", filters: [{ key: "aeroway", value: "heliport" }, { key: "aeroway", value: "helipad" }] },
   { id: "fuel", group: "Trasporti", label: "Distributori di carburante", tag: "amenity=fuel", filters: [{ key: "amenity", value: "fuel" }] },
   { id: "charging", group: "Trasporti", label: "Colonnine di ricarica", tag: "amenity=charging_station", filters: [{ key: "amenity", value: "charging_station" }] },
   { id: "parking", group: "Trasporti", label: "Parcheggi", tag: "amenity=parking", filters: [{ key: "amenity", value: "parking" }] },
   { id: "bikeshare", group: "Trasporti", label: "Bike sharing", tag: "amenity=bicycle_rental", filters: [{ key: "amenity", value: "bicycle_rental" }] },
+  { id: "carshare", group: "Trasporti", label: "Car sharing", tag: "amenity=car_sharing", filters: [{ key: "amenity", value: "car_sharing" }] },
+  { id: "tolls", group: "Trasporti", label: "Caselli e pedaggi", tag: "barrier=toll_booth", filters: [{ key: "barrier", value: "toll_booth" }] },
+
+  // - Militare e difesa -
+  { id: "mil-naval", group: "Militare e difesa", label: "Porti e basi navali militari", tag: "military=naval_base", filters: [{ key: "military", value: "naval_base" }] },
+  { id: "mil-airfield", group: "Militare e difesa", label: "Aeroporti militari", tag: "military=airfield", filters: [{ key: "military", value: "airfield" }] },
+  { id: "mil-barracks", group: "Militare e difesa", label: "Caserme", tag: "military=barracks", filters: [{ key: "military", value: "barracks" }] },
+  { id: "mil-bunker", group: "Militare e difesa", label: "Bunker", tag: "military=bunker", filters: [{ key: "military", value: "bunker" }] },
+  { id: "mil-checkpoint", group: "Militare e difesa", label: "Posti di blocco militari", tag: "military=checkpoint", filters: [{ key: "military", value: "checkpoint" }] },
+  { id: "mil-danger", group: "Militare e difesa", label: "Aree pericolose / poligoni", tag: "military=danger_area / range", filters: [{ key: "military", value: "danger_area" }, { key: "military", value: "range" }] },
+  { id: "mil-training", group: "Militare e difesa", label: "Aree addestramento", tag: "military=training_area", filters: [{ key: "military", value: "training_area" }] },
+  { id: "mil-depot", group: "Militare e difesa", label: "Depositi militari", tag: "military=depot", filters: [{ key: "military", value: "depot" }] },
+  { id: "mil-area", group: "Militare e difesa", label: "Zone militari (landuse)", tag: "landuse=military", filters: [{ key: "landuse", value: "military" }] },
 
   // - Sanità -
   { id: "hospitals", group: "Sanità", label: "Ospedali", tag: "amenity=hospital", filters: [{ key: "amenity", value: "hospital" }] },
@@ -944,48 +963,132 @@ export const OSM_PRESETS: OsmPreset[] = [
   { id: "dentists", group: "Sanità", label: "Dentisti", tag: "amenity=dentist", filters: [{ key: "amenity", value: "dentist" }] },
   { id: "vets", group: "Sanità", label: "Veterinari", tag: "amenity=veterinary", filters: [{ key: "amenity", value: "veterinary" }] },
   { id: "defib", group: "Sanità", label: "Defibrillatori (DAE)", tag: "emergency=defibrillator", filters: [{ key: "emergency", value: "defibrillator" }] },
+  { id: "nursing", group: "Sanità", label: "Case di riposo / RSA", tag: "amenity=nursing_home / social_facility", filters: [{ key: "amenity", value: "nursing_home" }, { key: "social_facility", value: "nursing_home" }] },
+  { id: "bloodbank", group: "Sanità", label: "Centri trasfusionali", tag: "healthcare=blood_donation", filters: [{ key: "healthcare", value: "blood_donation" }] },
+
+  // - Emergenza e protezione civile -
+  { id: "emg-phone", group: "Emergenza", label: "Colonnine SOS", tag: "emergency=phone", filters: [{ key: "emergency", value: "phone" }] },
+  { id: "emg-hydrant", group: "Emergenza", label: "Idranti antincendio", tag: "emergency=fire_hydrant", filters: [{ key: "emergency", value: "fire_hydrant" }] },
+  { id: "emg-ambulance", group: "Emergenza", label: "Stazioni ambulanze", tag: "emergency=ambulance_station", filters: [{ key: "emergency", value: "ambulance_station" }] },
+  { id: "emg-assembly", group: "Emergenza", label: "Punti di raccolta", tag: "emergency=assembly_point", filters: [{ key: "emergency", value: "assembly_point" }] },
+  { id: "emg-siren", group: "Emergenza", label: "Sirene d'allarme", tag: "emergency=siren", filters: [{ key: "emergency", value: "siren" }] },
+  { id: "emg-shelter", group: "Emergenza", label: "Rifugi / shelter", tag: "amenity=shelter", filters: [{ key: "amenity", value: "shelter" }] },
+  { id: "emg-lifeguard", group: "Emergenza", label: "Postazioni bagnino", tag: "emergency=lifeguard", filters: [{ key: "emergency", value: "lifeguard" }, { key: "emergency", value: "lifeguard_tower" }] },
 
   // - Istruzione -
   { id: "schools", group: "Istruzione", label: "Scuole", tag: "amenity=school", filters: [{ key: "amenity", value: "school" }] },
   { id: "kindergarten", group: "Istruzione", label: "Asili e materne", tag: "amenity=kindergarten", filters: [{ key: "amenity", value: "kindergarten" }] },
   { id: "universities", group: "Istruzione", label: "Università", tag: "amenity=university", filters: [{ key: "amenity", value: "university" }] },
+  { id: "college", group: "Istruzione", label: "Istituti superiori (college)", tag: "amenity=college", filters: [{ key: "amenity", value: "college" }] },
   { id: "libraries", group: "Istruzione", label: "Biblioteche", tag: "amenity=library", filters: [{ key: "amenity", value: "library" }] },
+  { id: "research", group: "Istruzione", label: "Centri di ricerca", tag: "amenity=research_institute", filters: [{ key: "amenity", value: "research_institute" }] },
 
   // - Servizi pubblici e sicurezza -
   { id: "police", group: "Servizi pubblici", label: "Polizia e carabinieri", tag: "amenity=police", filters: [{ key: "amenity", value: "police" }] },
   { id: "firestation", group: "Servizi pubblici", label: "Vigili del fuoco", tag: "amenity=fire_station", filters: [{ key: "amenity", value: "fire_station" }] },
   { id: "townhall", group: "Servizi pubblici", label: "Municipi", tag: "amenity=townhall", filters: [{ key: "amenity", value: "townhall" }] },
+  { id: "govoffice", group: "Servizi pubblici", label: "Uffici pubblici", tag: "office=government", filters: [{ key: "office", value: "government" }] },
   { id: "post", group: "Servizi pubblici", label: "Uffici postali", tag: "amenity=post_office", filters: [{ key: "amenity", value: "post_office" }] },
+  { id: "postbox", group: "Servizi pubblici", label: "Cassette postali", tag: "amenity=post_box", filters: [{ key: "amenity", value: "post_box" }] },
   { id: "courthouse", group: "Servizi pubblici", label: "Tribunali", tag: "amenity=courthouse", filters: [{ key: "amenity", value: "courthouse" }] },
+  { id: "prison", group: "Servizi pubblici", label: "Carceri", tag: "amenity=prison", filters: [{ key: "amenity", value: "prison" }] },
+  { id: "embassy", group: "Servizi pubblici", label: "Ambasciate e consolati", tag: "office=diplomatic", filters: [{ key: "office", value: "diplomatic" }, { key: "amenity", value: "embassy" }] },
+  { id: "customs", group: "Servizi pubblici", label: "Dogane e controllo confini", tag: "amenity=customs / barrier=border_control", filters: [{ key: "amenity", value: "customs" }, { key: "barrier", value: "border_control" }] },
   { id: "surveillance", group: "Servizi pubblici", label: "Telecamere di sorveglianza", tag: "man_made=surveillance", filters: [{ key: "man_made", value: "surveillance" }] },
+
+  // - Energia -
+  { id: "powerplant", group: "Energia", label: "Centrali elettriche", tag: "power=plant", filters: [{ key: "power", value: "plant" }] },
+  { id: "substation", group: "Energia", label: "Cabine / sottostazioni", tag: "power=substation", filters: [{ key: "power", value: "substation" }] },
+  { id: "wind", group: "Energia", label: "Turbine eoliche", tag: "generator:source=wind", filters: [{ key: "generator:source", value: "wind" }] },
+  { id: "solarfarm", group: "Energia", label: "Impianti fotovoltaici", tag: "generator:source=solar", filters: [{ key: "generator:source", value: "solar" }] },
+  { id: "powertower", group: "Energia", label: "Tralicci elettrici", tag: "power=tower", filters: [{ key: "power", value: "tower" }] },
+  { id: "gaswell", group: "Energia", label: "Pozzi petroliferi/gas", tag: "man_made=petroleum_well", filters: [{ key: "man_made", value: "petroleum_well" }] },
+
+  // - Acqua e ambiente -
+  { id: "watertower", group: "Acqua e ambiente", label: "Torri idriche", tag: "man_made=water_tower", filters: [{ key: "man_made", value: "water_tower" }] },
+  { id: "waterworks", group: "Acqua e ambiente", label: "Impianti acquedotto", tag: "man_made=water_works", filters: [{ key: "man_made", value: "water_works" }] },
+  { id: "wastewater", group: "Acqua e ambiente", label: "Depuratori", tag: "man_made=wastewater_plant", filters: [{ key: "man_made", value: "wastewater_plant" }] },
+  { id: "dam", group: "Acqua e ambiente", label: "Dighe", tag: "waterway=dam", filters: [{ key: "waterway", value: "dam" }] },
+  { id: "spring", group: "Acqua e ambiente", label: "Sorgenti", tag: "natural=spring", filters: [{ key: "natural", value: "spring" }] },
+  { id: "drinkwater", group: "Acqua e ambiente", label: "Acqua potabile", tag: "amenity=drinking_water", filters: [{ key: "amenity", value: "drinking_water" }] },
+  { id: "recycling", group: "Acqua e ambiente", label: "Raccolta rifiuti / riciclo", tag: "amenity=recycling", filters: [{ key: "amenity", value: "recycling" }] },
+  { id: "landfill", group: "Acqua e ambiente", label: "Discariche", tag: "landuse=landfill", filters: [{ key: "landuse", value: "landfill" }] },
+
+  // - Industria e infrastrutture -
+  { id: "industrial", group: "Industria", label: "Aree industriali", tag: "landuse=industrial", filters: [{ key: "landuse", value: "industrial" }] },
+  { id: "works", group: "Industria", label: "Stabilimenti / fabbriche", tag: "man_made=works", filters: [{ key: "man_made", value: "works" }] },
+  { id: "chimney", group: "Industria", label: "Ciminiere", tag: "man_made=chimney", filters: [{ key: "man_made", value: "chimney" }] },
+  { id: "crane", group: "Industria", label: "Gru portuali/cantiere", tag: "man_made=crane", filters: [{ key: "man_made", value: "crane" }] },
+  { id: "silo", group: "Industria", label: "Sili e serbatoi", tag: "man_made=silo / storage_tank", filters: [{ key: "man_made", value: "silo" }, { key: "man_made", value: "storage_tank" }] },
+  { id: "quarry", group: "Industria", label: "Cave e miniere", tag: "landuse=quarry", filters: [{ key: "landuse", value: "quarry" }] },
+
+  // - Telecomunicazioni -
+  { id: "commtower", group: "Telecomunicazioni", label: "Torri di comunicazione", tag: "man_made=communications_tower", filters: [{ key: "man_made", value: "communications_tower" }] },
+  { id: "mast", group: "Telecomunicazioni", label: "Antenne / ripetitori", tag: "tower:type=communication", filters: [{ key: "tower:type", value: "communication" }, { key: "telecom", value: "antenna" }] },
+  { id: "exchange", group: "Telecomunicazioni", label: "Centrali telefoniche", tag: "telecom=exchange", filters: [{ key: "telecom", value: "exchange" }] },
+  { id: "phonebox", group: "Telecomunicazioni", label: "Cabine telefoniche", tag: "amenity=telephone", filters: [{ key: "amenity", value: "telephone" }] },
 
   // - Cultura e turismo -
   { id: "museums", group: "Cultura e turismo", label: "Musei", tag: "tourism=museum", filters: [{ key: "tourism", value: "museum" }] },
+  { id: "galleries", group: "Cultura e turismo", label: "Gallerie d'arte", tag: "tourism=gallery", filters: [{ key: "tourism", value: "gallery" }] },
+  { id: "artwork", group: "Cultura e turismo", label: "Opere d'arte pubbliche", tag: "tourism=artwork", filters: [{ key: "tourism", value: "artwork" }] },
   { id: "worship", group: "Cultura e turismo", label: "Luoghi di culto", tag: "amenity=place_of_worship", filters: [{ key: "amenity", value: "place_of_worship" }] },
   { id: "monuments", group: "Cultura e turismo", label: "Monumenti e memoriali", tag: "historic=monument / memorial", filters: [{ key: "historic", value: "monument" }, { key: "historic", value: "memorial" }] },
   { id: "castles", group: "Cultura e turismo", label: "Castelli", tag: "historic=castle", filters: [{ key: "historic", value: "castle" }] },
+  { id: "archaeo", group: "Cultura e turismo", label: "Siti archeologici", tag: "historic=archaeological_site", filters: [{ key: "historic", value: "archaeological_site" }] },
+  { id: "ruins", group: "Cultura e turismo", label: "Ruderi", tag: "historic=ruins", filters: [{ key: "historic", value: "ruins" }] },
   { id: "theatres", group: "Cultura e turismo", label: "Teatri", tag: "amenity=theatre", filters: [{ key: "amenity", value: "theatre" }] },
   { id: "cinemas", group: "Cultura e turismo", label: "Cinema", tag: "amenity=cinema", filters: [{ key: "amenity", value: "cinema" }] },
   { id: "hotels", group: "Cultura e turismo", label: "Hotel e alloggi", tag: "tourism=hotel / guest_house", filters: [{ key: "tourism", value: "hotel" }, { key: "tourism", value: "guest_house" }] },
   { id: "attractions", group: "Cultura e turismo", label: "Attrazioni turistiche", tag: "tourism=attraction", filters: [{ key: "tourism", value: "attraction" }] },
+  { id: "viewpoints", group: "Cultura e turismo", label: "Punti panoramici", tag: "tourism=viewpoint", filters: [{ key: "tourism", value: "viewpoint" }] },
 
   // - Commercio e ristorazione -
   { id: "supermarkets", group: "Commercio", label: "Supermercati", tag: "shop=supermarket", filters: [{ key: "shop", value: "supermarket" }] },
+  { id: "malls", group: "Commercio", label: "Centri commerciali", tag: "shop=mall / department_store", filters: [{ key: "shop", value: "mall" }, { key: "shop", value: "department_store" }] },
+  { id: "convenience", group: "Commercio", label: "Negozi di vicinato", tag: "shop=convenience", filters: [{ key: "shop", value: "convenience" }] },
+  { id: "bakery", group: "Commercio", label: "Panetterie", tag: "shop=bakery", filters: [{ key: "shop", value: "bakery" }] },
+  { id: "butcher", group: "Commercio", label: "Macellerie", tag: "shop=butcher", filters: [{ key: "shop", value: "butcher" }] },
+  { id: "clothes", group: "Commercio", label: "Abbigliamento", tag: "shop=clothes", filters: [{ key: "shop", value: "clothes" }] },
+  { id: "electronics", group: "Commercio", label: "Elettronica", tag: "shop=electronics", filters: [{ key: "shop", value: "electronics" }] },
+  { id: "hardware", group: "Commercio", label: "Ferramenta / fai-da-te", tag: "shop=hardware / doityourself", filters: [{ key: "shop", value: "hardware" }, { key: "shop", value: "doityourself" }] },
+  { id: "cardealer", group: "Commercio", label: "Concessionari auto", tag: "shop=car", filters: [{ key: "shop", value: "car" }] },
+  { id: "bikeshop", group: "Commercio", label: "Negozi di biciclette", tag: "shop=bicycle", filters: [{ key: "shop", value: "bicycle" }] },
+  { id: "hairdresser", group: "Commercio", label: "Parrucchieri", tag: "shop=hairdresser", filters: [{ key: "shop", value: "hairdresser" }] },
   { id: "markets", group: "Commercio", label: "Mercati", tag: "amenity=marketplace", filters: [{ key: "amenity", value: "marketplace" }] },
   { id: "banks", group: "Commercio", label: "Banche", tag: "amenity=bank", filters: [{ key: "amenity", value: "bank" }] },
   { id: "atms", group: "Commercio", label: "Bancomat (ATM)", tag: "amenity=atm", filters: [{ key: "amenity", value: "atm" }] },
+  { id: "exchangeoffice", group: "Commercio", label: "Cambiavalute", tag: "amenity=bureau_de_change", filters: [{ key: "amenity", value: "bureau_de_change" }] },
   { id: "restaurants", group: "Commercio", label: "Ristoranti", tag: "amenity=restaurant", filters: [{ key: "amenity", value: "restaurant" }] },
+  { id: "fastfood", group: "Commercio", label: "Fast food", tag: "amenity=fast_food", filters: [{ key: "amenity", value: "fast_food" }] },
   { id: "bars", group: "Commercio", label: "Bar e caffè", tag: "amenity=bar / cafe", filters: [{ key: "amenity", value: "bar" }, { key: "amenity", value: "cafe" }] },
+  { id: "pubs", group: "Commercio", label: "Pub e birrerie", tag: "amenity=pub", filters: [{ key: "amenity", value: "pub" }] },
 
-  // - Ambiente e svago -
-  { id: "parks", group: "Ambiente e svago", label: "Parchi e giardini", tag: "leisure=park / garden", filters: [{ key: "leisure", value: "park" }, { key: "leisure", value: "garden" }] },
-  { id: "playgrounds", group: "Ambiente e svago", label: "Aree gioco", tag: "leisure=playground", filters: [{ key: "leisure", value: "playground" }] },
-  { id: "sports", group: "Ambiente e svago", label: "Impianti sportivi", tag: "leisure=sports_centre / pitch", filters: [{ key: "leisure", value: "sports_centre" }, { key: "leisure", value: "pitch" }] },
-  { id: "campsites", group: "Ambiente e svago", label: "Campeggi", tag: "tourism=camp_site", filters: [{ key: "tourism", value: "camp_site" }] },
-  { id: "fountains", group: "Ambiente e svago", label: "Fontane", tag: "amenity=fountain", filters: [{ key: "amenity", value: "fountain" }] },
-  { id: "water", group: "Ambiente e svago", label: "Acqua potabile", tag: "amenity=drinking_water", filters: [{ key: "amenity", value: "drinking_water" }] },
-  { id: "toilets", group: "Ambiente e svago", label: "Bagni pubblici", tag: "amenity=toilets", filters: [{ key: "amenity", value: "toilets" }] },
-  { id: "recycling", group: "Ambiente e svago", label: "Raccolta rifiuti / riciclo", tag: "amenity=recycling", filters: [{ key: "amenity", value: "recycling" }] },
+  // - Sport e tempo libero -
+  { id: "parks", group: "Sport e svago", label: "Parchi e giardini", tag: "leisure=park / garden", filters: [{ key: "leisure", value: "park" }, { key: "leisure", value: "garden" }] },
+  { id: "playgrounds", group: "Sport e svago", label: "Aree gioco", tag: "leisure=playground", filters: [{ key: "leisure", value: "playground" }] },
+  { id: "sports", group: "Sport e svago", label: "Impianti sportivi", tag: "leisure=sports_centre / pitch", filters: [{ key: "leisure", value: "sports_centre" }, { key: "leisure", value: "pitch" }] },
+  { id: "stadiums", group: "Sport e svago", label: "Stadi e arene", tag: "leisure=stadium", filters: [{ key: "leisure", value: "stadium" }] },
+  { id: "gyms", group: "Sport e svago", label: "Palestre / fitness", tag: "leisure=fitness_centre", filters: [{ key: "leisure", value: "fitness_centre" }] },
+  { id: "pools", group: "Sport e svago", label: "Piscine", tag: "leisure=swimming_pool", filters: [{ key: "leisure", value: "swimming_pool" }] },
+  { id: "golf", group: "Sport e svago", label: "Campi da golf", tag: "leisure=golf_course", filters: [{ key: "leisure", value: "golf_course" }] },
+  { id: "campsites", group: "Sport e svago", label: "Campeggi", tag: "tourism=camp_site", filters: [{ key: "tourism", value: "camp_site" }] },
+  { id: "fountains", group: "Sport e svago", label: "Fontane", tag: "amenity=fountain", filters: [{ key: "amenity", value: "fountain" }] },
+  { id: "toilets", group: "Sport e svago", label: "Bagni pubblici", tag: "amenity=toilets", filters: [{ key: "amenity", value: "toilets" }] },
+
+  // - Natura -
+  { id: "peaks", group: "Natura", label: "Cime e vette", tag: "natural=peak", filters: [{ key: "natural", value: "peak" }] },
+  { id: "volcanoes", group: "Natura", label: "Vulcani", tag: "natural=volcano", filters: [{ key: "natural", value: "volcano" }] },
+  { id: "caves", group: "Natura", label: "Grotte", tag: "natural=cave_entrance", filters: [{ key: "natural", value: "cave_entrance" }] },
+  { id: "beaches", group: "Natura", label: "Spiagge", tag: "natural=beach", filters: [{ key: "natural", value: "beach" }] },
+  { id: "waterfalls", group: "Natura", label: "Cascate", tag: "waterway=waterfall", filters: [{ key: "waterway", value: "waterfall" }] },
+
+  // - Agricoltura -
+  { id: "farms", group: "Agricoltura", label: "Fattorie / aziende agricole", tag: "landuse=farmyard", filters: [{ key: "landuse", value: "farmyard" }] },
+  { id: "vineyards", group: "Agricoltura", label: "Vigneti", tag: "landuse=vineyard", filters: [{ key: "landuse", value: "vineyard" }] },
+  { id: "orchards", group: "Agricoltura", label: "Frutteti", tag: "landuse=orchard", filters: [{ key: "landuse", value: "orchard" }] },
+  { id: "greenhouses", group: "Agricoltura", label: "Serre", tag: "landuse=greenhouse_horticulture", filters: [{ key: "landuse", value: "greenhouse_horticulture" }, { key: "building", value: "greenhouse" }] },
+  { id: "beehives", group: "Agricoltura", label: "Apiari", tag: "man_made=beehive", filters: [{ key: "man_made", value: "beehive" }] },
 ];
 
 /** Distinct OSM preset groups, in declaration order. */

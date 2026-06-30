@@ -59,6 +59,19 @@ export interface DesignSettings {
   pointColor: string;
   /** Point layer: base radius in px (also the centre of the size scale). */
   pointSize: number;
+  /**
+   * Marker shape for locator/point maps (see MARKER_SHAPES). "circle" with no
+   * icon keeps the plain circle-layer rendering; any other shape (or any icon)
+   * switches to a symbol layer with a rendered marker image. Default "circle".
+   */
+  pointShape: string;
+  /** Selected FontAwesome icon id (e.g. "hospital"); "" = no glyph. */
+  pointIcon: string;
+  /** Raw SVG path data of the selected icon (baked so the embed is offline). */
+  pointIconPath: string;
+  /** Native viewBox width/height of the selected icon path (FA height is 512). */
+  pointIconW: number;
+  pointIconH: number;
   showTitle: boolean;
   showLegend: boolean;
   showSource: boolean;

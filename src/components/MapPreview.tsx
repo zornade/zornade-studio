@@ -8,6 +8,11 @@ import { computeBounds } from "../lib/geo-bounds";
 import { skySpec, lightSpec, projectionSpec } from "../lib/map-style";
 import { BRAND_TEAL } from "../studio/palettes";
 import {
+  MARKER_COLOR_TOKEN,
+  markerViewBox,
+  markerImageId,
+} from "../lib/markers";
+import {
   annotationsToGeoJson,
   markerAnnotations,
   newAnnotationId,
@@ -46,6 +51,26 @@ export interface DataLayer {
   circleRadius?: unknown;
   /** Circle fill opacity (point). Default 0.9. */
   circleOpacity?: number;
+  /**
+   * Marker rendering (locator / plain point maps): when set, the point dataset
+   * is drawn as a MapLibre symbol layer with a rendered marker image (shape +
+   * optional icon) instead of a plain circle. See lib/markers.ts.
+   */
+  marker?: {
+    /** SVG template carrying the MARKER_COLOR_TOKEN colour placeholder. */
+    template: string;
+    /** Shape id (drives the image cache key + viewBox aspect ratio). */
+    shape: string;
+    /** Icon id (or "none") - part of the image cache key. */
+    iconKey: string;
+    anchor: "center" | "bottom";
+    /** On-screen marker width in CSS px. */
+    sizePx: number;
+    /** Colour for points without a category (and category fallback). */
+    defaultColor: string;
+    /** Distinct categories with their colours (one marker image each). */
+    categories?: { value: string; color: string }[];
+  };
   /** Heatmap paint object (kind "heatmap"). */
   heatmapPaint?: Record<string, unknown>;
   /** Value range driving the extrusion height (kind "extrusion"). */
@@ -226,6 +251,73 @@ function raiseBasemapLabels(map: maplibregl.Map): void {
       }
     }
   }
+}
+
+/**
+ * Rasterize an SVG string (sized `wPx`×`hPx` CSS px, rendered at `dpr`) to an
+ * `ImageData` suitable for `map.addImage(..., { pixelRatio: dpr })`. Resolves
+ * to `null` if the browser cannot decode the SVG or lacks a 2D context.
+ */
+function rasterizeSvgToImage(
+  svg: string,
+  wPx: number,
+  hPx: number,
+  dpr: number,
+): Promise<ImageData | null> {
+  return new Promise((resolve) => {
+    const w = Math.max(1, Math.round(wPx * dpr));
+    const h = Math.max(1, Math.round(hPx * dpr));
+    const img = new Image();
+    img.onload = () => {
+      const canvas = document.createElement("canvas");
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        resolve(null);
+        return;
+      }
+      ctx.drawImage(img, 0, 0, w, h);
+      resolve(ctx.getImageData(0, 0, w, h));
+    };
+    img.onerror = () => resolve(null);
+    img.src =
+      "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg);
+  });
+}
+
+/**
+ * Build the list of marker images needed for a point layer: the default colour
+ * plus one image per distinct category colour. Image ids are content-addressed
+ * (shape + icon + colour + size + dpr) so re-syncs reuse the existing images.
+ */
+function markerImageList(
+  marker: NonNullable<DataLayer["marker"]>,
+  dpr: number,
+): { name: string; color: string }[] {
+  const out: { name: string; color: string }[] = [
+    {
+      name: markerImageId(
+        marker.shape,
+        marker.iconKey,
+        marker.defaultColor,
+        marker.sizePx,
+        dpr,
+      ),
+      color: marker.defaultColor,
+    },
+  ];
+  for (const c of marker.categories ?? []) {
+    const name = markerImageId(
+      marker.shape,
+      marker.iconKey,
+      c.color,
+      marker.sizePx,
+      dpr,
+    );
+    if (!out.some((o) => o.name === name)) out.push({ name, color: c.color });
+  }
+  return out;
 }
 
 /**
@@ -490,30 +582,11 @@ export function MapPreview({
     }
 
     if (layer.kind === "point") {
-      // Point layer: a single circle layer keyed FILL so the existing hover
-      // tooltip (bound to FILL) works for points too.
-      map.addLayer(
-        {
-          id: FILL,
-          type: "circle",
-          source: SRC,
-          paint: {
-            "circle-color":
-              (layer.circleColor as maplibregl.ExpressionSpecification) ??
-              BRAND_TEAL,
-            "circle-radius":
-              (layer.circleRadius as maplibregl.ExpressionSpecification) ?? 5,
-            "circle-stroke-color": "#ffffff",
-            "circle-stroke-width": 1,
-            "circle-opacity": (layer.circleOpacity ?? 0.9) * op,
-          },
-        },
-        firstSymbol,
-      );
-      // Locator: always-on text labels above the points. Reuse the basemap's
-      // own glyph font (read from the first symbol layer) so the text is
-      // guaranteed to render; fall back to a common font otherwise.
-      if (layer.showLabels && layer.nameField) {
+      // Always-on text labels (locator map) above the points/markers. Reuse the
+      // basemap's own glyph font so the text is guaranteed to render.
+      const addPointLabels = () => {
+        if (!(layer.showLabels && layer.nameField)) return;
+        if (map.getLayer(LABEL)) return;
         let textFont: string[] = ["Noto Sans Regular"];
         if (firstSymbol) {
           const f = map.getLayoutProperty(firstSymbol, "text-font");
@@ -537,7 +610,109 @@ export function MapPreview({
             "text-halo-width": 1.4,
           },
         });
+      };
+
+      // Custom marker (non-circle shape and/or a FontAwesome glyph): render a
+      // symbol layer keyed FILL (so the hover tooltip still works) with one
+      // rasterized image per colour. The plain circle path below stays the
+      // default so unchanged designs render byte-identically.
+      const marker = layer.marker;
+      if (marker) {
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        const images = markerImageList(marker, dpr);
+        const vb = markerViewBox(marker.shape);
+        const hPx = (marker.sizePx * vb.height) / vb.width;
+        Promise.all(
+          images.map(async ({ name, color }) => {
+            if (map.hasImage(name)) return;
+            const svg = marker.template.split(MARKER_COLOR_TOKEN).join(color);
+            const data = await rasterizeSvgToImage(svg, marker.sizePx, hPx, dpr);
+            if (data && !map.hasImage(name)) {
+              map.addImage(name, data, { pixelRatio: dpr });
+            }
+          }),
+        ).then(() => {
+          // Bail if a newer sync replaced this layer while images loaded.
+          if (dataLayerRef.current !== layer) return;
+          if (!map.getSource(SRC) || map.getLayer(FILL)) return;
+          const iconImage:
+            | string
+            | maplibregl.ExpressionSpecification =
+            marker.categories && marker.categories.length > 0
+              ? ([
+                  "match",
+                  ["get", "__cat"],
+                  ...marker.categories.flatMap((c) => [
+                    c.value,
+                    markerImageId(
+                      marker.shape,
+                      marker.iconKey,
+                      c.color,
+                      marker.sizePx,
+                      dpr,
+                    ),
+                  ]),
+                  markerImageId(
+                    marker.shape,
+                    marker.iconKey,
+                    marker.defaultColor,
+                    marker.sizePx,
+                    dpr,
+                  ),
+                ] as unknown as maplibregl.ExpressionSpecification)
+              : markerImageId(
+                  marker.shape,
+                  marker.iconKey,
+                  marker.defaultColor,
+                  marker.sizePx,
+                  dpr,
+                );
+          map.addLayer(
+            {
+              id: FILL,
+              type: "symbol",
+              source: SRC,
+              layout: {
+                "icon-image": iconImage,
+                "icon-size": 1,
+                "icon-anchor": marker.anchor,
+                "icon-allow-overlap": true,
+                "icon-ignore-placement": true,
+              },
+              paint: {
+                "icon-opacity": (layer.circleOpacity ?? 1) * op,
+              },
+            },
+            firstSymbol,
+          );
+          addPointLabels();
+          applyDataFilter(map);
+          raiseBasemapLabels(map);
+        });
+        return;
       }
+
+      // Point layer: a single circle layer keyed FILL so the existing hover
+      // tooltip (bound to FILL) works for points too.
+      map.addLayer(
+        {
+          id: FILL,
+          type: "circle",
+          source: SRC,
+          paint: {
+            "circle-color":
+              (layer.circleColor as maplibregl.ExpressionSpecification) ??
+              BRAND_TEAL,
+            "circle-radius":
+              (layer.circleRadius as maplibregl.ExpressionSpecification) ?? 5,
+            "circle-stroke-color": "#ffffff",
+            "circle-stroke-width": 1,
+            "circle-opacity": (layer.circleOpacity ?? 0.9) * op,
+          },
+        },
+        firstSymbol,
+      );
+      addPointLabels();
       raiseBasemapLabels(map);
       return;
     }

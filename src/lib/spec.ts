@@ -24,6 +24,7 @@ import { sanitizeAnnotations, type Annotation } from "./annotations";
 import { buildPointFeatures } from "./points";
 import { prepareGeoRender } from "./geo-dataset";
 import { buildFlows } from "./flow";
+import { usesMarkerLayer } from "./markers";
 import { sanitizeStorySteps, type StoryStep, type StoryCamera } from "./story";
 import { DEFAULT_BIVARIATE_PALETTE_ID } from "./bivariate";
 import type { GeometryKind } from "../studio/types";
@@ -106,6 +107,16 @@ export interface SpecDesign {
   pointColor: string;
   /** Base point size for symbol maps. */
   pointSize: number;
+  /** Marker shape id (locator/points). Absent = "circle" (back-compat). */
+  pointShape?: string;
+  /** FontAwesome icon id baked into the marker (locator/points). Absent = none. */
+  pointIcon?: string;
+  /** Baked FontAwesome icon SVG path (locator/points). Absent = none. */
+  pointIconPath?: string;
+  /** Baked FontAwesome icon viewBox width. */
+  pointIconW?: number;
+  /** Baked FontAwesome icon viewBox height. */
+  pointIconH?: number;
   /** Custom raster basemap tile URL (XYZ/WMS), used when basemap = "custom-raster". */
   customBasemapUrl?: string;
   /** Hide every basemap label (place/road names). Absent = false (back-compat). */
@@ -616,6 +627,19 @@ function buildPointSpec(state: StudioState & { camera?: StoryCamera | null }, re
       ...(design.hideLabels ? { hideLabels: true } : {}),
       ...(design.lockView ? { lockView: true } : {}),
       ...((design.dataOpacity ?? 1) !== 1 ? { dataOpacity: design.dataOpacity } : {}),
+      // Custom markers apply only to the locator/points renders; emit the
+      // fields only when actually customised so default circle embeds stay
+      // byte-identical with previously-published snapshots.
+      ...((render === "locator" || render === "points") &&
+      usesMarkerLayer(design.pointShape, design.pointIconPath)
+        ? {
+            pointShape: design.pointShape || "circle",
+            pointIcon: design.pointIcon || "",
+            pointIconPath: design.pointIconPath || "",
+            pointIconW: design.pointIconW || 0,
+            pointIconH: design.pointIconH || 0,
+          }
+        : {}),
     },
     ...(state.camera ? { camera: state.camera } : {}),
   };

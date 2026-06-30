@@ -33,6 +33,15 @@ import { tercileClass, bivariatePaletteColors } from "./bivariate";
 import { buildHeatmapPaint } from "./heatmap";
 import { hexbin } from "./hexbin";
 import { buildPointColorExpression, buildPointRadiusExpression } from "./points";
+import {
+  usesMarkerLayer,
+  markerSvgTemplate,
+  markerAnchor,
+  markerPixelSize,
+  markerViewBox,
+  markerImageId,
+  MARKER_COLOR_TOKEN,
+} from "./markers";
 import { accessibleTableHtml } from "./data-table";
 import { skySpec, lightSpec } from "./map-style";
 import type { AreaRender } from "./spec";
@@ -1283,6 +1292,62 @@ function buildPointEmbedHtml(spec: PointSpec, opts: EmbedOptions): string {
   const annotGeo = annotationsToGeoJson(anns);
   const annotMarkers = markerAnnotations(anns);
 
+  // Custom markers (locator/points only): bake the SVG template + one image
+  // descriptor per colour, so the inline renderer rasterizes them client-side
+  // and draws a symbol layer instead of the circle layer. Default circle
+  // designs leave `markerEmbed` undefined → byte-identical circle embed.
+  let markerEmbed:
+    | {
+        template: string;
+        colorToken: string;
+        anchor: "center" | "bottom";
+        widthPx: number;
+        heightPx: number;
+        iconImage: unknown;
+        images: { name: string; color: string }[];
+      }
+    | undefined;
+  if (
+    (spec.render === "locator" || spec.render === "points") &&
+    usesMarkerLayer(d.pointShape ?? "", d.pointIconPath ?? "")
+  ) {
+    const shape = d.pointShape || "circle";
+    const iconKey = d.pointIcon || "none";
+    const sizePx = markerPixelSize(d.pointSize);
+    const vb = markerViewBox(shape);
+    const template = markerSvgTemplate(
+      shape,
+      d.pointIconPath ?? "",
+      d.pointIconW ?? 0,
+      d.pointIconH ?? 0,
+    );
+    const defaultName = markerImageId(shape, iconKey, d.pointColor, sizePx, 1);
+    const images: { name: string; color: string }[] = [
+      { name: defaultName, color: d.pointColor },
+    ];
+    let iconImage: unknown = defaultName;
+    if (hasCategory) {
+      const expr: unknown[] = ["match", ["get", "__cat"]];
+      categories.forEach((cat, i) => {
+        const color = scaleColors[i % scaleColors.length];
+        const name = markerImageId(shape, iconKey, color, sizePx, 1);
+        expr.push(cat, name);
+        if (!images.some((im) => im.name === name)) images.push({ name, color });
+      });
+      expr.push(defaultName);
+      iconImage = expr;
+    }
+    markerEmbed = {
+      template,
+      colorToken: MARKER_COLOR_TOKEN,
+      anchor: markerAnchor(shape),
+      widthPx: sizePx,
+      heightPx: (sizePx * vb.height) / vb.width,
+      iconImage,
+      images,
+    };
+  }
+
   // Accessible data table: name + value (or category) per point.
   const tableFmt = new Intl.NumberFormat("it-IT", { maximumFractionDigits: 2 });
   const nameHeader = spec.fields.name || "Punto";
@@ -1337,6 +1402,7 @@ function buildPointEmbedHtml(spec: PointSpec, opts: EmbedOptions): string {
     tooltipTemplate: d.tooltipTemplate || "",
     annotGeo,
     annotMarkers,
+    ...(markerEmbed ? { marker: markerEmbed } : {}),
   };
 
   return `<!doctype html>
@@ -1381,7 +1447,36 @@ map.addControl(new maplibregl.AttributionControl({compact:true,customAttribution
 map.on("load",function(){if(E.globe){try{map.setProjection({type:"globe"});}catch(e){}}sky();loc();if(E.hideLabels)hideLbl();build();});
 function build(){
   map.addSource("d",{type:"geojson",data:E.geojson});
+  if(E.marker){buildMarker();return;}
   map.addLayer({id:"d-fill",type:E.layerType,source:"d",paint:E.paint});
+  finishBuild();
+}
+function buildMarker(){
+  var mk=E.marker,dpr=Math.min(window.devicePixelRatio||1,2),pend=mk.images.length;
+  function done(){
+    if(map.getLayer("d-fill"))return;
+    map.addLayer({id:"d-fill",type:"symbol",source:"d",
+      layout:{"icon-image":mk.iconImage,"icon-size":1,"icon-anchor":mk.anchor,
+        "icon-allow-overlap":true,"icon-ignore-placement":true},paint:{}});
+    finishBuild();
+  }
+  if(pend===0){done();return;}
+  mk.images.forEach(function(im){
+    if(map.hasImage(im.name)){if(--pend===0)done();return;}
+    var svg=mk.template.split(mk.colorToken).join(im.color);
+    var img=new Image(),w=Math.max(1,Math.round(mk.widthPx*dpr)),h=Math.max(1,Math.round(mk.heightPx*dpr));
+    img.onload=function(){
+      try{var c=document.createElement("canvas");c.width=w;c.height=h;
+        var ctx=c.getContext("2d");ctx.drawImage(img,0,0,w,h);
+        if(!map.hasImage(im.name))map.addImage(im.name,ctx.getImageData(0,0,w,h),{pixelRatio:dpr});
+      }catch(e){}
+      if(--pend===0)done();
+    };
+    img.onerror=function(){if(--pend===0)done();};
+    img.src="data:image/svg+xml;charset=utf-8,"+encodeURIComponent(svg);
+  });
+}
+function finishBuild(){
   if(E.showLabels){
     var firstSym=(map.getStyle().layers||[]).filter(function(l){return l.type==="symbol";})[0];
     var tf=["Noto Sans Regular"];
