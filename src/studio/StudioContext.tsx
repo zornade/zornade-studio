@@ -21,6 +21,7 @@ import type {
 import type { PresetChoice } from "./catalog";
 import { NEWSROOM_KITS } from "./catalog";
 import { isChartType } from "../lib/chart-data";
+import { resetDesignForNewData } from "./data-change-reset";
 import type { SavableProject } from "../lib/project";
 import type { Annotation, DrawTool } from "../lib/annotations";
 import {
@@ -264,6 +265,12 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       },
       updateDesign: (patch) => setDesign((d) => ({ ...d, ...patch })),
       setData: (next) => {
+        // Replacing an existing dataset invalidates anything in `design` that
+        // was tied to the OLD dataset's specific columns/value distribution
+        // (chart axes, flow columns, manual class breaks...) - see
+        // data-change-reset.ts for the full rationale. A no-op on the very
+        // first load (prevData null).
+        setDesign((d) => resetDesignForNewData(d, data, next));
         setData(next);
         setTimeIndex(initialTimeIndex(next));
         // A non-geographic table can't go on a map: if the current viz is a map

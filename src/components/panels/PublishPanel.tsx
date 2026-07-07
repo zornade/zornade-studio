@@ -225,19 +225,46 @@ export function PublishPanel() {
   };
 
   // The embed snippet only makes sense once a real, immutable URL exists.
+  //
+  // The comment below deliberately keeps the two attribution obligations
+  // SEPARATE (verified against the OSMF Attribution Guideline and the ODbL
+  // text, 2026-07-07 - see /memories/repo/ for the research notes): the OSM
+  // credit is a genuine, universal condition of the ODbL data licence (it
+  // cannot be waived by Zornade, on any plan); the "Mappa di Zornade" link is
+  // Zornade's own Terms of Service condition for the free hosted embed - the
+  // same model used by Datawrapper ("Created with Datawrapper" on the free
+  // plan, removable only on paid plans) and Flourish ("with attribution" on
+  // the free plan). Conflating the two into a single "required by ODbL and
+  // ToS" claim would misstate what OSM's licence actually requires.
+  //
+  // The caption deliberately splits TWO links with two different targets
+  // (same pattern as Datawrapper's own footer, which separates "Get the
+  // data" from "Created with Datawrapper" into distinct anchors, 2026-07-07
+  // research): the title links to the map's OWN page (publishedUrl) so a
+  // reader can click through to see/share the actual map full-size; "Mappa
+  // di Zornade" links straight to the zornade.com/studio marketing page, so
+  // the external backlink from the THIRD-PARTY site (the one with real SEO
+  // value) lands directly on the product page instead of being diluted
+  // through an extra hop via the embed's own page.
   const embed = publishedUrl
     ? `<!--
-  Mappa realizzata con Zornade Studio - https://zornade.com/studio
-  ATTRIBUZIONE OBBLIGATORIA. Questa mappa contiene dati © OpenStreetMap (licenza
-  ODbL) ed elaborazioni proprietarie Zornade. Il mantenimento dei crediti e del
-  link a zornade.com è richiesto dalle licenze dei dati (ODbL) e dai Termini di
-  servizio dell'embed: la rimozione costituisce una violazione di licenza.
-  Non rimuovere né nascondere questo blocco e la didascalia sottostante.
+  ATTRIBUZIONE DATI:
+  questa mappa contiene dati © OpenStreetMap contributors, distribuiti sotto
+  Open Database License (https://opendatacommons.org/licenses/odbl/). Non
+  rimuovere né nascondere il credito "Dati © OpenStreetMap" nella didascalia
+  sottostante: è un obbligo della licenza dei dati OSM, non di Zornade.
+
+  ATTRIBUZIONE ZORNADE:
+  questa mappa è stata realizzata con Zornade Studio (https://zornade.com/studio). 
+  Il mantenimento del link "Mappa di Zornade" è richiesto dai Termini di servizio 
+  dell'embed gratuito - la rimozione costituisce una violazione contrattuale 
+  verso Zornade. Una licenza commerciale Zornade può derogare a QUESTA condizione
+  (mai al credito OpenStreetMap, che resta sempre dovuto).
 -->
 <figure style="margin:0">
   <iframe src="${publishedUrl}" width="100%" height="520" frameborder="0" scrolling="no" title="${project.title}" loading="lazy"></iframe>
   <figcaption style="font:13px/1.45 system-ui,-apple-system,sans-serif;color:#475569;margin-top:6px">
-    <a href="${publishedUrl}" target="_blank" rel="noopener">${project.title} - Mappa di Zornade</a> · Dati © OpenStreetMap
+    <a href="${publishedUrl}" target="_blank" rel="noopener">${project.title}</a> - <a href="https://zornade.com/studio" target="_blank" rel="noopener">Mappa di Zornade</a> · Dati © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>
   </figcaption>
 </figure>`
     : "";
@@ -419,9 +446,11 @@ export function PublishPanel() {
               in modo permanente e non cambia se in seguito modifichi il progetto.
             </p>
             <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700">
-              Lo snippet include i crediti e il link a Zornade: l'attribuzione è
-              richiesta dalle licenze dei dati (ODbL di OpenStreetMap) e dai
-              Termini di servizio. Non va rimossa.
+              Lo snippet include il credito a OpenStreetMap (obbligatorio per
+              licenza dati ODbL, non rimovibile) e il link a Zornade
+              (richiesto dai Termini di servizio dell'embed gratuito,
+              rimovibile solo con una licenza commerciale Zornade). Non
+              rimuovere il credito OpenStreetMap.
             </p>
             <p className="rounded-lg bg-blue-50 px-3 py-2 text-xs text-blue-700">
               <strong>WordPress:</strong> incolla direttamente questo URL in un

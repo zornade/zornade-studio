@@ -3,9 +3,17 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Zornade Studio - strumento interno di produzione mappe e visualizzazioni editoriali",
+  "description": "Zornade Studio - editor open source per mappe e visualizzazioni dati editoriali",
   "license": "AGPL-3.0-or-later",
   "author": "Zornade",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zornade/zornade-studio.git"
+  },
+  "homepage": "https://studio.zornade.com",
+  "bugs": {
+    "url": "https://github.com/zornade/zornade-studio/issues"
+  },
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",

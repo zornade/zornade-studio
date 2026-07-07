@@ -20,21 +20,38 @@ da più fonti di dati e sono soggette a OBBLIGO DI ATTRIBUZIONE:
 
   - Dati cartografici di base: © OpenStreetMap contributors, licenza ODbL 1.0
     (https://www.openstreetmap.org/copyright). L'ODbL RICHIEDE LEGALMENTE
-    l'attribuzione a OpenStreetMap.
+    l'attribuzione a OpenStreetMap. Questo obbligo è UNIVERSALE e non può
+    essere derogato da Zornade (nemmeno per i clienti della licenza
+    commerciale): Zornade non è titolare dei dati OSM e non può rinunciare
+    a un obbligo di una licenza di terzi.
   - Elaborazioni, stile e dati Zornade: © Zornade.
 
-Condizioni d'uso degli embed e degli export:
-  - I crediti e il link a https://zornade.com (la didascalia/attribuzione
-    generata insieme all'embed) DEVONO essere mantenuti, visibili e funzionanti.
-  - È vietato rimuovere, nascondere, coprire o rendere non cliccabile il blocco
-    di attribuzione.
-  - La rimozione dell'attribuzione costituisce una violazione delle licenze dei
-    dati (ODbL) e dei Termini di servizio del servizio di embedding Zornade.
+Condizioni d'uso degli embed e degli export (due obblighi DISTINTI, da non
+confondere - verificato contro l'OSMF Attribution Guideline e il testo ODbL,
+2026-07-07):
+
+  a) Credito OpenStreetMap ("Dati © OpenStreetMap..."): OBBLIGO DI LICENZA
+     DATI (ODbL §4.3). Non rimuovibile da nessuno, in nessun caso, a
+     prescindere dal piano/licenza Zornade.
+  b) Link "Fatto con Zornade Studio" / "Mappa di Zornade": condizione dei
+     TERMINI DI SERVIZIO dell'embed gratuito di Zornade - non deriva
+     dall'ODbL. È lo stesso modello di "Created with Datawrapper" (piano
+     free di Datawrapper) o "with attribution" (piano free di Flourish):
+     prassi standard per strumenti di visualizzazione SaaS, rimovibile solo
+     tramite una licenza commerciale Zornade (vedi COMMERCIAL-LICENSE.md).
+
+  - È vietato rimuovere, nascondere, coprire o rendere non cliccabile il
+    credito OpenStreetMap (a). Il link Zornade (b) è rimovibile SOLO con una
+    licenza commerciale Zornade attiva.
+  - La rimozione del credito OpenStreetMap costituisce una violazione della
+    licenza ODbL. La rimozione del link Zornade senza licenza commerciale
+    costituisce una violazione dei Termini di servizio di Zornade (non
+    dell'ODbL).
 
 NOTA: l'AGPL si applica al CODICE del software, non vincola di per sé chi si
 limita a incorporare una mappa ospitata da Zornade. L'obbligo di attribuzione
-per gli output deriva dalle licenze dei dati (ODbL) e dai Termini di servizio
-qui richiamati.
+OpenStreetMap deriva dalla licenza dei dati (ODbL); l'obbligo del link
+Zornade deriva unicamente dai Termini di servizio di Zornade.
 
 ================================================================================
 3. COMPONENTI DI TERZE PARTI
@@ -42,3 +59,4 @@ qui richiamati.
 Questo software include o si basa su librerie open source di terze parti
 (tra cui MapLibre GL, Protomaps basemaps, pmtiles, React), ciascuna soggetta
 alla propria licenza. Vedere i rispettivi pacchetti per i dettagli.
+
