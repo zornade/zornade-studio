@@ -37,3 +37,25 @@
   from = "/*"
   to = "/index.html"
   status = 200
+
+# Security headers for the editor SPA (Studio.app). NOTE: per Netlify docs,
+# custom headers are NOT applied to proxied content (the /embed/* redirect
+# above proxies to DigitalOcean Spaces) - so this does not affect published
+# embeds, which must stay iframe-able by newsroom sites regardless of this
+# policy. Origins listed in connect-src are every domain fetched directly from
+# the browser (verified against src/lib/*.ts, 2026-07-06): Supabase auth,
+# OpenFreeMap basemap tiles, Protomaps font/sprite assets, Nominatim geocoding,
+# the 3 public Overpass mirrors, and the AWS open terrain-tiles bucket. CKAN/
+# Eurostat/generic-URL fetches all go through same-origin /api/* functions
+# (server-side proxy), so their upstream domains do NOT need to be listed here.
+# NB: if VITE_TILES_URL is ever set to an external self-hosted PMTiles domain
+# (see .env.example), add that domain to connect-src too (default is same-
+# origin /italia.pmtiles, already covered by 'self').
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=()"
+    Content-Security-Policy = "default-src 'self'; script-src 'self' blob: 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob: https://protomaps.github.io; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://*.supabase.co https://tiles.openfreemap.org https://protomaps.github.io https://nominatim.openstreetmap.org https://maps.mail.ru https://overpass-api.de https://overpass.private.coffee https://elevation-tiles-prod.s3.amazonaws.com; worker-src 'self' blob:; frame-ancestors 'self'; base-uri 'self'; form-action 'self'"

@@ -49,6 +49,14 @@ interface StudioContextValue extends StudioState {
   /** Replace the whole editor state (open a saved project). */
   loadProject: (state: SavableProject) => void;
   /**
+   * id of the server-saved project currently open (Fase 4), or null when
+   * working on an unsaved/local-only/file-based project. Set by
+   * ProjectsModal after opening or creating a cloud project; cleared by
+   * loadProject (a freshly loaded file has no server id until saved there).
+   */
+  currentProjectId: string | null;
+  setCurrentProjectId: (id: string | null) => void;
+  /**
    * Current time-slider frame index (view state, not serialised). Valid only
    * for a temporal area dataset; clamped by consumers to the frame count.
    */
@@ -208,6 +216,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   const [storySteps, setStorySteps] = useState<StoryStep[]>(
     restored?.storySteps ?? [],
   );
+  const [currentProjectId, setCurrentProjectId] = useState<string | null>(null);
   const mapApiRef = useRef<MapApi | null>(null);
   // Time-slider frame index. View state only (never serialised): defaults to
   // the most recent frame when a temporal dataset loads.
@@ -281,7 +290,10 @@ export function StudioProvider({ children }: { children: ReactNode }) {
         setStorySteps(s.storySteps ?? []);
         setAnnotationTool(null);
         setTimeIndex(initialTimeIndex(s.data));
+        setCurrentProjectId(null);
       },
+      currentProjectId,
+      setCurrentProjectId,
       addAnnotation: (a) => setAnnotations((list) => [...list, a]),
       updateAnnotation: (id, patch) =>
         setAnnotations((list) =>
@@ -335,7 +347,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
       pendingBbox,
       setPendingBbox,
     }),
-    [step, project, dataSource, vizType, preset, brand, design, data, annotations, storySteps, annotationTool, timeIndex, bboxPickMode, pendingBbox],
+    [step, project, dataSource, vizType, preset, brand, design, data, annotations, storySteps, annotationTool, timeIndex, bboxPickMode, pendingBbox, currentProjectId],
   );
 
   // Best-effort autosave of the current session to localStorage. Wrapped so a

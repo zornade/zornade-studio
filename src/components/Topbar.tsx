@@ -1,8 +1,10 @@
-import { Eye, Share2, LogOut, Bug, Mail, X } from "lucide-react";
+import { Eye, Share2, LogOut, Bug, Mail, X, FolderKanban } from "lucide-react";
 import { useState } from "react";
 import { useStudio } from "../studio/StudioContext";
 import { useAuth } from "../auth/AuthContext";
+import { useSupabaseAuth } from "../auth/SupabaseAuthContext";
 import { Button } from "./primitives";
+import { ProjectsModal } from "./ProjectsModal";
 
 const REPO = "zornade/zornade-studio";
 const SUPPORT_EMAIL = "info@zornade.com";
@@ -113,7 +115,17 @@ function BugReportModal({
 export function Topbar() {
   const { project, updateProject, setStep, step } = useStudio();
   const { logout } = useAuth();
+  const { signOut, isAuthed: supabaseAuthed, isConfigured } = useSupabaseAuth();
   const [showBugModal, setShowBugModal] = useState(false);
+  const [showProjectsModal, setShowProjectsModal] = useState(false);
+  const showCloudProjects = isConfigured && supabaseAuthed;
+
+  // Sign out of BOTH the legacy gate and any active Supabase session -
+  // whichever the user actually used to get in, this always fully logs out.
+  const handleLogout = () => {
+    logout();
+    void signOut();
+  };
 
   return (
     <>
@@ -141,6 +153,12 @@ export function Topbar() {
         />
 
         <div className="flex items-center gap-2">
+          {showCloudProjects && (
+            <Button variant="ghost" onClick={() => setShowProjectsModal(true)}>
+              <FolderKanban size={16} />
+              Progetti
+            </Button>
+          )}
           <Button variant="ghost" onClick={() => setStep("design")}>
             <Eye size={16} />
             Anteprima
@@ -157,7 +175,7 @@ export function Topbar() {
           >
             <Bug size={16} />
           </Button>
-          <Button variant="ghost" onClick={logout} title="Esci">
+          <Button variant="ghost" onClick={handleLogout} title="Esci">
             <LogOut size={16} />
           </Button>
         </div>
@@ -169,6 +187,9 @@ export function Topbar() {
           step={step}
           onClose={() => setShowBugModal(false)}
         />
+      )}
+      {showProjectsModal && (
+        <ProjectsModal onClose={() => setShowProjectsModal(false)} />
       )}
     </>
   );

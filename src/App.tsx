@@ -1,6 +1,8 @@
 import { ChevronLeft, ChevronRight, MapPinned } from "lucide-react";
 import { StudioProvider, useStudio } from "./studio/StudioContext";
 import { AuthProvider, useAuth } from "./auth/AuthContext";
+import { SupabaseAuthProvider, useSupabaseAuth } from "./auth/SupabaseAuthContext";
+import { combineAuthState } from "./auth/combine-auth";
 import { LoginScreen } from "./components/LoginScreen";
 import { Topbar } from "./components/Topbar";
 import { Stepper } from "./components/Stepper";
@@ -103,7 +105,9 @@ function Workspace() {
 }
 
 function StudioShell() {
-  const { isAuthed, loading } = useAuth();
+  const legacy = useAuth();
+  const supabaseAuth = useSupabaseAuth();
+  const { isAuthed, loading } = combineAuthState(legacy, supabaseAuth);
   if (loading) {
     return (
       <div className="flex h-full items-center justify-center bg-slate-50">
@@ -130,7 +134,9 @@ function StudioShell() {
 export function App() {
   return (
     <AuthProvider>
-      <StudioShell />
+      <SupabaseAuthProvider>
+        <StudioShell />
+      </SupabaseAuthProvider>
     </AuthProvider>
   );
 }
