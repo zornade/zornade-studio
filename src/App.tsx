@@ -107,7 +107,10 @@ function Workspace() {
 function StudioShell() {
   const legacy = useAuth();
   const supabaseAuth = useSupabaseAuth();
-  const { isAuthed, loading } = combineAuthState(legacy, supabaseAuth);
+  const { isAuthed, loading } = combineAuthState(
+    { ...legacy, configured: !legacy.notConfigured },
+    { ...supabaseAuth, configured: supabaseAuth.isConfigured },
+  );
   if (loading) {
     return (
       <div className="flex h-full items-center justify-center bg-slate-50">
