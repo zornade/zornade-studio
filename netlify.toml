@@ -31,6 +31,27 @@
   status = 200
   force = true
 
+# Umami analytics proxy (self-hosted, EU). Same-origin paths so the strict CSP
+# below (script-src/connect-src 'self') covers both the tracker script and the
+# event beacon without any extra allowlisting - the browser never talks to
+# analytics.zornade.com directly, Netlify proxies it server-side. `/js/pa.js`
+# keeps this filename (not "umami"/"analytics") to reduce ad-blocker hits,
+# matching the convention already used on zornade.com and app.zornade.com.
+[[redirects]]
+  from = "/js/pa.js"
+  to = "https://analytics.zornade.com/script.js"
+  status = 200
+
+[[redirects]]
+  from = "/js/api/send"
+  to = "https://analytics.zornade.com/api/send"
+  status = 200
+
+[[redirects]]
+  from = "/api/send"
+  to = "https://analytics.zornade.com/api/send"
+  status = 200
+
 # SPA fallback: serve index.html for client routes (but not /api/* which the
 # functions handle via their own config.path).
 [[redirects]]
