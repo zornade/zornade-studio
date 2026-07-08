@@ -151,20 +151,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             return null;
           }
           const data = (await res.json().catch(() => ({}))) as { error?: string };
-          return data.error ?? "Access denied.";
+          return data.error ?? "Accesso negato.";
         } catch {
-          return "Network error during login.";
+          return "Errore di rete durante l'accesso.";
         }
       }
 
       // Client fallback (dev).
       if (!EXPECTED_USER || !EXPECTED_HASH) {
-        return "Access not configured. Set VITE_STUDIO_USER and VITE_STUDIO_PASS_SHA256 in .env.local.";
+        return "Accesso non configurato. Imposta VITE_STUDIO_USER e VITE_STUDIO_PASS_SHA256 in .env.local.";
       }
       const userOk = safeEqual(user.trim(), EXPECTED_USER);
       const hash = await sha256Hex(password);
       const passOk = safeEqual(hash, EXPECTED_HASH);
-      if (!userOk || !passOk) return "Incorrect username or password.";
+      if (!userOk || !passOk) return "Utente o password non corretti.";
       const exp = Date.now() + CLIENT_SESSION_HOURS * 60 * 60 * 1000;
       sessionStorage.setItem(CLIENT_SESSION_KEY, JSON.stringify({ exp }));
       setIsAuthed(true);

@@ -1,119 +1,119 @@
 # Zornade Studio
 
-[![License](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](LICENSE)
+[![Licenza](https://img.shields.io/badge/Licenza-AGPL%20v3-blue.svg)](LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.6-3178C6.svg)](https://www.typescriptlang.org/)
 [![React](https://img.shields.io/badge/React-18-61DAFB.svg)](https://react.dev/)
 [![Vite](https://img.shields.io/badge/Vite-5-646CFF.svg)](https://vitejs.dev/)
 
-A visual editor for building editorial maps and data visualizations (choropleths, points, cartograms, flows, bivariate, time series...) and publishing them as responsive embeds, no code required. Built for newsrooms, data journalists, and anyone who needs to tell a story with a geographic or statistical dataset in a few hours.
+Editor visuale per costruire mappe e visualizzazioni dati editoriali (coroplete, punti, cartogrammi, flussi, bivariate, serie temporali...) e pubblicarle come embed responsive, senza scrivere codice. Pensato per redazioni, data journalist e chiunque debba raccontare un dataset geografico o statistico in poche ore.
 
-**subscribe to the newsletter**:
+**iscriviti alla newsletter**:
 
-[![Newsletter](https://img.shields.io/badge/Newsletter-Subscribe-orange?style=for-the-badge&logo=substack)](https://newsletter.zornade.com)
-
----
-
-## Table of contents
-
-- [Overview](#overview)
-- [Architecture](#architecture)
-- [Prerequisites](#prerequisites)
-- [Quick start](#quick-start)
-- [Configuration](#configuration)
-- [Main features](#main-features)
-- [Cloud projects and sharing](#cloud-projects-and-sharing)
-- [Development and contributing](#development-and-contributing)
-- [Author](#author)
-- [License](#license)
+[![Newsletter](https://img.shields.io/badge/Newsletter-Iscriviti-orange?style=for-the-badge&logo=substack)](https://newsletter.zornade.com)
 
 ---
 
-## Overview
+## Indice
 
-Zornade Studio is a "step-by-step" editor (data → structure → visualize → design → publish) that turns a CSV, a geographic file, or an API query into a map or chart ready to be embedded in an article, with correct data attribution and customizable style.
-
-### Supported data sources
-
-- File upload (CSV, GeoJSON, zipped Shapefile, KML/KMZ, Excel)
-- Paste tabular data
-- Remote URL (public CSV/GeoJSON)
-- Overpass API (OpenStreetMap) with Nominatim geocoding to define the area
-- Preloaded ISTAT/Zornade DB dataset catalog
-- Eurostat (European statistical datasets)
-
-### Visualization types
-
-Choropleth, points/markers, bivariate, cartograms (contiguous/non-contiguous), hexbin, heatmap, flows (origin-destination), charts (bar, line, scatter - via Observable Plot), tables, time series with a time-slider, scrollytelling (step-by-step storytelling with an animated camera), 3D globe.
-
-### Publishing
-
-Every published map generates a static HTML embed (`<iframe>`) hosted on S3-compatible object storage, with a mandatory, non-removable caption and data attribution (OpenStreetMap/ODbL) baked in - see [NOTICE](NOTICE).
+- [Panoramica](#panoramica)
+- [Architettura](#architettura)
+- [Prerequisiti](#prerequisiti)
+- [Avvio rapido](#avvio-rapido)
+- [Configurazione](#configurazione)
+- [Funzionalità principali](#funzionalità-principali)
+- [Progetti su cloud e condivisione](#progetti-su-cloud-e-condivisione)
+- [Sviluppo e contribuzione](#sviluppo-e-contribuzione)
+- [Autore](#autore)
+- [Licenza](#licenza)
 
 ---
 
-## Architecture
+## Panoramica
+
+Zornade Studio è un editor "step-by-step" (dati → struttura → visualizzazione → design → pubblicazione) che trasforma un CSV, un file geografico o una query API in una mappa o un grafico pronto per essere incorporato in un articolo, con attribuzione dati corretta e stile personalizzabile.
+
+### Sorgenti dati supportate
+
+- Upload di file (CSV, GeoJSON, Shapefile zippato, KML/KMZ, Excel)
+- Incolla di dati tabellari
+- URL remoto (CSV/GeoJSON pubblico)
+- Overpass API (OpenStreetMap) con geocoding via Nominatim per delimitare l'area
+- Catalogo dataset ISTAT/Zornade DB precaricati
+- Eurostat (dataset statistici europei)
+
+### Tipi di visualizzazione
+
+Coroplete, punti/marker, bivariate, cartogrammi (contiguo/non contiguo), hexbin, heatmap, flussi (origine-destinazione), grafici (barre, linee, scatter - via Observable Plot), tabelle, serie temporali con time-slider, scrollytelling (racconto a tappe con camera animata), globo 3D.
+
+### Pubblicazione
+
+Ogni mappa pubblicata genera un embed HTML statico (`<iframe>`) ospitato su object storage (S3-compatibile), con didascalia e attribuzione dati obbligatoria (OpenStreetMap/ODbL) incorporata e non rimovibile - vedi [NOTICE](NOTICE).
+
+---
+
+## Architettura
 
 ```
 Browser (React SPA, Vite)
      │
-     ├── MapLibre GL (map rendering, style derived from PMTiles)
-     ├── Observable Plot (non-geographic charts)
-     └── Editor state (StudioContext) ── local autosave (localStorage)
+     ├── MapLibre GL (rendering mappa, stile derivato da PMTiles)
+     ├── Observable Plot (grafici non geografici)
+     └── Editor state (StudioContext) ── autosave locale (localStorage)
               │
-              ├── Local file (.zornade.json) ── manual save/open, offline
+              ├── File locale (.zornade.json) ── salva/apri manuale, offline
               │
-              └── Supabase (dedicated project, optional) ─────────────┐
+              └── Supabase (progetto dedicato, opzionale) ─────────────┐
                      │                                                  │
-                     ├── Per-user auth (email magic link)                │
-                     ├── studio_projects (saved editor state)            │
-                     └── studio_project_collaborators (sharing)          │
+                     ├── Auth per-utente (magic link email)             │
+                     ├── studio_projects (stato editor salvato)         │
+                     └── studio_project_collaborators (condivisione)    │
                                                                          │
 Netlify Functions (server-side)                                        │
-     ├── Legacy shared gate (single password, signed cookie)            │
-     └── Embed publishing → S3-compatible object storage ◄──────────────┘
+     ├── Gate legacy condiviso (password unica, cookie firmato)         │
+     └── Pubblicazione embed → object storage S3-compatibile ◄─────────┘
               │
-      Supabase Edge Function: invite email delivery (Resend)
+      Edge Function Supabase: invio email di invito (Resend)
 ```
 
-Two project persistence paths coexist and are both supported:
+Due percorsi di persistenza dei progetti coesistono ed sono entrambi supportati:
 
-| Path | When to use it |
+| Percorso | Quando usarlo |
 |----------|---------------|
-| **Local file** (`.zornade.json`, "Save project" button) | Always available, no configuration needed, ideal for backup/portability or self-hosting without Supabase |
-| **Cloud (dedicated Supabase project)** | Requires configuration (see below); enables per-user login, opening from any device, and sharing with collaborators (editor/viewer roles) |
+| **File locale** (`.zornade.json`, pulsante "Salva progetto") | Sempre disponibile, nessuna configurazione, ideale per backup/portabilità o self-hosting senza Supabase |
+| **Cloud (progetto Supabase dedicato)** | Richiede configurazione (vedi sotto); abilita login per-utente, apertura da qualunque dispositivo e condivisione con collaboratori (ruoli editor/visualizzatore) |
 
-### Two authentication layers, independent
+### Due livelli di autenticazione, indipendenti
 
-1. **Supabase (email magic link)**: the only mechanism enabled by default, including on the official zornade.com/studio deployment - free, open access, anyone can sign up with their own email, no shared password to know.
-2. **Legacy gate** (`STUDIO_USER`/`STUDIO_PASS_SHA256`): a single shared password, the historical mechanism, now **disabled by default** (`VITE_STUDIO_LEGACY_LOGIN_ENABLED` unset). Re-enable it explicitly (`VITE_STUDIO_LEGACY_LOGIN_ENABLED=true`) only if you want to restrict access to a small team/single operator (e.g. a private beta); once re-enabled, if both mechanisms end up configured, access requires both in sequence (see `src/auth/combine-auth.ts`).
+1. **Supabase (magic link email)**: l'unico meccanismo attivo di default, incluso sul deploy ufficiale zornade.com/studio - accesso libero e gratuito, chiunque puo' registrarsi con la propria email, nessuna password condivisa da conoscere.
+2. **Gate legacy** (`STUDIO_USER`/`STUDIO_PASS_SHA256`): una singola password condivisa, meccanismo storico ora **disattivato di default** (`VITE_STUDIO_LEGACY_LOGIN_ENABLED` non impostato). Va riattivato esplicitamente (`VITE_STUDIO_LEGACY_LOGIN_ENABLED=true`) solo se si vuole restringere l'accesso a un piccolo team/singolo operatore (es. una beta privata); una volta riattivato, se entrambi i meccanismi risultano configurati l'accesso richiede entrambi in sequenza (vedi `src/auth/combine-auth.ts`).
 
-With the default configuration (Supabase only), access is granted to anyone who completes the magic-link sign-in.
+Con la configurazione di default (solo Supabase), l'accesso e' consentito a chiunque completi il login via magic link.
 
-### Project files
+### File del progetto
 
-| Path | Description |
+| Percorso | Descrizione |
 |----------|-------------|
-| `src/studio/` | Editor state (`StudioContext`), types (`types.ts`), preset/newsroom kit catalogs |
-| `src/components/` | UI (step-by-step panels, map/chart canvas, project/sharing modals) |
-| `src/lib/` | Pure logic: data parsing, geographic joins, classification, export, integrations (Overpass, Nominatim, Eurostat, CKAN...), Supabase CRUD |
-| `src/auth/` | Legacy gate + Supabase auth, combined in `combine-auth.ts` |
-| `netlify/functions/` | Legacy gate login/logout, generic CKAN/Eurostat/fetch proxy, embed publishing to object storage |
-| `supabase/migrations/` | Schema for the dedicated Supabase project (tables, RLS, triggers) |
-| `supabase/functions/` | Edge Function for sending invite emails (Resend) |
-| `supabase/tests/` | pgTAP suite for schema/RLS/triggers |
+| `src/studio/` | Stato dell'editor (`StudioContext`), tipi (`types.ts`), cataloghi preset/newsroom kit |
+| `src/components/` | UI (pannelli step-by-step, canvas mappa/grafico, modali progetti/condivisione) |
+| `src/lib/` | Logica pura: parsing dati, join geografici, classificazione, export, integrazioni (Overpass, Nominatim, Eurostat, CKAN...), CRUD Supabase |
+| `src/auth/` | Gate legacy + auth Supabase, combinati in `combine-auth.ts` |
+| `netlify/functions/` | Login/logout gate legacy, proxy CKAN/Eurostat/fetch generico, pubblicazione embed su object storage |
+| `supabase/migrations/` | Schema del progetto Supabase dedicato (tabelle, RLS, trigger) |
+| `supabase/functions/` | Edge Function per l'invio email di invito (Resend) |
+| `supabase/tests/` | Suite pgTAP per schema/RLS/trigger |
 
 ---
 
-## Prerequisites
+## Prerequisiti
 
-- **Node.js 20+** and npm
-- An **S3-compatible object storage provider** (e.g. DigitalOcean Spaces, AWS S3, Cloudflare R2) for publishing embeds
-- Optional: your own **Supabase project**, to enable per-user login and cloud projects/sharing
-- Optional: a **[Resend](https://resend.com) API key** (or an equivalent email provider), only if you want invite notification emails
+- **Node.js 20+** e npm
+- Un **provider di object storage S3-compatibile** (es. DigitalOcean Spaces, AWS S3, Cloudflare R2) per la pubblicazione degli embed
+- Facoltativo: un **progetto Supabase** proprio, per abilitare login per-utente e progetti su cloud/condivisione
+- Facoltativo: una **API key [Resend](https://resend.com)** (o provider email equivalente), solo se si vuole l'email di notifica inviti
 
 ---
 
-## Quick start
+## Avvio rapido
 
 ```bash
 git clone https://github.com/zornade/zornade-studio.git
@@ -122,82 +122,82 @@ cd zornade-studio
 npm install
 
 cp .env.example .env.local
-# Set VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY for magic-link sign-in
-# (see below). The legacy gate stays disabled until you explicitly enable it.
+# Configura VITE_SUPABASE_URL / VITE_SUPABASE_ANON_KEY per il login via magic link
+# (vedi sotto). Il gate legacy resta disattivato finche' non lo abiliti esplicitamente.
 
 npm run dev
 ```
 
-The app is available at `http://localhost:5173`. Without any further configuration it works with: public data catalogs, all visualizations, the full editor, and local file saving. Embed publishing and cloud projects require the configuration described below.
+L'app è disponibile su `http://localhost:5173`. Senza ulteriore configurazione funziona con: cataloghi dati pubblici, tutte le visualizzazioni, editor completo e salvataggio file locale. Pubblicazione embed e progetti su cloud richiedono la configurazione descritta sotto.
 
-### Production build
+### Build di produzione
 
 ```bash
 npm run build      # tsc --noEmit && vite build
-npm run preview    # serves the build locally
+npm run preview    # serve la build in locale
 ```
 
 ---
 
-## Configuration
+## Configurazione
 
-All variables are documented in [.env.example](.env.example). Summary:
+Tutte le variabili sono documentate in [.env.example](.env.example). Riepilogo:
 
-### Legacy gate (disabled by default - only if you want to restrict access)
+### Gate legacy (disattivato di default - solo se vuoi restringere l'accesso)
 
-| Variable | Where | Description |
+| Variabile | Dove | Descrizione |
 |-----------|------|-------------|
-| `VITE_STUDIO_LEGACY_LOGIN_ENABLED` | Netlify / `.env.local` | Must be `true` to enable the legacy gate. Unset = disabled (default, official deployment behaviour) |
-| `STUDIO_USER` / `VITE_STUDIO_USER` | Netlify / `.env.local` | Username for the shared password |
-| `STUDIO_PASS_SHA256` / `VITE_STUDIO_PASS_SHA256` | Netlify / `.env.local` | Hex SHA-256 of the password (`printf '%s' 'password' \| sha256sum`) |
-| `STUDIO_SESSION_SECRET` | Netlify only | Long random string to sign the session cookie (`openssl rand -hex 32`) |
+| `VITE_STUDIO_LEGACY_LOGIN_ENABLED` | Netlify / `.env.local` | Deve essere `true` per attivare il gate legacy. Assente = disattivato (default, comportamento del deploy ufficiale) |
+| `STUDIO_USER` / `VITE_STUDIO_USER` | Netlify / `.env.local` | Nome utente della password condivisa |
+| `STUDIO_PASS_SHA256` / `VITE_STUDIO_PASS_SHA256` | Netlify / `.env.local` | SHA-256 esadecimale della password (`printf '%s' 'password' \| sha256sum`) |
+| `STUDIO_SESSION_SECRET` | Solo Netlify | Stringa casuale lunga per firmare il cookie di sessione (`openssl rand -hex 32`) |
 
-In production (Netlify Functions) the variables **without** the `VITE_` prefix are read server-side only. In local development without Netlify Functions, use the equivalent variables **with** the `VITE_` prefix in a `.env.local` (never committed).
+In produzione (Netlify Functions) le variabili **senza** prefisso `VITE_` sono lette solo server-side. In sviluppo locale senza Netlify Functions si usano le equivalenti **con** prefisso `VITE_` in un `.env.local` (mai committato).
 
-### Supabase (optional - per-user login, cloud projects, sharing)
+### Supabase (facoltativo - login per-utente, progetti su cloud, condivisione)
 
-| Variable | Description |
+| Variabile | Descrizione |
 |-----------|-------------|
-| `VITE_SUPABASE_URL` | URL of **your** dedicated Supabase project |
-| `VITE_SUPABASE_ANON_KEY` | Anon/public key (never the service_role key) |
+| `VITE_SUPABASE_URL` | URL del **tuo** progetto Supabase dedicato |
+| `VITE_SUPABASE_ANON_KEY` | Chiave anon/public (mai la service_role) |
 
-Apply the migrations in `supabase/migrations/` to your project (`supabase db push --linked`) to create the schema (projects/collaborators tables, RLS, triggers). If you also want invite notification emails, deploy `supabase/functions/send-project-invite-email` and set the `RESEND_API_KEY` secret on **your** Supabase project.
+Applica le migrazioni in `supabase/migrations/` al tuo progetto (`supabase db push --linked`) per creare lo schema (tabelle progetti/collaboratori, RLS, trigger). Se vuoi anche l'email di notifica inviti, deploya `supabase/functions/send-project-invite-email` e imposta il secret `RESEND_API_KEY` sul **tuo** progetto Supabase.
 
-> Every deployment of Studio - including the official one on zornade.com - uses its own dedicated Supabase project, never shared between installations: this is exactly what a self-hoster should do too.
+> Ogni deploy di Studio - incluso quello ufficiale su zornade.com - usa un proprio progetto Supabase dedicato, mai condiviso tra installazioni diverse: è esattamente ciò che dovrebbe fare anche chi fa self-hosting.
 
-### Embed publishing (optional, Netlify Functions only)
+### Pubblicazione embed (facoltativo, solo Netlify Functions)
 
-| Variable | Description |
+| Variabile | Descrizione |
 |-----------|-------------|
-| `SPACES_KEY` / `SPACES_SECRET` | S3-compatible object storage credentials |
-| `SPACES_BUCKET` / `SPACES_REGION` | Bucket and region |
-| `EMBED_BASE_URL` / `EMBED_GEO_BASE` | Public base URLs for published embeds |
+| `SPACES_KEY` / `SPACES_SECRET` | Credenziali object storage S3-compatibile |
+| `SPACES_BUCKET` / `SPACES_REGION` | Bucket e regione |
+| `EMBED_BASE_URL` / `EMBED_GEO_BASE` | URL pubblici di base per gli embed pubblicati |
 
 ---
 
-## Main features
+## Funzionalità principali
 
-- **Step-by-step editor**: Data → Structure → Visualize → Design → Publish, with a live preview
-- **Local autosave**: work in progress is always recoverable from `localStorage`, regardless of explicit saving
-- **Export**: high-resolution PNG, PDF, HTML embed, CSV data
-- **Annotations** and **scrollytelling** (step-by-step storytelling with an animated camera on the map)
-- **Data classification**: quantile, natural breaks (Jenks), equal-interval, manual, with accessible (CVD-safe) palettes
-
----
-
-## Cloud projects and sharing
-
-With Supabase configured, the **Projects** button at the top gives access to:
-
-- **My projects / Shared with me**: open, rename, duplicate, delete (owner only) any saved project
-- **Share**: invite a collaborator by email with the **editor** (can edit) or **viewer** (read-only) role; if the invitee doesn't have an account yet, the invite stays pending and activates automatically on their first sign-in with the same email
-- The file-based flow (`.zornade.json`) always remains available as a backup/export, independent of the cloud
+- **Editor step-by-step**: Dati → Struttura → Visualizza → Design → Pubblica, con anteprima live
+- **Autosave locale**: il lavoro in corso è sempre recuperabile da `localStorage`, indipendentemente dal salvataggio esplicito
+- **Export**: PNG ad alta risoluzione, PDF, embed HTML, dati CSV
+- **Annotazioni** e **scrollytelling** (racconto a tappe con camera animata sulla mappa)
+- **Classificazione dati**: quantile, naturali (Jenks), egual-intervallo, manuale, con palette accessibili (CVD-safe)
 
 ---
 
-## Development and contributing
+## Progetti su cloud e condivisione
 
-Contributions welcome - read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a PR (in short: **always open an issue before writing code**). We follow the [Code of Conduct](CODE_OF_CONDUCT.md). For security issues, follow [SECURITY.md](SECURITY.md) instead of opening a public issue.
+Con Supabase configurato, dal pulsante **Progetti** in alto si accede a:
+
+- **I miei progetti / Condivisi con me**: apri, rinomina, duplica, elimina (solo proprietario) qualunque progetto salvato
+- **Condividi**: invita un collaboratore per email con ruolo **editor** (può modificare) o **visualizzatore** (sola lettura); se l'invitato non ha ancora un account, l'invito resta in attesa e si attiva automaticamente al primo accesso con la stessa email
+- Il flusso a file (`.zornade.json`) resta sempre disponibile come backup/esportazione, indipendentemente dal cloud
+
+---
+
+## Sviluppo e contribuzione
+
+Contributi benvenuti - leggi [CONTRIBUTING.md](CONTRIBUTING.md) prima di aprire una PR (in breve: **apri sempre una issue prima di scrivere codice**). Rispettiamo il [Codice di Condotta](CODE_OF_CONDUCT.md). Per problemi di sicurezza, segui [SECURITY.md](SECURITY.md) invece di aprire una issue pubblica.
 
 ```bash
 npm install
@@ -208,12 +208,12 @@ npm run test         # vitest run
 
 ---
 
-## Author
+## Autore
 
-Developed and maintained by [Zornade](https://zornade.com).
+Sviluppato e mantenuto da [Zornade](https://zornade.com).
 
-## License
+## Licenza
 
-The source code is distributed under the **GNU Affero General Public License v3.0 or later (AGPL-3.0-or-later)** - see [LICENSE](LICENSE) and [NOTICE](NOTICE) (the latter also covers attribution obligations on outputs/embeds, derived from data licenses like ODbL, not from the AGPL).
+Il codice sorgente è distribuito sotto **GNU Affero General Public License v3.0 or later (AGPL-3.0-or-later)** - vedi [LICENSE](LICENSE) e [NOTICE](NOTICE) (quest'ultimo copre anche gli obblighi di attribuzione sugli output/embed, derivati dalle licenze dati come ODbL, non dall'AGPL).
 
-A **separate commercial license** is also available for those who cannot/do not want to comply with the AGPL §13 obligations in a proprietary product - see [COMMERCIAL-LICENSE.md](COMMERCIAL-LICENSE.md).
+È disponibile anche una **licenza commerciale separata** per chi non può/non vuole rispettare gli obblighi AGPL §13 in un prodotto proprietario - vedi [COMMERCIAL-LICENSE.md](COMMERCIAL-LICENSE.md).
