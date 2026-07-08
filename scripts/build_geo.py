@@ -2,28 +2,56 @@
 """
 Build the join-ready GeoJSON layers shipped under public/geo/.
 
-Sources (verified 2026-06-28):
+Sources (verified 2026-07-08):
 - Nations: Natural Earth 1:50m Admin 0 countries - PUBLIC DOMAIN.
   https://github.com/nvkelso/natural-earth-vector
-- Italian provinces: openpolis/geojson-italy - CC-BY-4.0 (data © ISTAT).
-  https://github.com/openpolis/geojson-italy
+- Italian provinces + comuni: ISTAT "Confini delle unita' amministrative a
+  fini statistici", versione GENERALIZZATA, anno di riferimento ISTAT_YEAR
+  (1 gennaio) - dato ufficiale, CC-BY, licenza SISTAN standard.
+  https://www.istat.it/it/archivio/222527
+  Sostituisce openpolis/geojson-italy (mirror comunitario, fermo a giugno
+  2023, quindi non aggiornato con le variazioni amministrative recenti) usato
+  fino al 2026-07-08. Vedi /memories/repo per il confronto topologico che ha
+  motivato il cambio: openpolis + simplify per-feature creava micro-gap/slivers
+  tra comuni/province confinanti; il prodotto ISTAT "generalizzata" e' invece
+  topologicamente pulito by design (verificato: overlap totale nazionale = 0,
+  Torino-Moncalieri si toccano esattamente).
 
-Output schema matches the existing public/geo/regioni.geojson so the same
-choropleth join (code OR name OR alias) works across all levels:
+Semplificazione: topology-PRESERVING (libreria `topojson`, non il naive
+GeoSeries.simplify() di shapely/geopandas usato in precedenza). Il naive
+simplify tratta ogni poligono in isolamento: due comuni confinanti, simplificati
+indipendentemente, finiscono quasi sempre con vertici leggermente diversi sul
+bordo condiviso -> micro-gap o sovrapposizioni visibili a zoom elevato.
+`topojson` costruisce prima la topologia (identifica gli archi CONDIVISI tra
+poligoni vicini), semplifica gli archi una sola volta, poi ricostruisce i
+poligoni: i vicini condividono sempre esattamente lo stesso bordo, per
+costruzione. Verificato sui dati reali (vedi memoria): distanza Torino-Moncalieri
+rimane 0.0 anche dopo la semplificazione.
+
+Output schema INVARIATO (drop-in, nessuna modifica altrove nell'app):
 - paesi.geojson  : { name, name_en, iso_a2, iso_a3 }
 - province.geojson: { prov_name, prov_acr, prov_istat_code, prov_istat_code_num, reg_name }
 - comuni.geojson : { com_name, com_istat_code, com_istat_code_num, prov_acr, reg_name }
 
-Run from the studio/ folder (with the project .venv active):
+Setup (una tantum, i pacchetti NON sono nel resto del progetto Node):
+    python3 -m venv .venv
+    source .venv/bin/activate
+    pip install -r scripts/requirements.txt
+
+Run (con .venv attivo):
     python3 scripts/build_geo.py
 """
 from __future__ import annotations
 
+import glob
 import json
 import os
 import urllib.request
+import zipfile
 
 import geopandas as gpd
+import topojson as tp
+from shapely.validation import make_valid
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 OUT_DIR = os.path.normpath(os.path.join(HERE, "..", "public", "geo"))
@@ -32,14 +60,23 @@ NE_COUNTRIES = (
     "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/"
     "master/geojson/ne_50m_admin_0_countries.geojson"
 )
-OP_PROVINCES = (
-    "https://raw.githubusercontent.com/openpolis/geojson-italy/"
-    "master/geojson/limits_IT_provinces.geojson"
+
+# ISTAT pubblica un nuovo anno di riferimento (1 gennaio) ogni anno; aggiornare
+# questa costante quando serve rigenerare con l'anno piu' recente disponibile
+# su https://www.istat.it/it/archivio/222527
+ISTAT_YEAR = 2026
+ISTAT_ZIP_URL = (
+    "https://www.istat.it/storage/cartografia/confini_amministrativi/"
+    f"generalizzati/{ISTAT_YEAR}/Limiti0101{ISTAT_YEAR}_g.zip"
 )
-OP_MUNICIPALITIES = (
-    "https://raw.githubusercontent.com/openpolis/geojson-italy/"
-    "master/geojson/limits_IT_municipalities.geojson"
-)
+
+# Tolleranza di semplificazione topology-preserving (gradi, dati in EPSG:4326).
+# Scelta empiricamente: bilancia dimensione file e dettaglio visibile a zoom
+# regionale/comunale. Vedi memoria per il confronto dimensione/qualita' a vari
+# valori (comuni: 0.01 -> 4.7MB/0.92MB gzip, solo 2/7896 comuni degenerano in
+# geometrie quasi-puntiformi, entrambi gia' tra i piu' piccoli d'Italia).
+EPS_PROVINCE = 0.003
+EPS_COMUNI = 0.01
 
 
 def _download(url: str, dest: str) -> str:
@@ -47,6 +84,130 @@ def _download(url: str, dest: str) -> str:
         print(f"  download {url}")
         urllib.request.urlretrieve(url, dest)
     return dest
+
+
+def _download_istat(tmp: str) -> str:
+    """Download + extract the ISTAT admin boundaries zip, return its extraction dir."""
+    dest_zip = os.path.join(tmp, f"istat_limiti_{ISTAT_YEAR}_g.zip")
+    _download(ISTAT_ZIP_URL, dest_zip)
+    extract_dir = os.path.join(tmp, f"istat_limiti_{ISTAT_YEAR}_g")
+    if not os.path.exists(extract_dir):
+        with zipfile.ZipFile(dest_zip) as zf:
+            zf.extractall(extract_dir)
+    return extract_dir
+
+
+def _find_shp(extract_dir: str, folder_prefix: str) -> str:
+    matches = glob.glob(os.path.join(extract_dir, f"{folder_prefix}*", "*.shp"))
+    if not matches:
+        raise FileNotFoundError(
+            f"No .shp found for prefix {folder_prefix!r} in {extract_dir} "
+            "(ISTAT may have changed its folder naming - inspect the zip)."
+        )
+    return matches[0]
+
+
+def _to_polygonal(geom):
+    """make_valid() can turn a self-intersecting Polygon into a GeometryCollection
+    mixing a Polygon/MultiPolygon with degenerate zero-area LineString/Point
+    artifacts (observed on ~50 comuni after simplification, incl. big cities
+    like Torino/Modena/Taranto - NOT just tiny/degenerate ones). GeoJSON's
+    "coordinates" key doesn't exist on GeometryCollection (it uses
+    "geometries" instead), which crashes _round_coords/export. Keep only the
+    polygonal part(s), which is the only thing that matters for an
+    administrative-boundary area layer. Returns None if there is no
+    polygonal part at all (caller must handle - see _toposimplify fallback)."""
+    from shapely.geometry import MultiPolygon
+
+    if geom.geom_type in ("Polygon", "MultiPolygon"):
+        return geom
+    if geom.geom_type == "GeometryCollection":
+        flat = []
+        for g in geom.geoms:
+            if g.geom_type == "Polygon":
+                flat.append(g)
+            elif g.geom_type == "MultiPolygon":
+                flat.extend(g.geoms)
+        if not flat:
+            return None
+        return flat[0] if len(flat) == 1 else MultiPolygon(flat)
+    return None  # LineString/Point only - fully degenerate, no area left
+
+
+def _fix_geometry(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
+    """Repair self-intersections etc. Rows that fully degenerate (no polygonal
+    part left at all - see _to_polygonal) are dropped by the caller via NaN,
+    NOT here, so callers with a fallback source (_toposimplify) can restore
+    the pre-simplification geometry instead of losing the feature."""
+    invalid = ~gdf.geometry.is_valid
+    if invalid.any():
+        gdf.loc[invalid, "geometry"] = gdf.loc[invalid, "geometry"].apply(
+            lambda g: _to_polygonal(make_valid(g))
+        )
+    return gdf
+
+
+def _load_istat_layers(tmp: str) -> tuple[gpd.GeoDataFrame, gpd.GeoDataFrame, gpd.GeoDataFrame]:
+    extract_dir = _download_istat(tmp)
+    com = gpd.read_file(_find_shp(extract_dir, f"Com0101{ISTAT_YEAR}_g"), encoding="utf-8")
+    prov = gpd.read_file(_find_shp(extract_dir, f"ProvCM0101{ISTAT_YEAR}_g"), encoding="utf-8")
+    reg = gpd.read_file(_find_shp(extract_dir, f"Reg0101{ISTAT_YEAR}_g"), encoding="utf-8")
+    com = _fix_geometry(com).to_crs(4326)
+    prov = _fix_geometry(prov).to_crs(4326)
+    reg = _fix_geometry(reg).to_crs(4326)
+    return com, prov, reg
+
+
+def _toposimplify(gdf: gpd.GeoDataFrame, eps: float, id_field: str) -> gpd.GeoDataFrame:
+    """Topology-preserving simplify: shared borders between neighbouring
+    features stay perfectly coincident (no gaps/overlaps), unlike a naive
+    per-feature GeoSeries.simplify(). See module docstring for why this
+    matters for adjacent administrative boundaries.
+
+    A tiny minority of features (very small/thin shapes, e.g. Solza or Casola
+    di Napoli among Italy's smallest comuni) can fully degenerate to a
+    LineString/Point at this tolerance, with no polygonal area left even
+    after make_valid(). For those (and only those) rows, fall back to the
+    ORIGINAL (pre-simplification, but validity-fixed) geometry via `id_field`
+    so the feature never silently vanishes from the output - it just stays
+    more detailed than its neighbours, which is an acceptable trade-off for a
+    handful of already-tiny municipalities.
+    """
+    original = gdf.set_index(id_field)["geometry"]
+    topo = tp.Topology(gdf, prequantize=False, presimplify=False)
+    out = topo.toposimplify(eps).to_gdf()
+
+    invalid = ~out.geometry.is_valid
+    if invalid.any():
+        out.loc[invalid, "geometry"] = out.loc[invalid, "geometry"].apply(
+            lambda g: _to_polygonal(make_valid(g))
+        )
+
+    degenerate = out["geometry"].isna()
+    if degenerate.any():
+        ids = out.loc[degenerate, id_field]
+        print(
+            f"  [fallback] {degenerate.sum()} feature(s) fully degenerated at eps={eps}, "
+            f"restoring original geometry for: {list(ids)}"
+        )
+        out.loc[degenerate, "geometry"] = ids.map(original)
+    return out
+
+
+def _assert_no_overlaps(gdf: gpd.GeoDataFrame, label: str, crs_metric: int = 32632) -> None:
+    """Sanity check: sum of individual feature areas must equal the union area
+    (within floating-point tolerance). A meaningful gap between the two would
+    indicate overlapping polygons re-introduced by simplification."""
+    metric = gdf.to_crs(crs_metric)
+    sum_area = metric.geometry.area.sum()
+    union_area = metric.geometry.union_all().area
+    diff_pct = 100 * abs(sum_area - union_area) / sum_area if sum_area else 0.0
+    print(f"  [topology check] {label}: overlap = {diff_pct:.4f}% (should be ~0)")
+    if diff_pct > 0.05:
+        raise RuntimeError(
+            f"{label}: overlap {diff_pct:.4f}% exceeds tolerance - simplification "
+            "broke topology, investigate before shipping."
+        )
 
 
 def _round_coords(geojson: dict, ndigits: int = 5) -> dict:
@@ -95,45 +256,51 @@ def build_nations(tmp: str) -> None:
     _write(out, "paesi.geojson")
 
 
-def build_provinces(tmp: str) -> None:
-    src = _download(OP_PROVINCES, os.path.join(tmp, "op_provinces.geojson"))
-    gdf = gpd.read_file(src)
-    # Topology-naive simplify is acceptable for a v1 choropleth; ~500 m tolerance
-    # cuts the file size by an order of magnitude with no visible difference at
-    # national zoom. (Topology-aware simplification is a build-pipeline item.)
-    gdf["geometry"] = gdf.geometry.simplify(0.005, preserve_topology=True)
-    out = gpd.GeoDataFrame(
-        {
-            "prov_name": gdf["prov_name"],
-            "prov_acr": gdf["prov_acr"],
-            "prov_istat_code": gdf["prov_istat_code"],
-            "prov_istat_code_num": gdf["prov_istat_code_num"],
-            "reg_name": gdf["reg_name"],
-            "geometry": gdf.geometry,
-        },
-        crs=gdf.crs,
-    )
-    _write(out, "province.geojson")
+def build_provinces_and_municipalities(tmp: str) -> None:
+    """Both levels share the same ISTAT download + region/province lookups,
+    so they are built together (avoids downloading/parsing the zip twice)."""
+    com, prov, reg = _load_istat_layers(tmp)
 
+    reg_lookup = dict(zip(reg["COD_REG"], reg["DEN_REG"]))
+    # COD_PROV is the traditional 1-107 province numbering, populated for BOTH
+    # "Provincia" and "Città metropolitana" rows (COD_CM is the newer,
+    # metropolitan-only code) - this is the code openpolis' prov_istat_code
+    # matched, so we mirror it here to keep every downstream join stable.
+    acr_lookup = dict(zip(prov["COD_PROV"], prov["SIGLA"]))
 
-def build_municipalities(tmp: str) -> None:
-    src = _download(OP_MUNICIPALITIES, os.path.join(tmp, "op_municipalities.geojson"))
-    gdf = gpd.read_file(src)
-    # ~7.900 comuni: the source is ~40 MB. Simplify hard (~1 km tolerance) to a
-    # web-friendly size; comune boundaries stay recognisable at regional zoom.
-    gdf["geometry"] = gdf.geometry.simplify(0.01, preserve_topology=True)
-    out = gpd.GeoDataFrame(
+    print("  simplifying province (topology-preserving)…")
+    prov_out = gpd.GeoDataFrame(
         {
-            "com_name": gdf["name"],
-            "com_istat_code": gdf["com_istat_code"],
-            "com_istat_code_num": gdf["com_istat_code_num"],
-            "prov_acr": gdf["prov_acr"],
-            "reg_name": gdf["reg_name"],
-            "geometry": gdf.geometry,
+            "prov_name": prov.apply(
+                lambda r: r["DEN_PROV"] if r["DEN_PROV"] != "-" else r["DEN_CM"], axis=1
+            ),
+            "prov_acr": prov["SIGLA"],
+            "prov_istat_code": prov["COD_PROV"].apply(lambda v: f"{v:03d}"),
+            "prov_istat_code_num": prov["COD_PROV"],
+            "reg_name": prov["COD_REG"].map(reg_lookup),
+            "geometry": prov.geometry,
         },
-        crs=gdf.crs,
+        crs=prov.crs,
     )
-    _write(out, "comuni.geojson")
+    prov_out = _toposimplify(prov_out, EPS_PROVINCE, id_field="prov_istat_code_num")
+    _assert_no_overlaps(prov_out, "province")
+    _write(prov_out, "province.geojson")
+
+    print("  simplifying comuni (topology-preserving, ~7.900 features)…")
+    com_out = gpd.GeoDataFrame(
+        {
+            "com_name": com["COMUNE"],
+            "com_istat_code": com["PRO_COM_T"],
+            "com_istat_code_num": com["PRO_COM"],
+            "prov_acr": com["COD_PROV"].map(acr_lookup),
+            "reg_name": com["COD_REG"].map(reg_lookup),
+            "geometry": com.geometry,
+        },
+        crs=com.crs,
+    )
+    com_out = _toposimplify(com_out, EPS_COMUNI, id_field="com_istat_code_num")
+    _assert_no_overlaps(com_out, "comuni")
+    _write(com_out, "comuni.geojson")
 
 
 # Join-key fields per level - MUST mirror GEO_LEVELS in src/lib/choropleth.ts
@@ -208,10 +375,8 @@ def main() -> None:
     tmp = "/tmp"
     print("Building paesi.geojson …")
     build_nations(tmp)
-    print("Building province.geojson …")
-    build_provinces(tmp)
-    print("Building comuni.geojson …")
-    build_municipalities(tmp)
+    print("Building province.geojson + comuni.geojson (ISTAT) …")
+    build_provinces_and_municipalities(tmp)
     print("Building keys.json …")
     build_keys_index()
     print("Done.")
