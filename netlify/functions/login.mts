@@ -30,7 +30,7 @@ export default async (req: Request): Promise<Response> => {
     ].filter(Boolean);
     return json(
       {
-        error: `Auth non configurata sul server. Variabili mancanti: ${missing.join(", ")}.`,
+        error: `Auth not configured on the server. Missing variables: ${missing.join(", ")}.`,
       },
       500,
     );
@@ -40,7 +40,7 @@ export default async (req: Request): Promise<Response> => {
   try {
     body = (await req.json()) as typeof body;
   } catch {
-    return json({ error: "Richiesta non valida." }, 400);
+    return json({ error: "Invalid request." }, 400);
   }
 
   const userOk = safeEqual((body.user ?? "").trim(), user.trim());
@@ -50,7 +50,7 @@ export default async (req: Request): Promise<Response> => {
   const passOk = safeEqual(incomingHash, passHash);
 
   if (!userOk || !passOk) {
-    return json({ error: "Utente o password non corretti." }, 401);
+    return json({ error: "Incorrect username or password." }, 401);
   }
 
   const token = createToken(user.trim(), secret);

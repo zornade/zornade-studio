@@ -4,16 +4,18 @@ import { useAuth } from "../auth/AuthContext";
 import { useSupabaseAuth } from "../auth/SupabaseAuthContext";
 
 export function LoginScreen() {
-  const { isAuthed: legacyAuthed, notConfigured } = useAuth();
+  const { isAuthed: legacyAuthed, notConfigured, legacyEnabled } = useAuth();
   const { isConfigured: supabaseConfigured } = useSupabaseAuth();
 
-  // When BOTH methods are configured in this environment, access requires
-  // both steps in sequence - legacy shared-secret FIRST, then Supabase
-  // magic link - explicit requirement (not just "either one grants
-  // access", which is what happens when only one method is set up, e.g. an
-  // OSS self-hoster who configured only one of the two: unchanged in that
-  // case, see auth/combine-auth.ts for the access-decision logic).
-  const sequential = !notConfigured && supabaseConfigured;
+  // When the legacy gate is enabled AND configured AND Supabase is also
+  // configured, access requires both steps in sequence - legacy
+  // shared-secret FIRST, then Supabase magic link (see
+  // auth/combine-auth.ts for the access-decision logic). The official
+  // zornade.com/studio deployment never enables the legacy gate
+  // (LEGACY_LOGIN_ENABLED defaults to false - see AuthContext.tsx), so
+  // `sequential` is always false there and this screen shows ONLY the
+  // free magic-link signup, open to anyone.
+  const sequential = legacyEnabled && !notConfigured && supabaseConfigured;
   const showMagicLinkStep = sequential && legacyAuthed;
 
   return (
@@ -28,15 +30,22 @@ export function LoginScreen() {
             <p className="mt-1 text-sm text-slate-500">
               {sequential
                 ? showMagicLinkStep
-                  ? "Passo 2 di 2 · verifica la tua email"
-                  : "Passo 1 di 2 · accesso riservato alla redazione"
-                : "Accesso riservato alla redazione"}
+                  ? "Step 2 of 2 · verify your email"
+                  : "Step 1 of 2 · access restricted to the editorial team"
+                : legacyEnabled
+                  ? "Access restricted to the editorial team"
+                  : "Sign in or create a free account with your email"}
             </p>
           </div>
         </div>
 
-        {showMagicLinkStep ? (
+        {!legacyEnabled ? (
           <MagicLinkSection standalone />
+        ) : showMagicLinkStep ? (
+          <MagicLinkSection
+            standalone
+            label="Confirm your identity with your email"
+          />
         ) : (
           <>
             <PasswordForm />
@@ -45,7 +54,9 @@ export function LoginScreen() {
         )}
 
         <p className="mt-4 text-center text-[11px] text-slate-400">
-          Strumento interno. La sessione scade dopo 12 ore.
+          {legacyEnabled
+            ? "Internal tool. Session expires after 12 hours."
+            : "No password needed \u2014 we'll email you a secure sign-in link."}
         </p>
       </div>
     </div>
@@ -78,14 +89,14 @@ function PasswordForm() {
       {notConfigured && (
         <p className="flex items-start gap-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700">
           <AlertTriangle size={14} className="mt-0.5 flex-shrink-0" />
-          Accesso non configurato: imposta <code>VITE_STUDIO_USER</code> e{" "}
+          Access not configured: set <code>VITE_STUDIO_USER</code> and{" "}
           <code>VITE_STUDIO_PASS_SHA256</code> in <code>.env.local</code>.
         </p>
       )}
 
       <label className="block">
         <span className="mb-1 block text-xs font-medium text-slate-600">
-          Utente
+          Username
         </span>
         <input
           value={user}
@@ -127,7 +138,7 @@ function PasswordForm() {
         className="flex w-full items-center justify-center gap-2 rounded-lg bg-zornade px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-zornade-700 disabled:cursor-not-allowed disabled:opacity-60"
       >
         <LogIn size={16} />
-        {busy ? "Accesso…" : "Entra"}
+        {busy ? "Signing in…" : "Sign in"}
       </button>
     </form>
   );
@@ -136,16 +147,26 @@ function PasswordForm() {
 /**
  * Supabase magic-link section.
  *
- * Two usages:
- * - Alternative ("oppure"), shown below the legacy password form, when only
- *   one of the two methods ends up mattering (Supabase not configured, or
- *   legacy not configured) - either one grants access.
- * - Standalone required step 2 of 2, shown ALONE (no legacy form, no
- *   "oppure" divider) once the legacy step has already passed and both
- *   methods are configured - the user must also complete this step before
- *   getting in.
+ * Three usages:
+ * - Default ("or"), shown below the legacy password form, when only one of
+ *   the two methods ends up mattering (Supabase not configured, or legacy
+ *   not configured) - either one grants access.
+ * - Standalone required step 2 of 2, shown ALONE (no legacy form, no "or"
+ *   divider) once the legacy step has already passed and both methods are
+ *   configured - the user must also complete this step before getting in
+ *   (label overridden to "Confirm your identity…" by the caller).
+ * - Standalone PRIMARY (legacy disabled entirely, the default for the
+ *   official zornade.com/studio deployment): the only auth step at all,
+ *   same standalone styling but with the default "Sign in (or sign up)…"
+ *   label since there is no prior step to "confirm".
  */
-function MagicLinkSection({ standalone = false }: { standalone?: boolean }) {
+function MagicLinkSection({
+  standalone = false,
+  label = "Sign in (or sign up) with your email",
+}: {
+  standalone?: boolean;
+  label?: string;
+}) {
   const { isConfigured, sendMagicLink } = useSupabaseAuth();
   const [email, setEmail] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -176,7 +197,7 @@ function MagicLinkSection({ standalone = false }: { standalone?: boolean }) {
         <div className="mb-3 flex items-center gap-2">
           <div className="h-px flex-1 bg-slate-200" />
           <span className="text-[11px] font-medium uppercase tracking-wide text-slate-400">
-            oppure
+            or
           </span>
           <div className="h-px flex-1 bg-slate-200" />
         </div>
@@ -185,15 +206,13 @@ function MagicLinkSection({ standalone = false }: { standalone?: boolean }) {
       {sent ? (
         <p className="flex items-start gap-2 rounded-lg bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
           <CheckCircle2 size={14} className="mt-0.5 flex-shrink-0" />
-          Controlla la tua email: ti abbiamo inviato un link di accesso.
+          Check your email: we've sent you a sign-in link.
         </p>
       ) : (
         <form onSubmit={onSubmit} className="space-y-3">
           <label className="block">
             <span className="mb-1 block text-xs font-medium text-slate-600">
-              {standalone
-                ? "Conferma la tua identità con la tua email"
-                : "Accedi (o registrati) con la tua email"}
+              {label}
             </span>
             <div className="relative">
               <Mail
@@ -206,7 +225,7 @@ function MagicLinkSection({ standalone = false }: { standalone?: boolean }) {
                 onChange={(e) => setEmail(e.target.value)}
                 autoComplete="email"
                 autoFocus={standalone}
-                placeholder="tu@esempio.com"
+                placeholder="you@example.com"
                 className="w-full rounded-lg border border-slate-200 py-2 pl-9 pr-3 text-sm focus:border-zornade focus:outline-none focus:ring-2 focus:ring-zornade/20"
               />
             </div>
@@ -224,7 +243,7 @@ function MagicLinkSection({ standalone = false }: { standalone?: boolean }) {
             className="flex w-full items-center justify-center gap-2 rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
           >
             <Mail size={16} />
-            {busy ? "Invio…" : "Invia link di accesso"}
+            {busy ? "Sending…" : "Send sign-in link"}
           </button>
         </form>
       )}

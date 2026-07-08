@@ -754,7 +754,7 @@ function UploadSource() {
     setData(out.dataset);
     // Default the title from the file name (a file has no title metadata), only
     // if the operator hasn't already set one - never overwrite manual input.
-    if (!project.title || project.title === "Mappa senza titolo") {
+    if (!project.title || project.title === "Untitled map") {
       const t = titleFromFileName(file.name);
       if (t) updateProject({ title: t });
     }
@@ -1024,7 +1024,7 @@ function OsmSource() {
         nameColumn: "nome",
         numericColumns: [],
       });
-      if (!project.title || project.title === "Mappa senza titolo") {
+      if (!project.title || project.title === "Untitled map") {
         updateProject({ title: `${preset.label} · ${where}` });
       }
       setInfo(

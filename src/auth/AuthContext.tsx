@@ -39,6 +39,21 @@ const EXPECTED_HASH = (
   ?.trim()
   .toLowerCase();
 
+/**
+ * Whether the legacy shared-password gate is allowed to participate at all
+ * (UI + access decision), independent of whether it happens to be configured.
+ *
+ * Defaults to DISABLED (opt-in via an explicit env var) so that the official
+ * zornade.com/studio deployment - which never sets this - shows and requires
+ * ONLY the free per-user magic-link signup, keeping the tool open to anyone.
+ * A self-hoster who still wants the shared-password gate (e.g. during a
+ * private beta) can set VITE_STUDIO_LEGACY_LOGIN_ENABLED=true to restore the
+ * exact previous dual-login behaviour - nothing about the gate itself was
+ * removed, only whether it's wired in.
+ */
+const LEGACY_LOGIN_ENABLED =
+  import.meta.env.VITE_STUDIO_LEGACY_LOGIN_ENABLED === "true";
+
 type Mode = "loading" | "server" | "client";
 
 interface AuthContextValue {
@@ -48,6 +63,8 @@ interface AuthContextValue {
   loading: boolean;
   /** True when credentials are not configured (client mode only). */
   notConfigured: boolean;
+  /** Whether the legacy gate is enabled at all in this environment (see LEGACY_LOGIN_ENABLED). */
+  legacyEnabled: boolean;
   /** Attempt login; returns null on success or an error message. */
   login: (user: string, password: string) => Promise<string | null>;
   logout: () => void;
@@ -134,20 +151,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             return null;
           }
           const data = (await res.json().catch(() => ({}))) as { error?: string };
-          return data.error ?? "Accesso negato.";
+          return data.error ?? "Access denied.";
         } catch {
-          return "Errore di rete durante l'accesso.";
+          return "Network error during login.";
         }
       }
 
       // Client fallback (dev).
       if (!EXPECTED_USER || !EXPECTED_HASH) {
-        return "Accesso non configurato. Imposta VITE_STUDIO_USER e VITE_STUDIO_PASS_SHA256 in .env.local.";
+        return "Access not configured. Set VITE_STUDIO_USER and VITE_STUDIO_PASS_SHA256 in .env.local.";
       }
       const userOk = safeEqual(user.trim(), EXPECTED_USER);
       const hash = await sha256Hex(password);
       const passOk = safeEqual(hash, EXPECTED_HASH);
-      if (!userOk || !passOk) return "Utente o password non corretti.";
+      if (!userOk || !passOk) return "Incorrect username or password.";
       const exp = Date.now() + CLIENT_SESSION_HOURS * 60 * 60 * 1000;
       sessionStorage.setItem(CLIENT_SESSION_KEY, JSON.stringify({ exp }));
       setIsAuthed(true);
@@ -170,6 +187,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isAuthed,
       loading: mode === "loading",
       notConfigured,
+      legacyEnabled: LEGACY_LOGIN_ENABLED,
       login,
       logout,
     }),

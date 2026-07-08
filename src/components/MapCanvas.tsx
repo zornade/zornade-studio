@@ -526,7 +526,7 @@ export function MapCanvas() {
               className="text-lg font-semibold leading-tight text-slate-900"
               style={{ fontFamily: design.titleFont }}
             >
-              {project.title || "Mappa senza titolo"}
+              {project.title || "Untitled map"}
             </h2>
             {project.subtitle && (
               <p

@@ -32,7 +32,7 @@ import type { SavableProject } from "../lib/project";
 
 function formatUpdatedAt(iso: string): string {
   try {
-    return new Date(iso).toLocaleString("it-IT", {
+    return new Date(iso).toLocaleString("en-GB", {
       day: "2-digit",
       month: "2-digit",
       year: "numeric",
@@ -123,7 +123,7 @@ export function ProjectsModal({ onClose }: { onClose: () => void }) {
       await refresh();
     } else {
       setShowNewForm(true);
-      setNewName(studio.project.title || "Mappa senza titolo");
+      setNewName(studio.project.title || "Untitled map");
     }
   };
 
@@ -209,14 +209,14 @@ export function ProjectsModal({ onClose }: { onClose: () => void }) {
               <button
                 onClick={() => void handleRenameSubmit(row.id)}
                 className="rounded-md p-1 text-zornade-700 hover:bg-zornade-50"
-                aria-label="Conferma rinomina"
+                aria-label="Confirm rename"
               >
                 <Check size={15} />
               </button>
               <button
                 onClick={() => setRenamingId(null)}
                 className="rounded-md p-1 text-slate-400 hover:bg-slate-100"
-                aria-label="Annulla rinomina"
+                aria-label="Cancel rename"
               >
                 <X size={15} />
               </button>
@@ -227,7 +227,7 @@ export function ProjectsModal({ onClose }: { onClose: () => void }) {
                 {row.name}
                 {isCurrent && (
                   <span className="ml-2 rounded-full bg-zornade-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-zornade-700">
-                    aperto
+                    open
                   </span>
                 )}
               </p>
@@ -235,7 +235,7 @@ export function ProjectsModal({ onClose }: { onClose: () => void }) {
                 {row.role !== "owner" && (
                   <span className="mr-1.5 capitalize">{row.role} ·</span>
                 )}
-                Modificato il {formatUpdatedAt(row.updatedAt)}
+                Updated {formatUpdatedAt(row.updatedAt)}
               </p>
             </>
           )}
@@ -243,14 +243,14 @@ export function ProjectsModal({ onClose }: { onClose: () => void }) {
 
         {confirmDeleteId === row.id ? (
           <div className="flex flex-shrink-0 items-center gap-1.5">
-            <span className="text-xs text-slate-500">Eliminare?</span>
+            <span className="text-xs text-slate-500">Delete?</span>
             <Button
               variant="primary"
               className="!px-2 !py-1 !text-xs"
               disabled={busy}
               onClick={() => void handleDelete(row)}
             >
-              Sì
+              Yes
             </Button>
             <Button
               variant="ghost"
@@ -268,7 +268,7 @@ export function ProjectsModal({ onClose }: { onClose: () => void }) {
               <>
                 <button
                   onClick={() => void handleOpen(row)}
-                  title="Apri"
+                  title="Open"
                   className="rounded-md p-1.5 text-slate-500 hover:bg-slate-100 hover:text-zornade-700"
                 >
                   <FolderOpen size={15} />
@@ -278,14 +278,14 @@ export function ProjectsModal({ onClose }: { onClose: () => void }) {
                     setRenamingId(row.id);
                     setRenameValue(row.name);
                   }}
-                  title="Rinomina"
+                  title="Rename"
                   className="rounded-md p-1.5 text-slate-500 hover:bg-slate-100 hover:text-zornade-700"
                 >
                   <Pencil size={15} />
                 </button>
                 <button
                   onClick={() => void handleDuplicate(row)}
-                  title="Duplica"
+                  title="Duplicate"
                   className="rounded-md p-1.5 text-slate-500 hover:bg-slate-100 hover:text-zornade-700"
                 >
                   <Copy size={15} />
@@ -293,7 +293,7 @@ export function ProjectsModal({ onClose }: { onClose: () => void }) {
                 {row.role === "owner" && (
                   <button
                     onClick={() => setShareTarget(row)}
-                    title="Condividi"
+                    title="Share"
                     className="rounded-md p-1.5 text-slate-500 hover:bg-slate-100 hover:text-zornade-700"
                   >
                     <Share2 size={15} />
@@ -302,7 +302,7 @@ export function ProjectsModal({ onClose }: { onClose: () => void }) {
                 {row.role === "owner" && (
                   <button
                     onClick={() => setConfirmDeleteId(row.id)}
-                    title="Elimina"
+                    title="Delete"
                     className="rounded-md p-1.5 text-slate-500 hover:bg-red-50 hover:text-red-600"
                   >
                     <Trash2 size={15} />
@@ -326,12 +326,12 @@ export function ProjectsModal({ onClose }: { onClose: () => void }) {
       <div className="flex max-h-[80vh] w-full max-w-lg flex-col rounded-xl border border-slate-200 bg-white shadow-xl">
         <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
           <h2 className="font-display text-base font-semibold text-slate-900">
-            I tuoi progetti
+            Your projects
           </h2>
           <button
             onClick={onClose}
             className="rounded-md p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
-            aria-label="Chiudi"
+            aria-label="Close"
           >
             <X size={16} />
           </button>
@@ -345,7 +345,7 @@ export function ProjectsModal({ onClose }: { onClose: () => void }) {
                   autoFocus
                   value={newName}
                   onChange={(e) => setNewName(e.target.value)}
-                  placeholder="Nome del progetto"
+                  placeholder="Project name"
                   onKeyDown={(e) => {
                     if (e.key === "Enter") void handleCreateNew();
                     if (e.key === "Escape") setShowNewForm(false);
@@ -357,18 +357,18 @@ export function ProjectsModal({ onClose }: { onClose: () => void }) {
                   disabled={busyId === "__new__"}
                   onClick={() => void handleCreateNew()}
                 >
-                  Salva
+                  Save
                 </Button>
                 <Button variant="ghost" onClick={() => setShowNewForm(false)}>
-                  Annulla
+                  Cancel
                 </Button>
               </div>
             ) : (
               <div className="flex items-center justify-between gap-2">
                 <p className="text-xs text-slate-500">
                   {studio.currentProjectId
-                    ? "Salva le modifiche nel progetto attualmente aperto, oppure creane uno nuovo."
-                    : "Il progetto corrente non è ancora salvato nel cloud."}
+                    ? "Save your changes to the currently open project, or create a new one."
+                    : "The current project isn't saved to the cloud yet."}
                 </p>
                 <div className="flex flex-shrink-0 gap-1.5">
                   {studio.currentProjectId && (
@@ -377,7 +377,7 @@ export function ProjectsModal({ onClose }: { onClose: () => void }) {
                       disabled={busyId === studio.currentProjectId}
                       onClick={() => void handleSaveCurrent()}
                     >
-                      Aggiorna
+                      Update
                     </Button>
                   )}
                   <Button
@@ -385,14 +385,14 @@ export function ProjectsModal({ onClose }: { onClose: () => void }) {
                     onClick={() => {
                       if (studio.currentProjectId) {
                         setShowNewForm(true);
-                        setNewName(`${studio.project.title} (copia)`);
+                        setNewName(`${studio.project.title} (copy)`);
                       } else {
                         void handleSaveCurrent();
                       }
                     }}
                   >
                     <Plus size={15} />
-                    {studio.currentProjectId ? "Salva come nuovo" : "Salva nel cloud"}
+                    {studio.currentProjectId ? "Save as new" : "Save to cloud"}
                   </Button>
                 </div>
               </div>
@@ -406,23 +406,23 @@ export function ProjectsModal({ onClose }: { onClose: () => void }) {
           )}
 
           {loading ? (
-            <p className="py-6 text-center text-sm text-slate-400">Caricamento…</p>
+            <p className="py-6 text-center text-sm text-slate-400">Loading…</p>
           ) : (
             <>
               <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
-                I miei progetti
+                My projects
               </p>
               {mine.length === 0 ? (
-                <p className="mb-4 text-sm text-slate-400">Nessun progetto salvato ancora.</p>
+                <p className="mb-4 text-sm text-slate-400">No projects saved yet.</p>
               ) : (
                 <ul className="mb-4 space-y-1.5">{mine.map(renderRow)}</ul>
               )}
 
               <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-400">
-                Condivisi con me
+                Shared with me
               </p>
               {shared.length === 0 ? (
-                <p className="text-sm text-slate-400">Nessun progetto condiviso.</p>
+                <p className="text-sm text-slate-400">No shared projects.</p>
               ) : (
                 <ul className="space-y-1.5">{shared.map(renderRow)}</ul>
               )}

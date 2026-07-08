@@ -12,7 +12,7 @@ const SUPPORT_EMAIL = "info@zornade.com";
 function buildContext(projectTitle: string, step: string): string {
   return [
     `Step: ${step}`,
-    `Progetto: ${projectTitle}`,
+    `Project: ${projectTitle}`,
     `URL: ${window.location.href}`,
     `Browser: ${navigator.userAgent}`,
   ].join("\n");
@@ -20,11 +20,11 @@ function buildContext(projectTitle: string, step: string): string {
 
 function buildIssueUrl(projectTitle: string, step: string): string {
   const body = [
-    "## Descrizione del problema",
+    "## Problem description",
     "",
-    "<!-- Descrivi brevemente cosa è successo e cosa ti aspettavi -->",
+    "<!-- Briefly describe what happened and what you expected -->",
     "",
-    "## Contesto",
+    "## Context",
     "```",
     buildContext(projectTitle, step),
     "```",
@@ -42,7 +42,7 @@ function buildIssueUrl(projectTitle: string, step: string): string {
 function buildMailtoUrl(projectTitle: string, step: string): string {
   const subject = encodeURIComponent(`[Studio] Bug in step "${step}"`);
   const body = encodeURIComponent(
-    `Descrizione del problema:\n\n\n\nContesto:\n${buildContext(projectTitle, step)}`
+    `Problem description:\n\n\n\nContext:\n${buildContext(projectTitle, step)}`
   );
   return `mailto:${SUPPORT_EMAIL}?subject=${subject}&body=${body}`;
 }
@@ -65,16 +65,16 @@ function BugReportModal({
         <div className="mb-4 flex items-start justify-between">
           <div>
             <h2 className="font-display text-base font-semibold text-slate-900">
-              Segnala un problema
+              Report a problem
             </h2>
             <p className="mt-0.5 text-xs text-slate-500">
-              Scegli come inviarci la segnalazione.
+              Choose how to send us your report.
             </p>
           </div>
           <button
             onClick={onClose}
             className="rounded-md p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
-            aria-label="Chiudi"
+            aria-label="Close"
           >
             <X size={16} />
           </button>
@@ -96,7 +96,7 @@ function BugReportModal({
             <svg viewBox="0 0 24 24" className="h-4 w-4 fill-current" aria-hidden="true">
               <path d="M12 0C5.37 0 0 5.37 0 12c0 5.3 3.438 9.8 8.205 11.385.6.113.82-.258.82-.577 0-.285-.01-1.04-.015-2.04-3.338.724-4.042-1.61-4.042-1.61-.546-1.385-1.335-1.755-1.335-1.755-1.087-.744.084-.729.084-.729 1.205.084 1.838 1.236 1.838 1.236 1.07 1.835 2.809 1.305 3.495.998.108-.776.417-1.305.76-1.605-2.665-.3-5.466-1.332-5.466-5.93 0-1.31.465-2.38 1.235-3.22-.135-.303-.54-1.523.105-3.176 0 0 1.005-.322 3.3 1.23.96-.267 1.98-.399 3-.405 1.02.006 2.04.138 3 .405 2.28-1.552 3.285-1.23 3.285-1.23.645 1.653.24 2.873.12 3.176.765.84 1.23 1.91 1.23 3.22 0 4.61-2.805 5.625-5.475 5.92.42.36.81 1.096.81 2.22 0 1.606-.015 2.896-.015 3.286 0 .315.21.69.825.57C20.565 21.795 24 17.295 24 12c0-6.63-5.37-12-12-12" />
             </svg>
-            Apri issue su GitHub
+            Open issue on GitHub
           </a>
           <a
             href={buildMailtoUrl(projectTitle, step)}
@@ -104,7 +104,7 @@ function BugReportModal({
             className="inline-flex items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 shadow-sm transition-colors hover:bg-slate-50"
           >
             <Mail size={16} />
-            Invia via email
+            Send via email
           </a>
         </div>
       </div>
@@ -148,7 +148,7 @@ export function Topbar() {
         <input
           value={project.title}
           onChange={(e) => updateProject({ title: e.target.value })}
-          aria-label="Titolo del progetto"
+          aria-label="Project title"
           className="min-w-0 flex-1 rounded-md border border-transparent px-2 py-1.5 text-sm font-medium text-slate-700 hover:border-slate-200 focus:border-zornade focus:outline-none focus:ring-2 focus:ring-zornade/20"
         />
 
@@ -156,26 +156,26 @@ export function Topbar() {
           {showCloudProjects && (
             <Button variant="ghost" onClick={() => setShowProjectsModal(true)}>
               <FolderKanban size={16} />
-              Progetti
+              Projects
             </Button>
           )}
           <Button variant="ghost" onClick={() => setStep("design")}>
             <Eye size={16} />
-            Anteprima
+            Preview
           </Button>
           <Button variant="primary" onClick={() => setStep("publish")}>
             <Share2 size={16} />
-            Pubblica
+            Publish
           </Button>
           <div className="h-6 w-px bg-slate-200" />
           <Button
             variant="ghost"
-            title="Segnala un problema"
+            title="Report a problem"
             onClick={() => setShowBugModal(true)}
           >
             <Bug size={16} />
           </Button>
-          <Button variant="ghost" onClick={handleLogout} title="Esci">
+          <Button variant="ghost" onClick={handleLogout} title="Sign out">
             <LogOut size={16} />
           </Button>
         </div>

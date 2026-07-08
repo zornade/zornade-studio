@@ -48,7 +48,7 @@ describe("listCollaborators", () => {
   it("returns an error when Supabase isn't configured", async () => {
     mockedGetClient.mockReturnValue(null);
     const res = await listCollaborators("p1");
-    expect(res.error).toMatch(/non configurato/);
+    expect(res.error).toMatch(/not configured/);
   });
 
   it("maps rows and joins usernames for resolved user_ids", async () => {
@@ -130,7 +130,7 @@ describe("inviteCollaborator", () => {
       role: "viewer",
       invitedBy: "u1",
     });
-    expect(res.error).toMatch(/non configurato/);
+    expect(res.error).toMatch(/not configured/);
   });
 
   it("rejects an empty email without hitting the network", async () => {
@@ -142,7 +142,7 @@ describe("inviteCollaborator", () => {
       role: "viewer",
       invitedBy: "u1",
     });
-    expect(res.error).toMatch(/Inserisci un indirizzo/);
+    expect(res.error).toMatch(/Enter an email/);
     expect((client.rpc as unknown as ReturnType<typeof vi.fn>)).not.toHaveBeenCalled();
   });
 
@@ -154,7 +154,7 @@ describe("inviteCollaborator", () => {
       role: "owner" as never,
       invitedBy: "u1",
     });
-    expect(res.error).toMatch(/proprietario/);
+    expect(res.error).toMatch(/owner/);
   });
 
   it("resolves an existing candidate (sets user_id, not invited_email)", async () => {
@@ -309,7 +309,7 @@ describe("updateCollaboratorRole", () => {
   it("rejects role 'owner'", async () => {
     mockedGetClient.mockReturnValue(makeClient({}));
     const res = await updateCollaboratorRole({ id: "c1", role: "owner" as never });
-    expect(res.error).toMatch(/proprietario/);
+    expect(res.error).toMatch(/owner/);
   });
 
   it("updates and returns the record", async () => {
@@ -341,7 +341,7 @@ describe("removeCollaborator", () => {
   it("returns an error when Supabase isn't configured", async () => {
     mockedGetClient.mockReturnValue(null);
     const res = await removeCollaborator("c1");
-    expect(res.error).toMatch(/non configurato/);
+    expect(res.error).toMatch(/not configured/);
   });
 
   it("succeeds with a null payload", async () => {

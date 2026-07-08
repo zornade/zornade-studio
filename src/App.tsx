@@ -108,7 +108,7 @@ function StudioShell() {
   const legacy = useAuth();
   const supabaseAuth = useSupabaseAuth();
   const { isAuthed, loading } = combineAuthState(
-    { ...legacy, configured: !legacy.notConfigured },
+    { ...legacy, configured: legacy.legacyEnabled && !legacy.notConfigured },
     { ...supabaseAuth, configured: supabaseAuth.isConfigured },
   );
   if (loading) {

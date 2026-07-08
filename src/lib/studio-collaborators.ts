@@ -39,7 +39,7 @@ function describeError(err: { message?: string } | null | undefined): string {
     : "Errore del database sconosciuto.";
 }
 
-const NOT_CONFIGURED = "Supabase non configurato per questo ambiente.";
+const NOT_CONFIGURED = "Supabase is not configured for this environment.";
 
 interface CollabRow {
   id: string;
@@ -112,8 +112,8 @@ export async function inviteCollaborator(params: {
   if (!client) return fail(NOT_CONFIGURED);
 
   const email = params.email.trim();
-  if (!email) return fail("Inserisci un indirizzo email.");
-  if (params.role === "owner") return fail("Non è possibile invitare come proprietario.");
+  if (!email) return fail("Enter an email address.");
+  if (params.role === "owner") return fail("Cannot invite as owner.");
 
   const { data: candidates, error: candidateError } = await client.rpc(
     "studio_find_collaborator_candidate",
@@ -158,7 +158,7 @@ export async function updateCollaboratorRole(params: {
 }): Promise<Result<CollaboratorRecord>> {
   const client = getSupabaseClient();
   if (!client) return fail(NOT_CONFIGURED);
-  if (params.role === "owner") return fail("Non è possibile assegnare il ruolo proprietario.");
+  if (params.role === "owner") return fail("Cannot assign the owner role.");
 
   const { data, error } = await client
     .from("studio_project_collaborators")

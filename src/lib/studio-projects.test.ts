@@ -64,7 +64,7 @@ describe("listMyProjects", () => {
   it("returns an error when Supabase isn't configured", async () => {
     mockedGetClient.mockReturnValue(null);
     const res = await listMyProjects("u1");
-    expect(res.error).toMatch(/non configurato/);
+    expect(res.error).toMatch(/not configured/);
   });
 
   it("maps rows with role 'owner'", async () => {
@@ -99,7 +99,7 @@ describe("listSharedWithMe", () => {
   it("returns an error when Supabase isn't configured", async () => {
     mockedGetClient.mockReturnValue(null);
     const res = await listSharedWithMe("u2");
-    expect(res.error).toMatch(/non configurato/);
+    expect(res.error).toMatch(/not configured/);
   });
 
   it("returns an empty list when there are no collaborator grants", async () => {
@@ -162,7 +162,7 @@ describe("getProject", () => {
   it("returns an error when Supabase isn't configured", async () => {
     mockedGetClient.mockReturnValue(null);
     const res = await getProject("p1", "u1");
-    expect(res.error).toMatch(/non configurato/);
+    expect(res.error).toMatch(/not configured/);
   });
 
   it("returns role 'owner' when owner_id matches the caller", async () => {
@@ -243,14 +243,14 @@ describe("createProject", () => {
   it("returns an error when Supabase isn't configured", async () => {
     mockedGetClient.mockReturnValue(null);
     const res = await createProject({ userId: "u1", name: "X", state: sampleState() });
-    expect(res.error).toMatch(/non configurato/);
+    expect(res.error).toMatch(/not configured/);
   });
 
   it("rejects an empty/whitespace name without hitting the network", async () => {
     const client = makeClient({});
     mockedGetClient.mockReturnValue(client);
     const res = await createProject({ userId: "u1", name: "   ", state: sampleState() });
-    expect(res.error).toMatch(/non può essere vuoto/);
+    expect(res.error).toMatch(/cannot be empty/);
     expect((client.from as unknown as ReturnType<typeof vi.fn>)).not.toHaveBeenCalled();
   });
 
@@ -281,7 +281,7 @@ describe("saveProjectState", () => {
   it("returns an error when Supabase isn't configured", async () => {
     mockedGetClient.mockReturnValue(null);
     const res = await saveProjectState({ id: "p1", state: sampleState() });
-    expect(res.error).toMatch(/non configurato/);
+    expect(res.error).toMatch(/not configured/);
   });
 
   it("saves and returns the updated summary", async () => {
@@ -314,7 +314,7 @@ describe("renameProject", () => {
     const client = makeClient({});
     mockedGetClient.mockReturnValue(client);
     const res = await renameProject({ id: "p1", name: "  " });
-    expect(res.error).toMatch(/non può essere vuoto/);
+    expect(res.error).toMatch(/cannot be empty/);
     expect((client.from as unknown as ReturnType<typeof vi.fn>)).not.toHaveBeenCalled();
   });
 
@@ -399,7 +399,7 @@ describe("softDeleteProject", () => {
   it("returns an error when Supabase isn't configured", async () => {
     mockedGetClient.mockReturnValue(null);
     const res = await softDeleteProject("p1");
-    expect(res.error).toMatch(/non configurato/);
+    expect(res.error).toMatch(/not configured/);
   });
 
   it("succeeds with a null payload", async () => {
