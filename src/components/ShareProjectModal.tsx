@@ -18,7 +18,7 @@ import {
 import type { CollaboratorRole } from "../lib/studio-projects";
 
 function displayName(c: CollaboratorRecord): string {
-  return c.invitedEmail ?? c.username ?? "Zornade user";
+  return c.invitedEmail ?? c.username ?? "Utente Zornade";
 }
 
 export function ShareProjectModal({
@@ -98,13 +98,13 @@ export function ShareProjectModal({
       <div className="flex max-h-[80vh] w-full max-w-md flex-col rounded-xl border border-slate-200 bg-white shadow-xl">
         <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
           <div>
-            <h2 className="font-display text-base font-semibold text-slate-900">Share</h2>
+            <h2 className="font-display text-base font-semibold text-slate-900">Condividi</h2>
             <p className="mt-0.5 truncate text-xs text-slate-500">{projectName}</p>
           </div>
           <button
             onClick={onClose}
             className="rounded-md p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
-            aria-label="Close"
+            aria-label="Chiudi"
           >
             <X size={16} />
           </button>
@@ -115,7 +115,7 @@ export function ShareProjectModal({
             <input
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="Email address"
+              placeholder="Indirizzo email"
               type="email"
               onKeyDown={(e) => {
                 if (e.key === "Enter") void handleInvite();
@@ -127,12 +127,12 @@ export function ShareProjectModal({
               onChange={(e) => setRole(e.target.value as CollaboratorRole)}
               className="rounded-md border border-slate-300 px-2 py-1.5 text-sm focus:border-zornade focus:outline-none"
             >
-              <option value="viewer">Viewer</option>
+              <option value="viewer">Visualizzatore</option>
               <option value="editor">Editor</option>
             </select>
             <Button variant="primary" disabled={inviting || !email.trim()} onClick={() => void handleInvite()}>
               {inviting ? <Loader2 size={15} className="animate-spin" /> : <UserPlus size={15} />}
-              Invite
+              Invita
             </Button>
           </div>
 
@@ -141,9 +141,9 @@ export function ShareProjectModal({
           )}
 
           {loading ? (
-            <p className="py-6 text-center text-sm text-slate-400">Loading…</p>
+            <p className="py-6 text-center text-sm text-slate-400">Caricamento…</p>
           ) : collaborators.length === 0 ? (
-            <p className="text-sm text-slate-400">No collaborators yet.</p>
+            <p className="text-sm text-slate-400">Nessun collaboratore ancora.</p>
           ) : (
             <ul className="space-y-1.5">
               {collaborators.map((c) => {
@@ -159,7 +159,7 @@ export function ShareProjectModal({
                         {displayName(c)}
                         {pending && (
                           <span className="ml-2 rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700">
-                            pending
+                            in attesa
                           </span>
                         )}
                       </p>
@@ -173,12 +173,12 @@ export function ShareProjectModal({
                           onChange={(e) => void handleRoleChange(c, e.target.value as CollaboratorRole)}
                           className="rounded-md border border-slate-200 px-1.5 py-1 text-xs focus:border-zornade focus:outline-none"
                         >
-                          <option value="viewer">Viewer</option>
+                          <option value="viewer">Visualizzatore</option>
                           <option value="editor">Editor</option>
                         </select>
                         <button
                           onClick={() => void handleRemove(c)}
-                          title="Remove"
+                          title="Rimuovi"
                           className="rounded-md p-1.5 text-slate-500 hover:bg-red-50 hover:text-red-600"
                         >
                           <Trash2 size={15} />

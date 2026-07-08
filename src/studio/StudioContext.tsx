@@ -195,7 +195,7 @@ export function StudioProvider({ children }: { children: ReactNode }) {
   const [step, setStep] = useState<StepId>(restored?.step ?? "data");
   const [project, setProject] = useState<ProjectMeta>(
     restored?.project ?? {
-      title: "Untitled map",
+      title: "Mappa senza titolo",
       subtitle: "",
       source: "Fatto con Zornade Studio",
     },

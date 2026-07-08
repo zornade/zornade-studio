@@ -78,9 +78,9 @@ export function SupabaseAuthProvider({ children }: { children: ReactNode }) {
 
   const sendMagicLink = useCallback(async (email: string): Promise<string | null> => {
     const client = getSupabaseClient();
-    if (!client) return "Supabase is not configured for this environment.";
+    if (!client) return "Supabase non configurato per questo ambiente.";
     const trimmed = email.trim();
-    if (!trimmed) return "Enter an email address.";
+    if (!trimmed) return "Inserisci un indirizzo email.";
     const { error } = await client.auth.signInWithOtp({
       email: trimmed,
       options: {

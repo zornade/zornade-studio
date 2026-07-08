@@ -56,7 +56,7 @@ function describeError(err: { message?: string } | null | undefined): string {
     : "Errore del database sconosciuto.";
 }
 
-const NOT_CONFIGURED = "Supabase is not configured for this environment.";
+const NOT_CONFIGURED = "Supabase non configurato per questo ambiente.";
 
 interface ProjectRow {
   id: string;
@@ -171,7 +171,7 @@ export async function createProject(params: {
   if (!client) return fail(NOT_CONFIGURED);
 
   const name = params.name.trim();
-  if (!name) return fail("Project name cannot be empty.");
+  if (!name) return fail("Il nome del progetto non può essere vuoto.");
 
   const { data, error } = await client
     .from("studio_projects")
@@ -222,7 +222,7 @@ export async function renameProject(params: {
   if (!client) return fail(NOT_CONFIGURED);
 
   const name = params.name.trim();
-  if (!name) return fail("Project name cannot be empty.");
+  if (!name) return fail("Il nome del progetto non può essere vuoto.");
 
   const { data, error } = await client
     .from("studio_projects")

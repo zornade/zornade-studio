@@ -10,11 +10,11 @@ interface StepDef {
 }
 
 const STEPS: StepDef[] = [
-  { id: "data", label: "Data", icon: Database },
-  { id: "structure", label: "Structure", icon: Columns3 },
-  { id: "visualize", label: "Visualize", icon: BarChart3 },
+  { id: "data", label: "Dati", icon: Database },
+  { id: "structure", label: "Struttura", icon: Columns3 },
+  { id: "visualize", label: "Visualizza", icon: BarChart3 },
   { id: "design", label: "Design", icon: Palette },
-  { id: "publish", label: "Publish", icon: Share2 },
+  { id: "publish", label: "Pubblica", icon: Share2 },
 ];
 
 export function Stepper() {
@@ -23,7 +23,7 @@ export function Stepper() {
 
   return (
     <nav
-      aria-label="Creation steps"
+      aria-label="Fasi di creazione"
       className="flex flex-shrink-0 items-center gap-1 border-b border-slate-200 bg-white px-4 py-2"
     >
       {STEPS.map((s, i) => {
