@@ -264,7 +264,7 @@ export function PublishPanel() {
 <figure style="margin:0">
   <iframe src="${publishedUrl}" width="100%" height="520" frameborder="0" scrolling="no" title="${project.title}" loading="lazy"></iframe>
   <figcaption style="font:13px/1.45 system-ui,-apple-system,sans-serif;color:#475569;margin-top:6px">
-    <a href="${publishedUrl}" target="_blank" rel="noopener">${project.title}</a> - <a href="https://zornade.com/studio" target="_blank" rel="noopener">Mappa di Zornade</a> · Dati © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>
+    <a href="${publishedUrl}" target="_blank" rel="noopener">${project.title}</a> - <a href="https://zornade.com/studio?utm_source=studio.zornade.com&amp;utm_medium=embed&amp;utm_campaign=share_caption_attribution" target="_blank" rel="noopener">Mappa di Zornade</a> · Dati © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>
   </figcaption>
 </figure>`
     : "";

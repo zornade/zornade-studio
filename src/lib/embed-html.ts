@@ -196,8 +196,8 @@ function buildStoryEmbedHtml(spec: StorySpec, opts: EmbedOptions): string {
     design: { ...spec.base.design, zoomPan: false },
   } as StoryBaseSpec;
   const rawBase = buildEmbedHtml(baseSpec, opts).replace(
-    '\'<a href="https://zornade.com/studio" target="_blank" rel="noopener">Fatto con Zornade Studio</a>\'}));',
-    '\'<a href="https://zornade.com/studio" target="_blank" rel="noopener">Fatto con Zornade Studio</a>\'}));try{window.__zmap=map;}catch(e){}',
+    '\'<a href="https://zornade.com/studio?utm_source=studio.zornade.com&amp;utm_medium=embed&amp;utm_campaign=published_embed_attribution" target="_blank" rel="noopener">Fatto con Zornade Studio</a>\'}));',
+    '\'<a href="https://zornade.com/studio?utm_source=studio.zornade.com&amp;utm_medium=embed&amp;utm_campaign=published_embed_attribution" target="_blank" rel="noopener">Fatto con Zornade Studio</a>\'}));try{window.__zmap=map;}catch(e){}',
   );
   // srcdoc lives in a double-quoted attribute → escape & and " only.
   const srcdoc = rawBase.replace(/&/g, "&amp;").replace(/"/g, "&quot;");
@@ -253,7 +253,7 @@ ${oembedLinks}
   ${stepsHtml}
   <div class="end"></div>
 </div>
-<div class="attr"><a href="https://zornade.com/studio" target="_blank" rel="noopener">Fatto con Zornade Studio</a></div>
+<div class="attr"><a href="https://zornade.com/studio?utm_source=studio.zornade.com&amp;utm_medium=embed&amp;utm_campaign=published_embed_attribution" target="_blank" rel="noopener">Fatto con Zornade Studio</a></div>
 <script src="https://cdn.jsdelivr.net/npm/scrollama@${scrollamaVer}/build/scrollama.min.js"></script>
 <script>
 const EMBED = ${jsonForScript(embed)};
@@ -388,7 +388,7 @@ ${oembedLinks}
 ${spec.design.showTitle && title ? `<div class="ttl"><h1 style="font-family:${titleFont}">${title}</h1>${subtitle ? `<p style="font-family:${titleFont}">${subtitle}</p>` : ""}</div>` : ""}
 <div id="chart"></div>
 ${spec.design.showSource && source ? `<div class="src">${source}</div>` : ""}
-<div class="attr"><a href="https://zornade.com/studio" target="_blank" rel="noopener">Fatto con Zornade Studio</a></div>
+<div class="attr"><a href="https://zornade.com/studio?utm_source=studio.zornade.com&amp;utm_medium=embed&amp;utm_campaign=published_embed_attribution" target="_blank" rel="noopener">Fatto con Zornade Studio</a></div>
 </div>
 ${dataTableHtml ? `<div class="sr-only">${dataTableHtml}</div>` : ""}
 <script src="https://cdn.jsdelivr.net/npm/@observablehq/plot@${plotVer}/dist/plot.umd.min.js"></script>
@@ -802,7 +802,7 @@ function light(){try{map.setLight(${LIGHT_JSON});}catch(e){}}
 var map=new maplibregl.Map({container:"map",
   style:E.basemapStyle||{version:8,sources:{},layers:[]},
   center:E.center,zoom:E.zoom,pitch:E.pitch,bearing:E.bearing,attributionControl:false,interactive:E.interactive});
-map.addControl(new maplibregl.AttributionControl({compact:true,customAttribution:'<a href="https://zornade.com/studio" target="_blank" rel="noopener">Fatto con Zornade Studio</a>'}));
+map.addControl(new maplibregl.AttributionControl({compact:true,customAttribution:'<a href="https://zornade.com/studio?utm_source=studio.zornade.com&amp;utm_medium=embed&amp;utm_campaign=published_embed_attribution" target="_blank" rel="noopener">Fatto con Zornade Studio</a>'}));
 var GEO=null,ready=false;
 map.on("load",function(){ready=true;if(E.globe){try{map.setProjection({type:"globe"});}catch(e){}}sky();light();loc();if(E.hideLabels)hideLbl();if(GEO)build();});
 fetch(E.geoUrl).then(function(r){return r.json();}).then(function(g){GEO=g;if(ready)build();});
@@ -1443,7 +1443,7 @@ function sky(){try{map.setSky(E.globe?${SKY_GLOBE_JSON}:${SKY_FLAT_JSON});}catch
 var map=new maplibregl.Map({container:"map",
   style:E.basemapStyle||{version:8,sources:{},layers:[]},
   center:E.center,zoom:E.zoom,pitch:E.pitch,bearing:E.bearing,attributionControl:false,interactive:E.interactive});
-map.addControl(new maplibregl.AttributionControl({compact:true,customAttribution:'<a href="https://zornade.com/studio" target="_blank" rel="noopener">Fatto con Zornade Studio</a>'}));
+map.addControl(new maplibregl.AttributionControl({compact:true,customAttribution:'<a href="https://zornade.com/studio?utm_source=studio.zornade.com&amp;utm_medium=embed&amp;utm_campaign=published_embed_attribution" target="_blank" rel="noopener">Fatto con Zornade Studio</a>'}));
 map.on("load",function(){if(E.globe){try{map.setProjection({type:"globe"});}catch(e){}}sky();loc();if(E.hideLabels)hideLbl();build();});
 function build(){
   map.addSource("d",{type:"geojson",data:E.geojson});
@@ -1755,7 +1755,7 @@ function sky(){try{map.setSky(E.globe?${SKY_GLOBE_JSON}:${SKY_FLAT_JSON});}catch
 var map=new maplibregl.Map({container:"map",
   style:E.basemapStyle||{version:8,sources:{},layers:[]},
   center:E.center,zoom:E.zoom,pitch:E.pitch,bearing:E.bearing,attributionControl:false,interactive:E.interactive});
-map.addControl(new maplibregl.AttributionControl({compact:true,customAttribution:'<a href="https://zornade.com/studio" target="_blank" rel="noopener">Fatto con Zornade Studio</a>'}));
+map.addControl(new maplibregl.AttributionControl({compact:true,customAttribution:'<a href="https://zornade.com/studio?utm_source=studio.zornade.com&amp;utm_medium=embed&amp;utm_campaign=published_embed_attribution" target="_blank" rel="noopener">Fatto con Zornade Studio</a>'}));
 map.on("load",function(){if(E.globe){try{map.setProjection({type:"globe"});}catch(e){}}sky();loc();if(E.hideLabels)hideLbl();build();});
 function build(){
   var DO=(E.dataOpacity==null?1:E.dataOpacity);
