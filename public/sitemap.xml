@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Sitemap studio.zornade.com
+  Creata 2026-07-13 - prima non esisteva.
+  Studio è un editor single-page (non un sito di contenuti come zornade.com):
+  l'unica rotta pubblica indicizzabile è la home "/". Le mappe pubblicate
+  vivono su /embed/<slug>/<hash>/ (proxy verso DigitalOcean Spaces, contenuto
+  generato dagli utenti, non pagine editoriali di Zornade) e sono
+  deliberatamente escluse da questa sitemap, sono referenziate/scoperte
+  tramite gli articoli che le incorporano, non tramite ricerca diretta su
+  studio.zornade.com.
+-->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.sitemaps.org/schemas/sitemap/0.9
+        http://www.sitemaps.org/schemas/sitemap/0.9/sitemap.xsd">
+
+  <url>
+    <loc>https://studio.zornade.com/</loc>
+    <lastmod>2026-07-13</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+  </url>
+
+</urlset>

@@ -1,0 +1,51 @@
+# =======================================================================
+# robots.txt - studio.zornade.com
+# Creato 2026-07-13. Prima non esisteva (mancava sia questo sia sitemap.xml).
+# =======================================================================
+
+User-agent: *
+Allow: /
+# Netlify Functions: endpoint API, non pagine da indicizzare
+Disallow: /api/
+
+User-agent: Googlebot
+Allow: /
+
+User-agent: Bingbot
+Allow: /
+
+User-agent: DuckDuckBot
+Allow: /
+
+# -----------------------------------------------------------------------
+# AI crawler - abilitati esplicitamente, stessa policy di zornade.com e
+# app.zornade.com (nessun contenuto sensibile qui, editor pubblico)
+# -----------------------------------------------------------------------
+User-agent: GPTBot
+Allow: /
+
+User-agent: OAI-SearchBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: Claude-Web
+Allow: /
+
+User-agent: anthropic-ai
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: Perplexity-User
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+Sitemap: https://studio.zornade.com/sitemap.xml
