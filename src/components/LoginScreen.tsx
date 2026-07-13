@@ -147,6 +147,10 @@ function PasswordForm() {
 /**
  * Supabase magic-link section.
  *
+ * Exported (not just used locally) so AuthGateModal.tsx can reuse the exact
+ * same form/copy for the contextual "accedi per pubblicare/salvare" prompts
+ * (login-only-when-necessary, see App.tsx) instead of duplicating it.
+ *
  * Three usages:
  * - Default ("oppure"), shown below the legacy password form, when only one
  *   of the two methods ends up mattering (Supabase not configured, or
@@ -161,7 +165,7 @@ function PasswordForm() {
  *   same standalone styling but with the default "Accedi (o registrati)…"
  *   label since there is no prior step to "confirm".
  */
-function MagicLinkSection({
+export function MagicLinkSection({
   standalone = false,
   label = "Accedi (o registrati) con la tua email",
 }: {

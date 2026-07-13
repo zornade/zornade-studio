@@ -19,10 +19,16 @@ import { useStudio } from "../../studio/StudioContext";
 import { PanelSection, Button, SoonBadge } from "../primitives";
 import { isChartType } from "../../lib/chart-data";
 import { rowsToCsv } from "../../lib/data-table";
+import { getSupabaseAccessToken } from "../../lib/supabase";
+import { useAuth } from "../../auth/AuthContext";
+import { useSupabaseAuth } from "../../auth/SupabaseAuthContext";
+import { AuthGateModal } from "../AuthGateModal";
 
 export function PublishPanel() {
   const studio = useStudio();
   const { project, data, exportNodeRef } = studio;
+  const { isAuthed: legacyAuthed } = useAuth();
+  const { isAuthed: supabaseAuthed, isConfigured: supabaseConfigured } = useSupabaseAuth();
   const [copied, setCopied] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
@@ -30,6 +36,7 @@ export function PublishPanel() {
   const [publishError, setPublishError] = useState<string | null>(null);
   const [publishedUrl, setPublishedUrl] = useState<string | null>(null);
   const [projectError, setProjectError] = useState<string | null>(null);
+  const [showAuthGate, setShowAuthGate] = useState(false);
 
   const slug =
     project.title
@@ -42,8 +49,19 @@ export function PublishPanel() {
   // SVG export is a real vector export only for the Plot charts.
   const isChart = isChartType(studio.vizType);
 
-  /** Build the spec, send it to /api/publish, and keep the immutable URL. */
+  /**
+   * Build the spec, send it to /api/publish, and keep the immutable URL.
+   * Login-only-when-necessary (2026-07-13): if Supabase is configured on
+   * this deploy and the visitor hasn't signed in through EITHER method
+   * accepted server-side (see netlify/functions/_auth.mts), show the
+   * contextual auth prompt instead of firing a request that would just
+   * 401 - the modal retries this same call automatically once signed in.
+   */
   const publish = async () => {
+    if (supabaseConfigured && !supabaseAuthed && !legacyAuthed) {
+      setShowAuthGate(true);
+      return;
+    }
     setPublishing(true);
     setPublishError(null);
     try {
@@ -68,9 +86,16 @@ export function PublishPanel() {
         setPublishError(out.error);
         return;
       }
+      // Attach the Supabase session token, if any, so the endpoint can
+      // authenticate magic-link users (see netlify/functions/_auth.mts) -
+      // falls back to the legacy cookie (sent automatically) when absent.
+      const accessToken = await getSupabaseAccessToken();
       const res = await fetch("/api/publish", {
         method: "POST",
-        headers: { "content-type": "application/json" },
+        headers: {
+          "content-type": "application/json",
+          ...(accessToken ? { authorization: `Bearer ${accessToken}` } : {}),
+        },
         body: JSON.stringify({ spec: out.spec }),
       });
       const body = (await res.json().catch(() => ({}))) as {
@@ -606,6 +631,17 @@ export function PublishPanel() {
           Disponibile dopo la pubblicazione.
         </div>
       </PanelSection>
+
+      {showAuthGate && (
+        <AuthGateModal
+          message="Accedi per pubblicare la tua mappa"
+          onClose={() => setShowAuthGate(false)}
+          onAuthed={() => {
+            setShowAuthGate(false);
+            void publish();
+          }}
+        />
+      )}
     </div>
   );
 }

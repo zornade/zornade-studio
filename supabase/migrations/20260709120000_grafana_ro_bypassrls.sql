@@ -1,0 +1,16 @@
+-- Fix: grafana_ro (read-only monitoring role, see
+-- 20260708120000_grafana_readonly_role.sql) was granted SELECT on all public
+-- tables, but NOT BYPASSRLS. `public.profiles` has row level security
+-- ENABLED with its only SELECT policy scoped `to authenticated` (a Supabase
+-- JWT-derived role, not applicable to a raw Postgres connection). Result:
+-- grafana_ro saw ZERO rows in `profiles` regardless of real data - a false
+-- negative discovered 2026-07-09 (real signups existed, confirmed by Resend
+-- confirmation emails sent + a real user registering, while the monitoring
+-- query reported 0). Any other table that enables RLS in the future would
+-- hit the exact same silent blind spot for this role.
+--
+-- Standard Postgres fix for genuine reporting/monitoring roles: BYPASSRLS.
+-- This does NOT touch app-facing RLS policies for `authenticated`/`anon`/
+-- real users at all - it only affects this single dedicated, password-
+-- protected, SELECT-only role used exclusively by the Grafana datasource.
+ALTER ROLE grafana_ro WITH BYPASSRLS;

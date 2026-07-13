@@ -51,3 +51,17 @@ export function getSupabaseClient(): SupabaseClient | null {
 
   return _supabaseClient;
 }
+
+/**
+ * Current Supabase session access token, if any, to send as
+ * `Authorization: Bearer <token>` to auth-gated Netlify Functions
+ * (/api/publish, /api/db) - see netlify/functions/_auth.mts. Returns null
+ * when Supabase isn't configured or the user isn't logged in via Supabase
+ * (the request then falls back to the legacy cookie, if that's configured).
+ */
+export async function getSupabaseAccessToken(): Promise<string | null> {
+  const client = getSupabaseClient();
+  if (!client) return null;
+  const { data } = await client.auth.getSession();
+  return data.session?.access_token ?? null;
+}

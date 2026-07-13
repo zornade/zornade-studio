@@ -5,6 +5,7 @@ import { useAuth } from "../auth/AuthContext";
 import { useSupabaseAuth } from "../auth/SupabaseAuthContext";
 import { Button } from "./primitives";
 import { ProjectsModal } from "./ProjectsModal";
+import { AuthGateModal } from "./AuthGateModal";
 
 const REPO = "zornade/zornade-studio";
 const SUPPORT_EMAIL = "info@zornade.com";
@@ -118,7 +119,16 @@ export function Topbar() {
   const { signOut, isAuthed: supabaseAuthed, isConfigured } = useSupabaseAuth();
   const [showBugModal, setShowBugModal] = useState(false);
   const [showProjectsModal, setShowProjectsModal] = useState(false);
-  const showCloudProjects = isConfigured && supabaseAuthed;
+  const [showAuthGate, setShowAuthGate] = useState(false);
+
+  // "Progetti" is visible any time Supabase is configured at all - login is
+  // no longer a precondition to SEE the button, only to use what's behind
+  // it (login-only-when-necessary, 2026-07-13). Clicking it signed-out opens
+  // the contextual auth prompt instead of the (now redundant) full-page one.
+  const openProjects = () => {
+    if (supabaseAuthed) setShowProjectsModal(true);
+    else setShowAuthGate(true);
+  };
 
   // Sign out of BOTH the legacy gate and any active Supabase session -
   // whichever the user actually used to get in, this always fully logs out.
@@ -153,8 +163,8 @@ export function Topbar() {
         />
 
         <div className="flex items-center gap-2">
-          {showCloudProjects && (
-            <Button variant="ghost" onClick={() => setShowProjectsModal(true)}>
+          {isConfigured && (
+            <Button variant="ghost" onClick={openProjects}>
               <FolderKanban size={16} />
               Progetti
             </Button>
@@ -190,6 +200,16 @@ export function Topbar() {
       )}
       {showProjectsModal && (
         <ProjectsModal onClose={() => setShowProjectsModal(false)} />
+      )}
+      {showAuthGate && (
+        <AuthGateModal
+          message="Accedi per vedere e salvare i tuoi progetti nel cloud"
+          onClose={() => setShowAuthGate(false)}
+          onAuthed={() => {
+            setShowAuthGate(false);
+            setShowProjectsModal(true);
+          }}
+        />
       )}
     </>
   );

@@ -15,14 +15,17 @@
  *   SPACES_KEY, SPACES_SECRET   Spaces access keys (Spaces Access Keys page)
  *   SPACES_BUCKET               e.g. "zornade-studio-embed"
  *   SPACES_REGION               e.g. "fra1"
- *   STUDIO_SESSION_SECRET       (existing) to verify the auth cookie
+ *   Auth (at least ONE of the two, see _auth.mts):
+ *     STUDIO_SESSION_SECRET       legacy shared-password cookie
+ *     VITE_SUPABASE_URL/ANON_KEY  Supabase magic-link users (same vars the
+ *                                 Vite client build already requires)
  * Optional:
  *   EMBED_BASE_URL              public origin, default https://studio.zornade.com
  *   EMBED_GEO_BASE              geometry base, default https://studio.zornade.com/geo
  */
 
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
-import { verifyToken, readCookie } from "./_session.mts";
+import { verifyRequestAuth, isAnyAuthConfigured } from "./_auth.mts";
 import { isVizSpec, type ChoroplethSpec, type VizSpec } from "../../src/lib/spec";
 import { buildEmbedHtml } from "../../src/lib/embed-html";
 import { publishKeys } from "../../src/lib/publish-key";
@@ -39,11 +42,13 @@ const DEFAULT_GEO = "https://studio.zornade.com/geo";
 export default async (req: Request): Promise<Response> => {
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
 
-  // 1. Auth - same signed-cookie scheme as the other functions.
-  const secret = process.env.STUDIO_SESSION_SECRET;
-  if (!secret) return json({ error: "Auth non configurata." }, 500);
-  const token = readCookie(req.headers.get("cookie"));
-  if (!token || !verifyToken(token, secret)) {
+  // 1. Auth - accepts EITHER the legacy shared-password cookie OR a
+  // Supabase-authenticated user (magic link), see _auth.mts.
+  if (!isAnyAuthConfigured()) {
+    return json({ error: "Auth non configurata." }, 500);
+  }
+  const auth = await verifyRequestAuth(req);
+  if (!auth.ok) {
     return json({ error: "Non autenticato." }, 401);
   }
 

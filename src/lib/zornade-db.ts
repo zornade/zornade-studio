@@ -224,9 +224,22 @@ export function dbRowsToTable(rows: DbRow[]): {
  * Netlify, so in plain `vite` dev it 404s (the UI surfaces a clear message).
  */
 export async function queryZornadeDb(req: DbQueryRequest): Promise<DbRow[]> {
+  // Dynamic import, deliberately: this module is shared with the SERVER side
+  // (netlify/functions/db.mts imports parseDbRequest/omiSemesters from here).
+  // ../lib/supabase.ts reads `import.meta.env.*` (a Vite-only construct) at
+  // module load time - a static top-level import here would make the
+  // Netlify Function crash on cold start (import.meta.env is undefined
+  // outside of a Vite build). A dynamic import only evaluates that module
+  // when THIS function actually runs, which never happens server-side.
+  const { getSupabaseAccessToken } = await import("./supabase");
+  const accessToken = await getSupabaseAccessToken();
   const res = await fetch("/api/db", {
     method: "POST",
-    headers: { "content-type": "application/json", accept: "application/json" },
+    headers: {
+      "content-type": "application/json",
+      accept: "application/json",
+      ...(accessToken ? { authorization: `Bearer ${accessToken}` } : {}),
+    },
     body: JSON.stringify(req),
   });
   const ct = res.headers.get("content-type") ?? "";

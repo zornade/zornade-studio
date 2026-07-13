@@ -107,8 +107,9 @@ function Workspace() {
 function StudioShell() {
   const legacy = useAuth();
   const supabaseAuth = useSupabaseAuth();
+  const legacyConfigured = legacy.legacyEnabled && !legacy.notConfigured;
   const { isAuthed, loading } = combineAuthState(
-    { ...legacy, configured: legacy.legacyEnabled && !legacy.notConfigured },
+    { ...legacy, configured: legacyConfigured },
     { ...supabaseAuth, configured: supabaseAuth.isConfigured },
   );
   if (loading) {
@@ -122,7 +123,16 @@ function StudioShell() {
       </div>
     );
   }
-  if (!isAuthed) return <LoginScreen />;
+  // Full-page gate ONLY when the legacy shared-password gate is actually
+  // enabled for this deployment (VITE_STUDIO_LEGACY_LOGIN_ENABLED=true, a
+  // private-beta-style restriction where the whole point is to keep the
+  // tool closed to anyone who hasn't cleared it). In every other case - the
+  // official zornade.com/studio default (Supabase-only) or a bare self-host
+  // with nothing configured - the editor is open to everyone from the
+  // first load; login is only prompted contextually, at the moment an
+  // action that genuinely needs an identity is attempted (save to cloud,
+  // share, publish) - see AuthGateModal, used by Topbar and PublishPanel.
+  if (legacyConfigured && !isAuthed) return <LoginScreen />;
   return (
     <StudioProvider>
       <div className="flex h-full flex-col bg-slate-50">

@@ -12,13 +12,16 @@
  * Required environment variables (Netlify → Site settings → Environment):
  *   ZORNADE_DB_URL            postgres connection string of a **read-only** role
  *                             (e.g. postgres://readonly:pwd@host:6543/postgres)
- *   STUDIO_SESSION_SECRET     (existing) to verify the auth cookie
+ *   Auth (at least ONE of the two, see _auth.mts):
+ *     STUDIO_SESSION_SECRET     legacy shared-password cookie
+ *     VITE_SUPABASE_URL/ANON_KEY  Supabase magic-link users (same vars the
+ *                                 Vite client build already requires)
  *
  * Use the Supabase **transaction pooler** port (6543) for these short queries.
  */
 
 import postgres from "postgres";
-import { verifyToken, readCookie } from "./_session.mts";
+import { verifyRequestAuth, isAnyAuthConfigured } from "./_auth.mts";
 import {
   parseDbRequest,
   omiSemesters,
@@ -34,11 +37,13 @@ const STATEMENT_TIMEOUT_MS = 8000;
 export default async (req: Request): Promise<Response> => {
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
 
-  // 1. Auth - same signed-cookie scheme as the other functions.
-  const secret = process.env.STUDIO_SESSION_SECRET;
-  if (!secret) return json({ error: "Auth non configurata." }, 500);
-  const token = readCookie(req.headers.get("cookie"));
-  if (!token || !verifyToken(token, secret)) {
+  // 1. Auth - accepts EITHER the legacy shared-password cookie OR a
+  // Supabase-authenticated user (magic link), see _auth.mts.
+  if (!isAnyAuthConfigured()) {
+    return json({ error: "Auth non configurata." }, 500);
+  }
+  const auth = await verifyRequestAuth(req);
+  if (!auth.ok) {
     return json({ error: "Non autenticato." }, 401);
   }
 
