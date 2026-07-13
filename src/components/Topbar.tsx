@@ -1,4 +1,4 @@
-import { Eye, Share2, LogOut, Bug, Mail, X, FolderKanban } from "lucide-react";
+import { Eye, Share2, LogOut, Bug, Mail, X, FolderKanban, Map } from "lucide-react";
 import { useState } from "react";
 import { useStudio } from "../studio/StudioContext";
 import { useAuth } from "../auth/AuthContext";
@@ -9,6 +9,12 @@ import { AuthGateModal } from "./AuthGateModal";
 
 const REPO = "zornade/zornade-studio";
 const SUPPORT_EMAIL = "info@zornade.com";
+
+// Cross-link al prodotto "sorella" (esplorazione dati particellari/catastali)
+// - prima di oggi assente dalla UI di Studio (vedi memoria
+// zornade-utm-link-strategy-2026-07-09, sezione "non fatto").
+const APP_URL =
+  "https://app.zornade.com/?utm_source=studio.zornade.com&utm_medium=internal_nav&utm_campaign=topbar_app_link";
 
 function buildContext(projectTitle: string, step: string): string {
   return [
@@ -178,6 +184,15 @@ export function Topbar() {
             Pubblica
           </Button>
           <div className="h-6 w-px bg-slate-200" />
+          <a
+            href={APP_URL}
+            target="_blank"
+            rel="noopener"
+            title="Esplora i dati particellari e catastali su app.zornade.com"
+            className="inline-flex items-center justify-center gap-2 rounded-lg px-3.5 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-100"
+          >
+            <Map size={16} />
+          </a>
           <Button
             variant="ghost"
             title="Segnala un problema"
