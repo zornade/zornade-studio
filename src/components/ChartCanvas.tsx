@@ -4,6 +4,7 @@ import { useStudio } from "../studio/StudioContext";
 import { COLOR_SCALES } from "../studio/catalog";
 import { BRAND_TEAL } from "../studio/palettes";
 import { DataTableView } from "./DataTableView";
+import { useI18n } from "../i18n/LanguageContext";
 import {
   chartColumnRoles,
   resolveChartAxes,
@@ -48,6 +49,7 @@ function formatValue(n: number, unit: string): string {
  * `exportNodeRef` for PNG export.
  */
 export function ChartCanvas() {
+  const { dict } = useI18n();
   const { project, vizType, design, data, exportNodeRef } = useStudio();
 
   const scale =
@@ -71,7 +73,7 @@ export function ChartCanvas() {
             className="text-lg font-semibold leading-tight text-slate-900"
             style={{ fontFamily: design.titleFont }}
           >
-            {project.title || "Grafico senza titolo"}
+            {project.title || dict.chartCanvas.untitledChart}
           </h2>
           {project.subtitle && (
             <p

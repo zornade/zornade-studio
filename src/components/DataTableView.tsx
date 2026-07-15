@@ -1,4 +1,5 @@
 import type { ColumnRole } from "../lib/mapping";
+import { useI18n } from "../i18n/LanguageContext";
 
 /**
  * Visual metadata for every column role badge shown in the Struttura table
@@ -46,6 +47,7 @@ export function DataTableView({
   maxRows = 500,
   roles,
 }: DataTableViewProps) {
+  const { dict } = useI18n();
   const shown = rows.slice(0, maxRows);
   return (
     <div className="h-full overflow-auto rounded-lg ring-1 ring-slate-200">
@@ -90,7 +92,7 @@ export function DataTableView({
       </table>
       {rows.length > maxRows && (
         <p className="px-3 py-2 text-[11px] text-slate-400">
-          Mostrate le prime {maxRows} righe di {rows.length}.
+          {dict.dataTableView.shownRows(maxRows, rows.length)}
         </p>
       )}
     </div>

@@ -23,12 +23,14 @@ import { getSupabaseAccessToken } from "../../lib/supabase";
 import { useAuth } from "../../auth/AuthContext";
 import { useSupabaseAuth } from "../../auth/SupabaseAuthContext";
 import { AuthGateModal } from "../AuthGateModal";
+import { useI18n } from "../../i18n/LanguageContext";
 
 export function PublishPanel() {
   const studio = useStudio();
   const { project, data, exportNodeRef } = studio;
   const { isAuthed: legacyAuthed } = useAuth();
   const { isAuthed: supabaseAuthed, isConfigured: supabaseConfigured } = useSupabaseAuth();
+  const { dict } = useI18n();
   const [copied, setCopied] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
@@ -103,13 +105,13 @@ export function PublishPanel() {
         error?: string;
       };
       if (!res.ok || !body.url) {
-        setPublishError(body.error ?? `Pubblicazione fallita (${res.status}).`);
+        setPublishError(body.error ?? dict.publishPanel.publishFailedGeneric(res.status));
         return;
       }
       setPublishedUrl(body.url);
     } catch (e) {
       setPublishError(
-        e instanceof Error ? `Pubblicazione fallita: ${e.message}` : "Errore di rete.",
+        e instanceof Error ? dict.publishPanel.publishFailedWithMessage(e.message) : dict.publishPanel.networkError,
       );
     } finally {
       setPublishing(false);
@@ -120,7 +122,7 @@ export function PublishPanel() {
   const exportPng = async () => {
     const node = exportNodeRef.current;
     if (!node) {
-      setExportError("Carica prima i dati (passo Dati).");
+      setExportError(dict.publishPanel.loadDataFirst);
       return;
     }
     setExporting(true);
@@ -142,7 +144,7 @@ export function PublishPanel() {
       a.click();
     } catch (e) {
       setExportError(
-        e instanceof Error ? `Export fallito: ${e.message}` : "Export fallito.",
+        e instanceof Error ? dict.publishPanel.exportFailed(e.message) : dict.publishPanel.exportFailedGeneric,
       );
     } finally {
       setExporting(false);
@@ -153,7 +155,7 @@ export function PublishPanel() {
   const exportSvg = async () => {
     const node = exportNodeRef.current;
     if (!node) {
-      setExportError("Carica prima i dati (passo Dati).");
+      setExportError(dict.publishPanel.loadDataFirst);
       return;
     }
     setExporting(true);
@@ -163,7 +165,7 @@ export function PublishPanel() {
       // pick the largest by rendered area so we export the chart itself.
       const svgs = Array.from(node.querySelectorAll("svg"));
       if (svgs.length === 0) {
-        setExportError("Nessun grafico vettoriale da esportare.");
+        setExportError(dict.publishPanel.noVectorChart);
         return;
       }
       const target = svgs.reduce((best, s) => {
@@ -185,7 +187,7 @@ export function PublishPanel() {
       URL.revokeObjectURL(url);
     } catch (e) {
       setExportError(
-        e instanceof Error ? `Export SVG fallito: ${e.message}` : "Export SVG fallito.",
+        e instanceof Error ? dict.publishPanel.exportSvgFailed(e.message) : dict.publishPanel.exportSvgFailedGeneric,
       );
     } finally {
       setExporting(false);
@@ -196,7 +198,7 @@ export function PublishPanel() {
   const exportPdf = async () => {
     const node = exportNodeRef.current;
     if (!node) {
-      setExportError("Carica prima i dati (passo Dati).");
+      setExportError(dict.publishPanel.loadDataFirst);
       return;
     }
     setExporting(true);
@@ -226,7 +228,7 @@ export function PublishPanel() {
       URL.revokeObjectURL(url);
     } catch (e) {
       setExportError(
-        e instanceof Error ? `Export PDF fallito: ${e.message}` : "Export PDF fallito.",
+        e instanceof Error ? dict.publishPanel.exportPdfFailed(e.message) : dict.publishPanel.exportPdfFailedGeneric,
       );
     } finally {
       setExporting(false);
@@ -236,7 +238,7 @@ export function PublishPanel() {
   /** Download the loaded dataset as a CSV (accessible, machine-readable). */
   const downloadCsv = () => {
     if (!data) {
-      setExportError("Carica prima i dati (passo Dati).");
+      setExportError(dict.publishPanel.loadDataFirst);
       return;
     }
     const csv = rowsToCsv(data.columns, data.rows);
@@ -273,23 +275,12 @@ export function PublishPanel() {
   // through an extra hop via the embed's own page.
   const embed = publishedUrl
     ? `<!--
-  ATTRIBUZIONE DATI:
-  questa mappa contiene dati © OpenStreetMap contributors, distribuiti sotto
-  Open Database License (https://opendatacommons.org/licenses/odbl/). Non
-  rimuovere né nascondere il credito "Dati © OpenStreetMap" nella didascalia
-  sottostante: è un obbligo della licenza dei dati OSM, non di Zornade.
-
-  ATTRIBUZIONE ZORNADE:
-  questa mappa è stata realizzata con Zornade Studio (https://zornade.com/studio). 
-  Il mantenimento del link "Mappa di Zornade" è richiesto dai Termini di servizio 
-  dell'embed gratuito - la rimozione costituisce una violazione contrattuale 
-  verso Zornade. Una licenza commerciale Zornade può derogare a QUESTA condizione
-  (mai al credito OpenStreetMap, che resta sempre dovuto).
+  ${dict.publishPanel.embedComment}
 -->
 <figure style="margin:0">
   <iframe src="${publishedUrl}" width="100%" height="520" frameborder="0" scrolling="no" title="${project.title}" loading="lazy"></iframe>
   <figcaption style="font:13px/1.45 system-ui,-apple-system,sans-serif;color:#475569;margin-top:6px">
-    <a href="${publishedUrl}" target="_blank" rel="noopener">${project.title}</a> - <a href="https://zornade.com/studio?utm_source=studio.zornade.com&amp;utm_medium=embed&amp;utm_campaign=share_caption_attribution" target="_blank" rel="noopener">Mappa di Zornade</a> · Dati © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>
+    <a href="${publishedUrl}" target="_blank" rel="noopener">${project.title}</a> - <a href="https://zornade.com/studio?utm_source=studio.zornade.com&amp;utm_medium=embed&amp;utm_campaign=share_caption_attribution" target="_blank" rel="noopener">${dict.publishPanel.embedZornadeLinkText}</a> · ${dict.publishPanel.embedDataCreditPrefix} <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>
   </figcaption>
 </figure>`
     : "";
@@ -339,24 +330,24 @@ export function PublishPanel() {
       }
       studio.loadProject(out.state);
     } catch {
-      setProjectError("Impossibile leggere il file del progetto.");
+      setProjectError(dict.publishPanel.cannotReadProjectFile);
     }
   };
 
   return (
     <div className="space-y-6">
       <PanelSection
-        title="Progetto"
-        hint="Salva il lavoro su file e riaprilo quando vuoi."
+        title={dict.publishPanel.projectSection}
+        hint={dict.publishPanel.projectHint}
       >
         <div className="grid grid-cols-2 gap-2">
           <Button variant="secondary" onClick={() => void saveProject()}>
             <Save size={15} />
-            Salva progetto
+            {dict.publishPanel.saveProject}
           </Button>
           <label className="flex cursor-pointer items-center justify-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-600 transition-colors hover:border-zornade hover:text-zornade-700">
             <FolderOpen size={15} />
-            Apri progetto
+            {dict.publishPanel.openProject}
             <input
               type="file"
               accept=".json,application/json"
@@ -375,19 +366,18 @@ export function PublishPanel() {
           </p>
         )}
         <p className="mt-2 text-[11px] text-slate-400">
-          Il lavoro viene salvato in automatico in questo browser; “Salva
-          progetto” crea un file che puoi archiviare o spostare.
+          {dict.publishPanel.projectFooterHint}
         </p>
       </PanelSection>
 
       <PanelSection
-        title="Pubblica & incorpora"
-        hint="Genera uno snapshot immutabile e ottieni il codice da incollare."
+        title={dict.publishPanel.publishSection}
+        hint={dict.publishPanel.publishHint}
       >
         {!isChartType(studio.vizType) && studio.vizType !== "table" && (
           <div className="mb-3">
             <p className="mb-1.5 text-xs font-medium text-slate-600">
-              Inquadratura dell&apos;embed
+              {dict.publishPanel.embedFraming}
             </p>
             <div className="grid grid-cols-2 gap-1.5">
               <button
@@ -399,9 +389,9 @@ export function PublishPanel() {
                     : "border-slate-200 text-slate-600 hover:border-slate-300"
                 }`}
               >
-                <span className="block font-medium">Adatta ai dati</span>
+                <span className="block font-medium">{dict.publishPanel.fitData}</span>
                 <span className="mt-0.5 block text-[11px] text-slate-400">
-                  Inquadra automaticamente tutta l&apos;area dei dati.
+                  {dict.publishPanel.fitDataHint}
                 </span>
               </button>
               <button
@@ -413,16 +403,15 @@ export function PublishPanel() {
                     : "border-slate-200 text-slate-600 hover:border-slate-300"
                 }`}
               >
-                <span className="block font-medium">Usa la vista attuale</span>
+                <span className="block font-medium">{dict.publishPanel.useCurrentView}</span>
                 <span className="mt-0.5 block text-[11px] text-slate-400">
-                  Blocca zoom, centro, inclinazione e globo dell&apos;anteprima.
+                  {dict.publishPanel.useCurrentViewHint}
                 </span>
               </button>
             </div>
             {studio.design.lockView && (
               <p className="mt-1.5 text-[11px] text-slate-400">
-                Verrà catturata l&apos;inquadratura corrente dell&apos;anteprima.
-                Su embed più larghi o stretti resta centrata sullo stesso punto.
+                {dict.publishPanel.lockViewNote}
               </p>
             )}
           </div>
@@ -437,12 +426,12 @@ export function PublishPanel() {
           }`}
         >
           {publishing
-            ? "Pubblico…"
+            ? dict.publishPanel.publishing
             : publishedUrl
-              ? "Ripubblica"
+              ? dict.publishPanel.republish
               : isChartType(studio.vizType) || studio.vizType === "table"
-                ? "Pubblica grafico"
-                : "Pubblica mappa"}
+                ? dict.publishPanel.publishChart
+                : dict.publishPanel.publishMap}
         </button>
         {publishError && (
           <p className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700">
@@ -451,7 +440,7 @@ export function PublishPanel() {
         )}
         {!data && (
           <p className="text-xs text-slate-500">
-            Carica i dati e scegli la mappa prima di pubblicare.
+            {dict.publishPanel.loadDataBeforePublish}
           </p>
         )}
 
@@ -464,35 +453,28 @@ export function PublishPanel() {
             </div>
             <Button variant="primary" onClick={copy} className="w-full">
               {copied ? <Check size={16} /> : <Copy size={16} />}
-              {copied ? "Copiato!" : "Copia codice embed"}
+              {copied ? dict.publishPanel.copied : dict.publishPanel.copyEmbedCode}
             </Button>
             <p className="text-xs text-slate-500">
-              Snapshot statico immutabile su CDN: questo URL resta raggiungibile
-              in modo permanente e non cambia se in seguito modifichi il progetto.
+              {dict.publishPanel.publishedUrlNote}
             </p>
             <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700">
-              Lo snippet include il credito a OpenStreetMap (obbligatorio per
-              licenza dati ODbL, non rimovibile) e il link a Zornade
-              (richiesto dai Termini di servizio dell'embed gratuito,
-              rimovibile solo con una licenza commerciale Zornade). Non
-              rimuovere il credito OpenStreetMap.
+              {dict.publishPanel.attributionNote}
             </p>
             <p className="rounded-lg bg-blue-50 px-3 py-2 text-xs text-blue-700">
-              <strong>WordPress:</strong> incolla direttamente questo URL in un
-              blocco a sé (oEmbed) e la mappa comparirà automaticamente, senza
-              usare lo snippet HTML.
+              <strong>{dict.publishPanel.wordpressNoteBold}</strong> {dict.publishPanel.wordpressNote}
             </p>
           </>
         )}
         <label className="flex items-center gap-2 text-sm text-slate-600">
           <input type="checkbox" disabled className="h-4 w-4 rounded accent-zornade" />
-          Genera variante mobile dedicata
+          {dict.publishPanel.mobileVariantLabel}
           <Smartphone size={14} className="text-slate-400" />
           <SoonBadge />
         </label>
       </PanelSection>
 
-      <PanelSection title="Esporta">
+      <PanelSection title={dict.publishPanel.exportSection}>
         <button
           onClick={exportPng}
           disabled={!data || exporting}
@@ -503,7 +485,7 @@ export function PublishPanel() {
           }`}
         >
           <FileImage size={18} />
-          {exporting ? "Genero PNG…" : "Scarica PNG"}
+          {exporting ? dict.publishPanel.generatingPng : dict.publishPanel.downloadPng}
         </button>
         {exportError && (
           <p className="rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700">
@@ -512,7 +494,7 @@ export function PublishPanel() {
         )}
         {!data && (
           <p className="text-xs text-slate-500">
-            Carica i dati e apri la mappa per esportarla.
+            {dict.publishPanel.loadDataToExport}
           </p>
         )}
         <div className="grid grid-cols-2 gap-2">
@@ -533,8 +515,8 @@ export function PublishPanel() {
             disabled={!data || !isChart || exporting}
             title={
               isChart
-                ? "Esporta il grafico come SVG vettoriale"
-                : "SVG vettoriale disponibile solo per i grafici"
+                ? dict.publishPanel.svgOnlyForCharts
+                : dict.publishPanel.svgOnlyForChartsDisabled
             }
             className={`flex items-center justify-center gap-2 rounded-xl border py-2.5 text-sm font-medium transition-colors ${
               !data || !isChart || exporting
@@ -548,15 +530,14 @@ export function PublishPanel() {
         </div>
         {!isChart && data && (
           <p className="text-[11px] text-slate-400">
-            L'SVG vettoriale è disponibile per i grafici; le mappe (WebGL) si
-            esportano in PNG o PDF.
+            {dict.publishPanel.svgHint}
           </p>
         )}
         <div className="grid grid-cols-3 gap-2">
           {[
-            { label: "Social", icon: Share2 },
-            { label: "Poster", icon: LayoutTemplate },
-            { label: "GIF/MP4", icon: Film },
+            { label: dict.publishPanel.socialLabel, icon: Share2 },
+            { label: dict.publishPanel.posterLabel, icon: LayoutTemplate },
+            { label: dict.publishPanel.gifMp4Label, icon: Film },
           ].map((f) => {
             const Icon = f.icon;
             return (
@@ -573,13 +554,13 @@ export function PublishPanel() {
         </div>
         <div className="flex items-center gap-2 text-xs text-slate-500">
           <SoonBadge />
-          Grafica social, poster e animazioni in arrivo.
+          {dict.publishPanel.socialSoonHint}
         </div>
       </PanelSection>
 
       <PanelSection
-        title="Accessibilità"
-        hint="Rendi la mappa fruibile a tutti."
+        title={dict.publishPanel.accessibilitySection}
+        hint={dict.publishPanel.accessibilityHint}
       >
         <button
           onClick={downloadCsv}
@@ -591,25 +572,24 @@ export function PublishPanel() {
           }`}
         >
           <Download size={16} />
-          Scarica i dati (CSV)
+          {dict.publishPanel.downloadCsv}
         </button>
         <p className="flex items-start gap-2 rounded-lg bg-slate-50 px-3 py-2 text-[11px] text-slate-500">
           <Table2 size={14} className="mt-0.5 flex-shrink-0 text-slate-400" />
-          Le mappe pubblicate includono una tabella dati nascosta, leggibile
-          dagli screen reader, con i valori per area.
+          {dict.publishPanel.hiddenTableNote}
         </p>
         <label className="flex items-center gap-2 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-600 opacity-80">
           <input type="checkbox" disabled defaultChecked className="h-4 w-4 rounded accent-zornade" />
-          Testo alternativo + check contrasto/daltonismo
+          {dict.publishPanel.altTextCheckLabel}
           <SoonBadge />
         </label>
       </PanelSection>
 
-      <PanelSection title="Analytics" hint="Engagement dell'embed pubblicato.">
+      <PanelSection title={dict.publishPanel.analyticsSection} hint={dict.publishPanel.analyticsHint}>
         <div className="grid grid-cols-2 gap-2">
           {[
-            { label: "Visualizzazioni", value: "-", icon: TrendingUp },
-            { label: "Interazioni", value: "-", icon: Share2 },
+            { label: dict.publishPanel.views, value: "-", icon: TrendingUp },
+            { label: dict.publishPanel.interactions, value: "-", icon: Share2 },
           ].map((m) => {
             const Icon = m.icon;
             return (
@@ -628,13 +608,13 @@ export function PublishPanel() {
         </div>
         <div className="flex items-center gap-2 text-xs text-slate-500">
           <SoonBadge />
-          Disponibile dopo la pubblicazione.
+          {dict.publishPanel.availableAfterPublish}
         </div>
       </PanelSection>
 
       {showAuthGate && (
         <AuthGateModal
-          message="Accedi per pubblicare la tua mappa"
+          message={dict.publishPanel.authGateMessage}
           onClose={() => setShowAuthGate(false)}
           onAuthed={() => {
             setShowAuthGate(false);

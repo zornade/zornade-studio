@@ -20,6 +20,7 @@ import { useEffect, useRef } from "react";
 import { X } from "lucide-react";
 import { useSupabaseAuth } from "../auth/SupabaseAuthContext";
 import { MagicLinkSection } from "./LoginScreen";
+import { useI18n } from "../i18n/LanguageContext";
 
 export function AuthGateModal({
   message,
@@ -40,6 +41,7 @@ export function AuthGateModal({
 }) {
   const { isAuthed } = useSupabaseAuth();
   const firedRef = useRef(false);
+  const { dict } = useI18n();
 
   useEffect(() => {
     if (isAuthed && !firedRef.current) {
@@ -59,7 +61,7 @@ export function AuthGateModal({
         <button
           onClick={onClose}
           className="absolute -right-2 -top-2 z-10 rounded-full bg-white p-1 text-slate-400 shadow-sm hover:bg-slate-100 hover:text-slate-600"
-          aria-label="Chiudi"
+          aria-label={dict.common.close}
         >
           <X size={16} />
         </button>

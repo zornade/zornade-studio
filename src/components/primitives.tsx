@@ -1,4 +1,5 @@
 import type { ButtonHTMLAttributes, ReactNode } from "react";
+import { useI18n } from "../i18n/LanguageContext";
 
 type Variant = "primary" | "secondary" | "ghost";
 
@@ -53,9 +54,10 @@ export function PanelSection({
 }
 
 export function SoonBadge() {
+  const { dict } = useI18n();
   return (
     <span className="rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700">
-      Presto
+      {dict.primitives.soon}
     </span>
   );
 }

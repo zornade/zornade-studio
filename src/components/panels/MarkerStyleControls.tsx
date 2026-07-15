@@ -3,6 +3,7 @@ import { Field } from "../primitives";
 import { MARKER_SHAPES, markerSvgTemplate, MARKER_COLOR_TOKEN } from "../../lib/markers";
 import { loadFaIcons, filterFaIcons, type FaIcon } from "../../lib/fa-icons";
 import type { DesignSettings } from "../../studio/types";
+import { useI18n } from "../../i18n/LanguageContext";
 
 interface Props {
   design: DesignSettings;
@@ -23,6 +24,7 @@ function shapePreview(shapeId: string, color: string, iconPath: string, iconW: n
  * opens.
  */
 export function MarkerStyleControls({ design, updateDesign }: Props) {
+  const { dict } = useI18n();
   const [pickerOpen, setPickerOpen] = useState(false);
   const [icons, setIcons] = useState<FaIcon[] | null>(null);
   const [loading, setLoading] = useState(false);
@@ -58,15 +60,16 @@ export function MarkerStyleControls({ design, updateDesign }: Props) {
 
   return (
     <div className="flex flex-col gap-3">
-      <Field label="Forma">
+      <Field label={dict.markerStyleControls.shapeLabel}>
         <div className="grid grid-cols-8 gap-1.5">
           {MARKER_SHAPES.map((s) => {
             const active = shape === s.id;
+            const shapeLabel = dict.markerShapes[s.id] ?? s.label;
             return (
               <button
                 key={s.id}
                 type="button"
-                title={s.label}
+                title={shapeLabel}
                 onClick={() => updateDesign({ pointShape: s.id })}
                 className={`flex aspect-square items-center justify-center rounded border p-1 ${
                   active
@@ -82,7 +85,7 @@ export function MarkerStyleControls({ design, updateDesign }: Props) {
                     design.pointIconW || 0,
                     design.pointIconH || 0,
                   )}
-                  alt={s.label}
+                  alt={shapeLabel}
                   className="h-full w-full object-contain"
                 />
               </button>
@@ -91,7 +94,7 @@ export function MarkerStyleControls({ design, updateDesign }: Props) {
         </div>
       </Field>
 
-      <Field label="Icona">
+      <Field label={dict.markerStyleControls.iconLabel}>
         <div className="flex items-center gap-2">
           <button
             type="button"
@@ -103,10 +106,10 @@ export function MarkerStyleControls({ design, updateDesign }: Props) {
                 <path d={design.pointIconPath} />
               </svg>
             ) : (
-              <span className="text-slate-400">Nessuna icona</span>
+              <span className="text-slate-400">{dict.markerStyleControls.noIcon}</span>
             )}
             <span className="ml-auto text-slate-500">
-              {design.pointIcon || (pickerOpen ? "chiudi" : "scegli")}
+              {design.pointIcon || (pickerOpen ? dict.markerStyleControls.close : dict.markerStyleControls.choose)}
             </span>
           </button>
           {design.pointIconPath && (
@@ -115,7 +118,7 @@ export function MarkerStyleControls({ design, updateDesign }: Props) {
               onClick={() => chooseIcon(null)}
               className="rounded border border-slate-200 px-2 py-1.5 text-xs text-slate-500 hover:border-slate-300"
             >
-              Rimuovi
+              {dict.markerStyleControls.remove}
             </button>
           )}
         </div>
@@ -127,10 +130,10 @@ export function MarkerStyleControls({ design, updateDesign }: Props) {
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Cerca icona (es. anchor, plane, hospital)…"
+            placeholder={dict.markerStyleControls.searchPlaceholder}
             className="mb-2 w-full rounded border border-slate-200 px-2 py-1.5 text-sm"
           />
-          {loading && <p className="py-4 text-center text-xs text-slate-400">Caricamento icone…</p>}
+          {loading && <p className="py-4 text-center text-xs text-slate-400">{dict.markerStyleControls.loadingIcons}</p>}
           {!loading && icons && (
             <div className="grid max-h-56 grid-cols-8 gap-1 overflow-y-auto">
               {filtered.map((icon) => (
@@ -150,7 +153,7 @@ export function MarkerStyleControls({ design, updateDesign }: Props) {
               ))}
               {filtered.length === 0 && (
                 <p className="col-span-8 py-4 text-center text-xs text-slate-400">
-                  Nessuna icona trovata.
+                  {dict.markerStyleControls.noIconFound}
                 </p>
               )}
             </div>

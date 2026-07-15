@@ -13,6 +13,7 @@ import { useEffect, useRef, useState } from "react";
 import { Pencil, Move } from "lucide-react";
 import maplibregl from "maplibre-gl";
 import type { BboxValue } from "../studio/types";
+import { useI18n } from "../i18n/LanguageContext";
 
 interface Props {
   /** Current bbox (controlled). Null = nothing drawn yet. */
@@ -32,6 +33,7 @@ const FILL_ID = "bbox-fill";
 const LINE_ID = "bbox-line";
 
 export function BboxPickerMap({ value, onChange, fullscreen = false }: Props) {
+  const { dict } = useI18n();
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const dragging = useRef(false);
@@ -253,7 +255,7 @@ export function BboxPickerMap({ value, onChange, fullscreen = false }: Props) {
                   : "text-slate-600 hover:bg-slate-100"
               }`}
             >
-              <Move size={13} /> Sposta / zoom
+              <Move size={13} /> {dict.bboxPickerMap.moveZoom}
             </button>
             <button
               onClick={() => setDrawActive(true)}
@@ -263,7 +265,7 @@ export function BboxPickerMap({ value, onChange, fullscreen = false }: Props) {
                   : "text-slate-600 hover:bg-slate-100"
               }`}
             >
-              <Pencil size={13} /> Seleziona area
+              <Pencil size={13} /> {dict.bboxPickerMap.selectArea}
             </button>
           </div>
         )}

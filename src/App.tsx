@@ -18,10 +18,12 @@ import { BboxPickerMap } from "./components/BboxPickerMap";
 import { Button } from "./components/primitives";
 import { isChartType } from "./lib/chart-data";
 import type { StepId } from "./studio/types";
+import { LanguageProvider, useI18n } from "./i18n/LanguageContext";
 
 const STEP_ORDER: StepId[] = ["data", "structure", "visualize", "design", "publish"];
 
 function MapEmptyState() {
+  const { dict } = useI18n();
   return (
     <div className="flex h-full w-full items-center justify-center bg-slate-50 p-8">
       <div className="max-w-sm text-center">
@@ -29,19 +31,16 @@ function MapEmptyState() {
           <MapPinned size={26} />
         </div>
         <h2 className="font-display text-lg font-semibold text-slate-800">
-          Scegli i dati di partenza
+          {dict.mapEmptyState.title}
         </h2>
-        <p className="mt-1.5 text-sm text-slate-500">
-          Nel pannello a sinistra scegli se usare una fonte di dati pronta dal
-          catalogo oppure caricare i tuoi dati. La mappa apparirà qui appena i
-          dati saranno caricati.
-        </p>
+        <p className="mt-1.5 text-sm text-slate-500">{dict.mapEmptyState.body}</p>
       </div>
     </div>
   );
 }
 
 function Workspace() {
+  const { dict } = useI18n();
   const { step, setStep, data, vizType, bboxPickMode, pendingBbox, setPendingBbox } = useStudio();
   const idx = STEP_ORDER.indexOf(step);
 
@@ -67,14 +66,14 @@ function Workspace() {
             onClick={() => setStep(STEP_ORDER[idx - 1])}
           >
             <ChevronLeft size={16} />
-            Indietro
+            {dict.common.back}
           </Button>
           <Button
             variant="primary"
             disabled={idx === STEP_ORDER.length - 1}
             onClick={() => setStep(STEP_ORDER[idx + 1])}
           >
-            Avanti
+            {dict.common.next}
             <ChevronRight size={16} />
           </Button>
         </div>
@@ -146,10 +145,12 @@ function StudioShell() {
 
 export function App() {
   return (
-    <AuthProvider>
-      <SupabaseAuthProvider>
-        <StudioShell />
-      </SupabaseAuthProvider>
-    </AuthProvider>
+    <LanguageProvider>
+      <AuthProvider>
+        <SupabaseAuthProvider>
+          <StudioShell />
+        </SupabaseAuthProvider>
+      </AuthProvider>
+    </LanguageProvider>
   );
 }

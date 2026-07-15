@@ -27,6 +27,7 @@ import { templateColumns } from "../lib/tooltip";
 import { buildClassVisibilityFilter, classLabel } from "../lib/class-filter";
 import { rowsForFrame, frameLabel } from "../lib/temporal";
 import { buildDataLayer } from "../lib/data-layer";
+import { useI18n } from "../i18n/LanguageContext";
 
 const NO_DATA_COLOR = DEFAULT_NO_DATA_COLOR;
 /** Categorical palette for point/category colouring (falls back to teal). */
@@ -40,6 +41,7 @@ function labelWithUnit(label: string, unit?: string): string {
 }
 
 export function MapCanvas() {
+  const { dict } = useI18n();
   const {
     project,
     brand,
@@ -560,7 +562,7 @@ export function MapCanvas() {
                       <button
                         key={`${c}-${i}`}
                         onClick={() => toggleClass(i)}
-                        title={hidden ? "Mostra questa classe" : "Nascondi questa classe"}
+                        title={hidden ? dict.mapCanvas.showClass : dict.mapCanvas.hideClass}
                         className={`flex items-center gap-1.5 rounded px-1 py-0.5 text-left text-[10px] transition-opacity hover:bg-slate-100 ${
                           hidden ? "opacity-35" : ""
                         }`}
@@ -701,7 +703,7 @@ export function MapCanvas() {
           <div className="pointer-events-auto flex items-center gap-3 rounded-xl bg-white/92 px-3 py-2 shadow-lg ring-1 ring-black/5 backdrop-blur">
             <button
               onClick={() => setPlaying((p) => !p)}
-              title={playing ? "Pausa" : "Riproduci l'animazione"}
+              title={playing ? dict.mapCanvas.pause : dict.mapCanvas.play}
               className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full bg-zornade text-white transition-colors hover:bg-zornade-700"
             >
               {playing ? <Pause size={15} /> : <Play size={15} className="ml-0.5" />}
@@ -715,7 +717,7 @@ export function MapCanvas() {
                 setPlaying(false);
                 setTimeIndex(Number(e.target.value));
               }}
-              aria-label="Periodo"
+              aria-label={dict.mapCanvas.periodAria}
               className="h-1 flex-1 cursor-pointer accent-zornade"
             />
             <span className="w-14 flex-shrink-0 text-right text-xs font-semibold tabular-nums text-slate-700">

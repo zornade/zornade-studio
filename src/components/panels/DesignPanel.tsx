@@ -38,11 +38,15 @@ import {
 import { designCaps, supportsGlobe } from "../../studio/design-caps";
 import { BIVARIATE_PALETTES, DEFAULT_BIVARIATE_PALETTE_ID } from "../../lib/bivariate";
 import { MarkerStyleControls } from "./MarkerStyleControls";
+import { useI18n } from "../../i18n/LanguageContext";
+import type { Dictionary } from "../../i18n/dictionaries/it";
 
-const PRESET_OPTIONS: { id: PresetChoice; label: string }[] = [
-  ...NEWSROOM_KIT_LIST.map((k) => ({ id: k.id as PresetChoice, label: k.label })),
-  { id: "custom", label: "Personalizzato" },
-];
+function usePresetOptions(dict: Dictionary): { id: PresetChoice; label: string }[] {
+  return [
+    ...NEWSROOM_KIT_LIST.map((k) => ({ id: k.id as PresetChoice, label: k.label })),
+    { id: "custom", label: dict.designPanel.customPreset },
+  ];
+}
 
 export function DesignPanel() {
   const {
@@ -69,6 +73,8 @@ export function DesignPanel() {
     moveStoryStep,
     goToStep,
   } = useStudio();
+  const { dict } = useI18n();
+  const PRESET_OPTIONS = usePresetOptions(dict);
 
   const [noData, setNoData] = useState("#e5e7eb");
   const activeKit = preset !== "custom" ? NEWSROOM_KITS[preset] : null;
@@ -90,23 +96,23 @@ export function DesignPanel() {
   return (
     <div className="space-y-6">
       {/* ---- Testi ---- */}
-      <PanelSection title="Testi" hint="Titolo, sottotitolo e fonte della mappa.">
-        <Field label="Titolo">
+      <PanelSection title={dict.designPanel.textsTitle} hint={dict.designPanel.textsHint}>
+        <Field label={dict.designPanel.titleLabel}>
           <input
             value={project.title}
             onChange={(e) => updateProject({ title: e.target.value })}
             className={inputCls}
           />
         </Field>
-        <Field label="Sottotitolo">
+        <Field label={dict.designPanel.subtitleLabel}>
           <input
             value={project.subtitle}
             onChange={(e) => updateProject({ subtitle: e.target.value })}
-            placeholder="Aggiungi un sottotitolo…"
+            placeholder={dict.designPanel.subtitlePlaceholder}
             className={inputCls}
           />
         </Field>
-        <Field label="Fonte">
+        <Field label={dict.designPanel.sourceLabel}>
           <input
             value={project.source}
             onChange={(e) => updateProject({ source: e.target.value })}
@@ -115,17 +121,17 @@ export function DesignPanel() {
         </Field>
         <div className="flex flex-wrap gap-3 pt-1">
           <Toggle
-            label="Titolo"
+            label={dict.designPanel.toggleTitle}
             checked={design.showTitle}
             onChange={(v) => updateDesign({ showTitle: v })}
           />
           <Toggle
-            label="Legenda"
+            label={dict.designPanel.toggleLegend}
             checked={design.showLegend}
             onChange={(v) => updateDesign({ showLegend: v })}
           />
           <Toggle
-            label="Fonte"
+            label={dict.designPanel.toggleSource}
             checked={design.showSource}
             onChange={(v) => updateDesign({ showSource: v })}
           />
@@ -133,8 +139,8 @@ export function DesignPanel() {
       </PanelSection>
 
       {/* ---- Font & logo ---- */}
-      <PanelSection title="Font & logo" hint="Personalizza l'identità della redazione.">
-        <Field label="Font dei titoli">
+      <PanelSection title={dict.designPanel.fontLogoTitle} hint={dict.designPanel.fontLogoHint}>
+        <Field label={dict.designPanel.titleFontLabel}>
           <select
             value={fontId}
             onChange={(e) => {
@@ -146,7 +152,7 @@ export function DesignPanel() {
           >
             {FONT_OPTIONS.map((f) => (
               <option key={f.id} value={f.id} style={{ fontFamily: f.stack }}>
-                {f.label}
+                {dict.fontOptions[f.id] ?? f.label}
               </option>
             ))}
           </select>
@@ -155,7 +161,7 @@ export function DesignPanel() {
         {fontId === "custom" && (
           <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-dashed border-slate-300 px-3 py-2.5 text-sm text-slate-600 hover:border-zornade">
             <Upload size={15} />
-            Carica font (.woff2, .ttf)
+            {dict.designPanel.uploadFont}
             <input
               type="file"
               accept=".woff2,.woff,.ttf,.otf"
@@ -164,7 +170,7 @@ export function DesignPanel() {
           </label>
         )}
 
-        <Field label="Logo">
+        <Field label={dict.designPanel.logoLabel}>
           {activeKit?.logo && (
             <div className="mb-2 flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
               <img
@@ -173,21 +179,21 @@ export function DesignPanel() {
                 className="h-6 w-auto object-contain"
               />
               <span className="text-xs text-slate-500">
-                Logo {activeKit.label}
+                {dict.designPanel.logoOf(activeKit.label)}
               </span>
             </div>
           )}
           <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-dashed border-slate-300 px-3 py-2.5 text-sm text-slate-600 hover:border-zornade">
             <ImageIcon size={15} />
-            {activeKit?.logo ? "Sostituisci logo (PNG/SVG)" : "Carica logo (PNG/SVG)"}
+            {activeKit?.logo ? dict.designPanel.replaceLogo : dict.designPanel.uploadLogo}
             <input type="file" accept=".png,.svg" className="hidden" />
           </label>
         </Field>
       </PanelSection>
 
       {/* ---- Brand ---- */}
-      <PanelSection title="Brand della redazione">
-        <Field label="Preset">
+      <PanelSection title={dict.designPanel.brandTitle}>
+        <Field label={dict.designPanel.presetLabel}>
           <select
             value={preset}
             onChange={(e) => applyPreset(e.target.value as PresetChoice)}
@@ -201,7 +207,7 @@ export function DesignPanel() {
           </select>
         </Field>
 
-        <Field label="Colore d'accento">
+        <Field label={dict.designPanel.accentColorLabel}>
           <div className="flex items-center gap-2">
             <input
               type="color"
@@ -220,8 +226,8 @@ export function DesignPanel() {
 
       {/* ---- Stile mappa ---- */}
       <PanelSection
-        title="Mappa di sfondo"
-        hint="Tiles OpenFreeMap (nessuna chiave, dati © OpenStreetMap)."
+        title={dict.designPanel.basemapTitle}
+        hint={dict.designPanel.basemapHint}
       >
         <div className="space-y-1.5">
           {MAP_BASEMAPS.map((b) => {
@@ -238,7 +244,7 @@ export function DesignPanel() {
                     : "border-slate-200 text-slate-600 hover:border-slate-300"
                 } ${soon ? "cursor-not-allowed opacity-60" : ""}`}
               >
-                <span className="flex-1">{b.label}</span>
+                <span className="flex-1">{dict.mapBasemaps[b.id] ?? b.label}</span>
                 {soon && <SoonBadge />}
               </button>
             );
@@ -246,8 +252,8 @@ export function DesignPanel() {
         </div>
         {design.basemap === "custom-raster" && (
           <Field
-            label="URL tile raster (XYZ o WMS)"
-            hint="Template XYZ con {z}/{x}/{y}, oppure WMS con {bbox-epsg-3857}."
+            label={dict.designPanel.customRasterUrlLabel}
+            hint={dict.designPanel.customRasterUrlHint}
           >
             <input
               value={design.customBasemapUrl}
@@ -259,13 +265,12 @@ export function DesignPanel() {
         )}
         {design.basemap === "sat-esri" && (
           <p className="text-[11px] text-slate-400">
-            Immagini satellitari © Esri, Maxar, Earthstar Geographics. L'attribuzione
-            resta nell'embed.
+            {dict.designPanel.satEsriNote}
           </p>
         )}
         <div className="flex flex-wrap gap-3 pt-2">
           <Toggle
-            label="Nascondi etichette"
+            label={dict.designPanel.hideLabelsToggle}
             checked={design.hideLabels}
             onChange={(v) => updateDesign({ hideLabels: v })}
           />
@@ -275,8 +280,8 @@ export function DesignPanel() {
       {/* ---- Proiezione (globo 3D) ---- */}
       {showGlobe && (
         <PanelSection
-          title="Proiezione"
-          hint="Disegna la mappa su un globo sferico anziché in piano."
+          title={dict.designPanel.projectionTitle}
+          hint={dict.designPanel.projectionHint}
         >
           <button
             type="button"
@@ -294,10 +299,10 @@ export function DesignPanel() {
             />
             <span className="flex-1">
               <span className="block text-sm font-medium text-slate-800">
-                Globo 3D
+                {dict.designPanel.globe3d}
               </span>
               <span className="block text-[11px] text-slate-500">
-                Proiezione sferica interattiva
+                {dict.designPanel.globe3dDesc}
               </span>
             </span>
             <span
@@ -318,10 +323,10 @@ export function DesignPanel() {
       {/* ---- Opacità dati (globale) ---- */}
       {showGlobe && (
         <PanelSection
-          title="Opacità dati"
-          hint="Trasparenza globale del livello dati: lascia intravedere di più o di meno la basemap."
+          title={dict.designPanel.dataOpacityTitle}
+          hint={dict.designPanel.dataOpacityHint}
         >
-          <Field label={`Opacità · ${Math.round((design.dataOpacity ?? 1) * 100)}%`}>
+          <Field label={dict.designPanel.opacityLabel(Math.round((design.dataOpacity ?? 1) * 100))}>
             <input
               type="range"
               min={0.1}
@@ -332,7 +337,7 @@ export function DesignPanel() {
               className="w-full accent-zornade"
             />
             <p className="mt-1 text-[11px] text-slate-400">
-              Vale per ogni tipo: coropleta, punti, geometrie, estrusione 3D, cartogramma.
+              {dict.designPanel.opacityNote}
             </p>
           </Field>
         </PanelSection>
@@ -341,13 +346,13 @@ export function DesignPanel() {
       {/* ---- Tipo di cartogramma ---- */}
       {caps.has("cartogramKind") && (
         <PanelSection
-          title="Tipo di cartogramma"
-          hint="Come deformare le aree in base al valore."
+          title={dict.designPanel.cartogramTypeTitle}
+          hint={dict.designPanel.cartogramTypeHint}
         >
           <div className="grid grid-cols-2 gap-2">
             {[
-              { id: "noncontiguous", label: "Non-contiguo", desc: "Aree ridotte sul posto" },
-              { id: "dorling", label: "Dorling", desc: "Cerchi dimensionati" },
+              { id: "noncontiguous", label: dict.designPanel.noncontiguousLabel, desc: dict.designPanel.noncontiguousDesc },
+              { id: "dorling", label: dict.designPanel.dorlingLabel, desc: dict.designPanel.dorlingDesc },
             ].map((o) => {
               const active = design.cartogramKind === o.id;
               return (
@@ -372,10 +377,10 @@ export function DesignPanel() {
       {/* ---- Esagerazione altezze (estrusione 3D) ---- */}
       {vizType === "extrusion" && (
         <PanelSection
-          title="Altezza 3D"
-          hint="Esagera o attenua le differenze di altezza delle aree."
+          title={dict.designPanel.height3dTitle}
+          hint={dict.designPanel.height3dHint}
         >
-          <Field label={`Esagerazione · ${(design.extrusionScale ?? 1).toFixed(1)}×`}>
+          <Field label={dict.designPanel.exaggerationLabel((design.extrusionScale ?? 1).toFixed(1))}>
             <input
               type="range"
               min={0.2}
@@ -386,7 +391,7 @@ export function DesignPanel() {
               className="w-full accent-zornade"
             />
             <p className="mt-1 text-[11px] text-slate-400">
-              Sotto 1× attenua, sopra 1× amplifica le differenze di altezza.
+              {dict.designPanel.exaggerationNote}
             </p>
           </Field>
         </PanelSection>
@@ -395,11 +400,11 @@ export function DesignPanel() {
       {/* ---- Flussi: origine e destinazione ---- */}
       {caps.has("flowBinding") && data && (
         <PanelSection
-          title="Origine e destinazione"
-          hint="Le colonne con le coordinate di partenza e arrivo."
+          title={dict.designPanel.flowTitle}
+          hint={dict.designPanel.flowHint}
         >
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Lat. origine">
+            <Field label={dict.designPanel.latOrigin}>
               <select
                 value={design.flowFromLat}
                 onChange={(e) => updateDesign({ flowFromLat: e.target.value })}
@@ -411,7 +416,7 @@ export function DesignPanel() {
                 ))}
               </select>
             </Field>
-            <Field label="Lon. origine">
+            <Field label={dict.designPanel.lonOrigin}>
               <select
                 value={design.flowFromLon}
                 onChange={(e) => updateDesign({ flowFromLon: e.target.value })}
@@ -423,7 +428,7 @@ export function DesignPanel() {
                 ))}
               </select>
             </Field>
-            <Field label="Lat. destinazione">
+            <Field label={dict.designPanel.latDest}>
               <select
                 value={design.flowToLat}
                 onChange={(e) => updateDesign({ flowToLat: e.target.value })}
@@ -435,7 +440,7 @@ export function DesignPanel() {
                 ))}
               </select>
             </Field>
-            <Field label="Lon. destinazione">
+            <Field label={dict.designPanel.lonDest}>
               <select
                 value={design.flowToLon}
                 onChange={(e) => updateDesign({ flowToLon: e.target.value })}
@@ -448,13 +453,13 @@ export function DesignPanel() {
               </select>
             </Field>
           </div>
-          <Field label="Intensità (opzionale)" hint="Colora/dimensiona i flussi.">
+          <Field label={dict.designPanel.intensityLabel} hint={dict.designPanel.intensityHint}>
             <select
               value={design.flowValue}
               onChange={(e) => updateDesign({ flowValue: e.target.value })}
               className={inputCls}
             >
-              <option value="">- nessuna -</option>
+              <option value="">{dict.structurePanel.noneOption}</option>
               {data.numericColumns.map((c) => (
                 <option key={c} value={c}>{c}</option>
               ))}
@@ -466,26 +471,26 @@ export function DesignPanel() {
       {/* ---- Grafico: etichette (gli assi sono nel passo Struttura) ---- */}
       {caps.has("chartAxes") && (
         <PanelSection
-          title="Grafico"
-          hint="Etichette e colore. Gli assi si scelgono nel passo “Struttura”."
+          title={dict.designPanel.chartTitle}
+          hint={dict.designPanel.chartHint}
         >
-          <Field label="Nome dell'asse Y (opzionale)">
+          <Field label={dict.designPanel.yAxisNameLabel}>
             <input
               value={design.valueLabel}
               onChange={(e) => updateDesign({ valueLabel: e.target.value })}
-              placeholder={design.chartY || "valore"}
+              placeholder={design.chartY || dict.designPanel.valuePlaceholder}
               className={inputCls}
             />
           </Field>
-          <Field label="Unità di misura (opzionale)">
+          <Field label={dict.designPanel.unitLabel}>
             <input
               value={design.valueUnit}
               onChange={(e) => updateDesign({ valueUnit: e.target.value })}
-              placeholder="es. %, €, GWh, ab."
+              placeholder={dict.designPanel.unitPlaceholder}
               className={inputCls}
             />
           </Field>
-          <Field label="Scala colore">
+          <Field label={dict.designPanel.colorScaleLabel}>
             <div className="space-y-1.5">
               {COLOR_SCALES.map((s) => (
                 <button
@@ -502,13 +507,13 @@ export function DesignPanel() {
                       <span key={c} className="flex-1" style={{ background: c }} />
                     ))}
                   </span>
-                  <span className="text-xs text-slate-600">{s.label}</span>
+                  <span className="text-xs text-slate-600">{dict.colorScales[s.id] ?? s.label}</span>
                 </button>
               ))}
             </div>
             <div className="pt-2">
               <Toggle
-                label="Inverti scala"
+                label={dict.designPanel.reverseScaleToggle}
                 checked={design.reverseScale}
                 onChange={(v) => updateDesign({ reverseScale: v })}
               />
@@ -517,7 +522,7 @@ export function DesignPanel() {
           {vizType === "bar" && (
             <div className="pt-1">
               <Toggle
-                label="Ordina per valore"
+                label={dict.designPanel.sortByValueToggle}
                 checked={design.chartSortByValue}
                 onChange={(v) => updateDesign({ chartSortByValue: v })}
               />
@@ -528,12 +533,12 @@ export function DesignPanel() {
 
       {/* ---- Dato: etichetta del valore mappato (mappe) ---- */}
       {caps.has("valueLabel") && data && data.kind !== "table" && (
-        <PanelSection title="Dato" hint="Etichetta e unità del valore in mappa.">
+        <PanelSection title={dict.designPanel.dataTitle} hint={dict.designPanel.dataHint}>
           <Field
             label={
               caps.has("bivariateBinding")
-                ? "Nome del 1° valore (A) in mappa"
-                : "Nome del dato in mappa"
+                ? dict.designPanel.firstValueNameLabel
+                : dict.designPanel.valueNameLabel
             }
           >
             <input
@@ -543,29 +548,29 @@ export function DesignPanel() {
               className={inputCls}
             />
           </Field>
-          <Field label="Unità di misura (opzionale)">
+          <Field label={dict.designPanel.unitLabel}>
             <input
               value={design.valueUnit}
               onChange={(e) => updateDesign({ valueUnit: e.target.value })}
-              placeholder="es. %, €/m², ab/km²"
+              placeholder={dict.designPanel.unitHint2}
               className={inputCls}
             />
           </Field>
           {caps.has("bivariateBinding") && (
             <>
-              <Field label="Nome del 2° valore (B) in mappa">
+              <Field label={dict.designPanel.secondValueNameLabel}>
                 <input
                   value={design.valueLabel2}
                   onChange={(e) => updateDesign({ valueLabel2: e.target.value })}
-                  placeholder={design.bivariateColumn2 || "Variabile 2"}
+                  placeholder={design.bivariateColumn2 || dict.designPanel.secondValuePlaceholderFallback}
                   className={inputCls}
                 />
               </Field>
-              <Field label="Unità di misura del 2° valore (opzionale)">
+              <Field label={dict.designPanel.secondValueUnitLabel}>
                 <input
                   value={design.valueUnit2}
                   onChange={(e) => updateDesign({ valueUnit2: e.target.value })}
-                  placeholder="es. %, €/m², ab/km²"
+                  placeholder={dict.designPanel.unitHint2}
                   className={inputCls}
                 />
               </Field>
@@ -573,16 +578,16 @@ export function DesignPanel() {
           )}
           <p className="text-[11px] text-slate-400">
             {caps.has("bivariateBinding")
-              ? "Le due colonne (valore e secondo valore) si scelgono nel passo “Struttura”."
-              : "La colonna del valore si sceglie nel passo “Struttura”."}
+              ? dict.designPanel.bivariateNote
+              : dict.designPanel.singleValueNote}
           </p>
         </PanelSection>
       )}
 
       {/* ---- Colore: palette bivariata (matrice 3×3) ---- */}
       {caps.has("bivariateBinding") && (
-        <PanelSection title="Colore" hint="Palette della matrice bivariata 3×3.">
-          <Field label="Palette bivariata">
+        <PanelSection title={dict.designPanel.colorTitle} hint={dict.designPanel.bivariatePaletteHint}>
+          <Field label={dict.designPanel.bivariatePaletteLabel}>
             <div className="space-y-1.5">
               {BIVARIATE_PALETTES.map((p) => {
                 const selected =
@@ -614,7 +619,7 @@ export function DesignPanel() {
                         )),
                       )}
                     </span>
-                    <span className="text-xs text-slate-600">{p.label}</span>
+                    <span className="text-xs text-slate-600">{dict.bivariatePalettes[p.id] ?? p.label}</span>
                   </button>
                 );
               })}
@@ -625,8 +630,8 @@ export function DesignPanel() {
 
       {/* ---- Colore: scala del dato (mappe) ---- */}
       {caps.has("colorScale") && !caps.has("chartAxes") && (
-        <PanelSection title="Colore" hint="Scala colore del dato.">
-          <Field label="Scala colore">
+        <PanelSection title={dict.designPanel.colorTitle} hint={dict.designPanel.colorScaleOfDataHint}>
+          <Field label={dict.designPanel.colorScaleLabel}>
             <div className="space-y-1.5">
               {COLOR_SCALES.map((s) => (
                 <button
@@ -643,13 +648,13 @@ export function DesignPanel() {
                       <span key={c} className="flex-1" style={{ background: c }} />
                     ))}
                   </span>
-                  <span className="text-xs text-slate-600">{s.label}</span>
+                  <span className="text-xs text-slate-600">{dict.colorScales[s.id] ?? s.label}</span>
                 </button>
               ))}
             </div>
             <div className="pt-2">
               <Toggle
-                label="Inverti scala"
+                label={dict.designPanel.reverseScaleToggle}
                 checked={design.reverseScale}
                 onChange={(v) => updateDesign({ reverseScale: v })}
               />
@@ -661,11 +666,11 @@ export function DesignPanel() {
       {/* ---- Stile punti (punti / simboli / spike / densità) ---- */}
       {caps.has("pointStyle") && (
         <PanelSection
-          title="Stile punti"
-          hint="Colore e dimensione dei punti/simboli."
+          title={dict.designPanel.pointStyleTitle}
+          hint={dict.designPanel.pointStyleHint}
         >
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Colore">
+            <Field label={dict.designPanel.colorLabel}>
               <input
                 type="color"
                 value={design.pointColor}
@@ -673,7 +678,7 @@ export function DesignPanel() {
                 className="h-9 w-full cursor-pointer rounded border border-slate-200"
               />
             </Field>
-            <Field label={`Dimensione · ${design.pointSize}`}>
+            <Field label={dict.designPanel.sizeLabel(design.pointSize)}>
               <input
                 type="range"
                 min={2}
@@ -691,8 +696,8 @@ export function DesignPanel() {
       {/* ---- Marker personalizzati (mappa localizzatore / punti) ---- */}
       {caps.has("markerStyle") && (
         <PanelSection
-          title="Marker"
-          hint="Forma del marker e icona (FontAwesome) per i punti."
+          title={dict.designPanel.markerTitle}
+          hint={dict.designPanel.markerHint}
         >
           <MarkerStyleControls design={design} updateDesign={updateDesign} />
         </PanelSection>
@@ -701,10 +706,10 @@ export function DesignPanel() {
       {/* ---- Classi e legenda (coropletica / geometria) ---- */}
       {caps.has("classification") && (
         <PanelSection
-          title="Classi e legenda"
-          hint="Metodo di classificazione, numero di classi e legenda."
+          title={dict.designPanel.classesLegendTitle}
+          hint={dict.designPanel.classesLegendHint}
         >
-          <Field label="Metodo di classificazione">
+          <Field label={dict.designPanel.classificationMethodLabel}>
             <select
               value={design.classification}
               onChange={(e) => updateDesign({ classification: e.target.value })}
@@ -712,13 +717,13 @@ export function DesignPanel() {
             >
               {CLASSIFICATION_METHODS.map((m) => (
                 <option key={m.id} value={m.id}>
-                  {m.label}
+                  {dict.classificationMethods[m.id] ?? m.label}
                 </option>
               ))}
             </select>
           </Field>
 
-          <Field label={`Numero di classi · ${design.nClasses}`}>
+          <Field label={dict.designPanel.nClassesLabel(design.nClasses)}>
             <input
               type="range"
               min={2}
@@ -730,13 +735,13 @@ export function DesignPanel() {
             />
             {data && (
               <p className="mt-1 text-[11px] text-slate-400">
-                Fino a {maxClasses} classi ({data.rows.length} righe nel file).
+                {dict.designPanel.maxClassesNote(maxClasses, data.rows.length)}
               </p>
             )}
           </Field>
 
           <div className="grid grid-cols-2 gap-3">
-            <Field label="Tipo di legenda">
+            <Field label={dict.designPanel.legendTypeLabel}>
               <select
                 value={design.legendType}
                 onChange={(e) => updateDesign({ legendType: e.target.value })}
@@ -744,12 +749,12 @@ export function DesignPanel() {
               >
                 {LEGEND_TYPES.map((l) => (
                   <option key={l.id} value={l.id}>
-                    {l.label}
+                    {dict.legendTypes[l.id] ?? l.label}
                   </option>
                 ))}
               </select>
             </Field>
-            <Field label="Nessun dato">
+            <Field label={dict.designPanel.noDataLabel}>
               <input
                 type="color"
                 value={noData}
@@ -762,7 +767,7 @@ export function DesignPanel() {
       )}
 
       {/* ---- Interattività ---- */}
-      <PanelSection title="Interattività" hint="Cosa può fare il lettore con la mappa pubblicata.">
+      <PanelSection title={dict.designPanel.interactivityTitle} hint={dict.designPanel.interactivityHint}>
         <div className="space-y-1.5">
           {INTERACTION_OPTIONS.map((o) => {
             const live = o.id === "tooltip" || o.id === "zoom";
@@ -772,6 +777,7 @@ export function DesignPanel() {
                 : o.id === "zoom"
                   ? design.zoomPan
                   : false;
+            const opt = dict.interactionOptions[o.id] ?? o;
             return (
               <label
                 key={o.id}
@@ -793,10 +799,10 @@ export function DesignPanel() {
                 />
                 <span className="min-w-0 flex-1">
                   <span className="flex items-center gap-2 text-sm font-medium text-slate-700">
-                    {o.label}
+                    {opt.label}
                     {!live && <SoonBadge />}
                   </span>
-                  <span className="block text-xs text-slate-500">{o.desc}</span>
+                  <span className="block text-xs text-slate-500">{opt.desc}</span>
                 </span>
               </label>
             );
@@ -806,11 +812,11 @@ export function DesignPanel() {
 
       {/* ---- Annotazioni (O3.4) ---- */}
       <PanelSection
-        title="Annotazioni"
-        hint="Aggiungi elementi sopra la mappa: si ancorano al punto geografico."
+        title={dict.designPanel.annotationsTitle}
+        hint={dict.designPanel.annotationsHint}
       >
         <div className="grid grid-cols-3 gap-2">
-          {DRAW_TOOLS.map((t) => {
+          {drawTools(dict).map((t) => {
             const Icon = t.icon;
             const active = sameTool(annotationTool, t.tool);
             return (
@@ -833,9 +839,9 @@ export function DesignPanel() {
         {annotationTool && (
           <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">
             {annotationTool.kind === "marker" || annotationTool.kind === "text"
-              ? "Clicca sulla mappa per posizionare."
-              : "Clicca il punto iniziale e poi quello finale."}{" "}
-            <span className="text-amber-600">Esc per annullare.</span>
+              ? dict.designPanel.clickToPlacePoint
+              : dict.designPanel.clickStartEnd}{" "}
+            <span className="text-amber-600">{dict.designPanel.escToCancel}</span>
           </p>
         )}
 
@@ -851,22 +857,22 @@ export function DesignPanel() {
             ))}
           </ul>
         ) : (
-          <p className="text-xs text-slate-400">Nessuna annotazione.</p>
+          <p className="text-xs text-slate-400">{dict.designPanel.noAnnotations}</p>
         )}
       </PanelSection>
 
       {/* ---- Scrollytelling (O4.1) ---- */}
       {data && !caps.has("chartAxes") && vizType !== "table" && (
         <PanelSection
-          title="Storia (scrollytelling)"
-          hint="Passi narrativi: scorrendo, la mappa si sposta sulla vista salvata."
+          title={dict.designPanel.storyTitle}
+          hint={dict.designPanel.storyHint}
         >
           <button
             onClick={addStoryStep}
             className="flex w-full items-center justify-center gap-2 rounded-lg border border-zornade bg-zornade-50 px-3 py-2 text-sm font-medium text-zornade-700 transition-colors hover:bg-zornade-100"
           >
             <Plus size={15} />
-            Aggiungi passo (cattura vista attuale)
+            {dict.designPanel.addStep}
           </button>
           {storySteps.length > 0 ? (
             <ol className="space-y-2">
@@ -879,23 +885,23 @@ export function DesignPanel() {
                     <input
                       value={s.title}
                       onChange={(e) => updateStoryStep(s.id, { title: e.target.value })}
-                      placeholder="Titolo del passo"
+                      placeholder={dict.designPanel.stepTitlePlaceholder}
                       className="min-w-0 flex-1 rounded border border-slate-200 px-2 py-1 text-sm focus:border-zornade focus:outline-none"
                     />
-                    <button onClick={() => moveStoryStep(s.id, -1)} disabled={i === 0} title="Su" className="rounded p-1 text-slate-400 hover:bg-slate-100 disabled:opacity-30">
+                    <button onClick={() => moveStoryStep(s.id, -1)} disabled={i === 0} title={dict.designPanel.moveUp} className="rounded p-1 text-slate-400 hover:bg-slate-100 disabled:opacity-30">
                       <ChevronUp size={14} />
                     </button>
-                    <button onClick={() => moveStoryStep(s.id, 1)} disabled={i === storySteps.length - 1} title="Giù" className="rounded p-1 text-slate-400 hover:bg-slate-100 disabled:opacity-30">
+                    <button onClick={() => moveStoryStep(s.id, 1)} disabled={i === storySteps.length - 1} title={dict.designPanel.moveDown} className="rounded p-1 text-slate-400 hover:bg-slate-100 disabled:opacity-30">
                       <ChevronDown size={14} />
                     </button>
-                    <button onClick={() => removeStoryStep(s.id)} title="Elimina" className="rounded p-1 text-slate-400 hover:bg-red-50 hover:text-red-600">
+                    <button onClick={() => removeStoryStep(s.id)} title={dict.designPanel.deleteAction} className="rounded p-1 text-slate-400 hover:bg-red-50 hover:text-red-600">
                       <Trash2 size={14} />
                     </button>
                   </div>
                   <textarea
                     value={s.body}
                     onChange={(e) => updateStoryStep(s.id, { body: e.target.value })}
-                    placeholder="Testo del passo…"
+                    placeholder={dict.designPanel.stepBodyPlaceholder}
                     rows={2}
                     className="w-full resize-y rounded border border-slate-200 px-2 py-1 text-xs focus:border-zornade focus:outline-none"
                   />
@@ -903,16 +909,16 @@ export function DesignPanel() {
                     <button
                       onClick={() => goToStep(s.id)}
                       className="flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] text-slate-500 hover:bg-slate-100"
-                      title="Vai a questa vista"
+                      title={dict.designPanel.goToStepTitle}
                     >
-                      <Navigation size={12} /> Vai
+                      <Navigation size={12} /> {dict.designPanel.goToStep}
                     </button>
                     <button
                       onClick={() => recaptureStoryStep(s.id)}
                       className="flex items-center gap-1 rounded px-1.5 py-0.5 text-[11px] text-slate-500 hover:bg-slate-100"
-                      title="Aggiorna con la vista attuale"
+                      title={dict.designPanel.updateViewTitle}
                     >
-                      <Camera size={12} /> Aggiorna vista
+                      <Camera size={12} /> {dict.designPanel.updateView}
                     </button>
                   </div>
                 </li>
@@ -920,8 +926,7 @@ export function DesignPanel() {
             </ol>
           ) : (
             <p className="text-xs text-slate-400">
-              Nessun passo. Sposta la mappa sulla vista che vuoi e premi “Aggiungi
-              passo”.
+              {dict.designPanel.noSteps}
             </p>
           )}
         </PanelSection>
@@ -931,18 +936,20 @@ export function DesignPanel() {
 }
 
 /** The annotation tools available in the design panel (O3.4). */
-const DRAW_TOOLS: {
+function drawTools(dict: Dictionary): {
   label: string;
   icon: typeof MapPin;
   tool: DrawTool;
-}[] = [
-  { label: "Marker", icon: MapPin, tool: { kind: "marker" } },
-  { label: "Testo", icon: Type, tool: { kind: "text" } },
-  { label: "Linea", icon: Minus, tool: { kind: "line", arrow: false } },
-  { label: "Freccia", icon: MoveUpRight, tool: { kind: "line", arrow: true } },
-  { label: "Rettangolo", icon: Square, tool: { kind: "area", shape: "rectangle" } },
-  { label: "Cerchio", icon: Circle, tool: { kind: "area", shape: "circle" } },
-];
+}[] {
+  return [
+    { label: dict.designPanel.markerTool, icon: MapPin, tool: { kind: "marker" } },
+    { label: dict.designPanel.textTool, icon: Type, tool: { kind: "text" } },
+    { label: dict.designPanel.lineTool, icon: Minus, tool: { kind: "line", arrow: false } },
+    { label: dict.designPanel.arrowTool, icon: MoveUpRight, tool: { kind: "line", arrow: true } },
+    { label: dict.designPanel.rectangleTool, icon: Square, tool: { kind: "area", shape: "rectangle" } },
+    { label: dict.designPanel.circleTool, icon: Circle, tool: { kind: "area", shape: "circle" } },
+  ];
+}
 
 /** One editable row for an annotation: summary, colour, optional text, delete. */
 function AnnotationRow({
@@ -954,6 +961,7 @@ function AnnotationRow({
   onChange: (patch: Partial<Annotation>) => void;
   onRemove: () => void;
 }) {
+  const { dict } = useI18n();
   const a = annotation;
   const textValue =
     a.type === "marker" ? a.label : a.type === "text" ? a.text : "";
@@ -965,7 +973,7 @@ function AnnotationRow({
           type="color"
           value={a.color}
           onChange={(e) => onChange({ color: e.target.value } as Partial<Annotation>)}
-          title="Colore"
+          title={dict.designPanel.annotationColorTitle}
           className="h-6 w-6 flex-shrink-0 cursor-pointer rounded border border-slate-200 bg-white p-0"
         />
         <span className="flex-1 truncate text-xs font-medium text-slate-600">
@@ -973,7 +981,7 @@ function AnnotationRow({
         </span>
         <button
           onClick={onRemove}
-          title="Elimina"
+          title={dict.designPanel.annotationDeleteTitle}
           className="flex-shrink-0 rounded p-1 text-slate-400 transition-colors hover:bg-red-50 hover:text-red-600"
         >
           <Trash2 size={14} />
@@ -990,7 +998,7 @@ function AnnotationRow({
                 : { text: e.target.value }) as Partial<Annotation>,
             )
           }
-          placeholder={a.type === "marker" ? "Etichetta (facoltativa)" : "Testo"}
+          placeholder={a.type === "marker" ? dict.designPanel.annotationLabelPlaceholder : dict.designPanel.annotationTextPlaceholder}
           className="mt-1.5 w-full rounded border border-slate-200 px-2 py-1 text-xs text-slate-700 focus:border-zornade focus:outline-none"
         />
       )}

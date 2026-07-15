@@ -27,6 +27,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { useI18n } from "../i18n/LanguageContext";
 
 const CLIENT_SESSION_KEY = "zornade-studio-auth";
 /** Client-mode session lifetime (hours). */
@@ -101,6 +102,7 @@ function readClientSession(): boolean {
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const { dict } = useI18n();
   const [mode, setMode] = useState<Mode>("loading");
   const [isAuthed, setIsAuthed] = useState(false);
 
@@ -151,26 +153,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             return null;
           }
           const data = (await res.json().catch(() => ({}))) as { error?: string };
-          return data.error ?? "Accesso negato.";
+          return data.error ?? dict.authContext.accessDenied;
         } catch {
-          return "Errore di rete durante l'accesso.";
+          return dict.authContext.networkErrorLogin;
         }
       }
 
       // Client fallback (dev).
       if (!EXPECTED_USER || !EXPECTED_HASH) {
-        return "Accesso non configurato. Imposta VITE_STUDIO_USER e VITE_STUDIO_PASS_SHA256 in .env.local.";
+        return dict.authContext.notConfigured;
       }
       const userOk = safeEqual(user.trim(), EXPECTED_USER);
       const hash = await sha256Hex(password);
       const passOk = safeEqual(hash, EXPECTED_HASH);
-      if (!userOk || !passOk) return "Utente o password non corretti.";
+      if (!userOk || !passOk) return dict.authContext.wrongCredentials;
       const exp = Date.now() + CLIENT_SESSION_HOURS * 60 * 60 * 1000;
       sessionStorage.setItem(CLIENT_SESSION_KEY, JSON.stringify({ exp }));
       setIsAuthed(true);
       return null;
     },
-    [mode],
+    [mode, dict],
   );
 
   const logout = useCallback(() => {

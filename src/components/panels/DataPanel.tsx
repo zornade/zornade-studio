@@ -74,6 +74,8 @@ import {
   type OmiMarket,
 } from "../../lib/zornade-db";
 import type { DatasetState, ProjectMeta } from "../../studio/types";
+import { useI18n } from "../../i18n/LanguageContext";
+import type { Dictionary } from "../../i18n/dictionaries/it";
 
 type DataMode = "home" | "catalog-it" | "catalog-eu";
 type CatalogScope = "italia" | "europa";
@@ -81,6 +83,7 @@ type CatalogScope = "italia" | "europa";
 function applyDatasetMeta(
   updateProject: (patch: Partial<ProjectMeta>) => void,
   dataset: CkanDataset,
+  dict: Dictionary,
 ): void {
   const patch: Partial<ProjectMeta> = {};
   const title = dataset.title?.trim();
@@ -91,17 +94,19 @@ function applyDatasetMeta(
       subtitle.length > 160 ? `${subtitle.slice(0, 157).trimEnd()}…` : subtitle;
   }
   const publisher = dataset.publisher?.trim();
-  if (publisher) patch.source = `Fonte: ${publisher} · Fatto con Zornade Studio`;
+  if (publisher) patch.source = dict.dataPanel.sourcePrefix(publisher);
   if (Object.keys(patch).length > 0) updateProject(patch);
 }
 
 export function DataPanel() {
   const { dataSource, setDataSource } = useStudio();
   const [mode, setMode] = useState<DataMode>("home");
+  const { dict } = useI18n();
 
   // A concrete source (upload/osm/…) is selected → show its detail view.
   if (dataSource) {
     const meta = DATA_SOURCES.find((s) => s.id === dataSource);
+    const metaText = meta ? dict.catalogItems[meta.id] : undefined;
     return (
       <div className="space-y-4">
         <button
@@ -109,9 +114,9 @@ export function DataPanel() {
           className="flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-slate-700"
         >
           <ArrowLeft size={14} />
-          Cambia sorgente
+          {dict.dataPanel.changeSource}
         </button>
-        <PanelSection title={meta?.label ?? ""} hint={meta?.desc}>
+        <PanelSection title={metaText?.label ?? meta?.label ?? ""} hint={metaText?.desc ?? meta?.desc}>
           {dataSource === "upload" && <UploadSource />}
           {dataSource === "osm" && <OsmSource />}
           {dataSource === "zornade-db" && <ZornadeDbSource />}
@@ -132,26 +137,29 @@ export function DataPanel() {
   // Home: pick a source, grouped by its nature (Zornade moat first).
   return (
     <PanelSection
-      title="Da dove parti?"
-      hint="Scegli i dati di partenza per la tua mappa."
+      title={dict.dataPanel.whereFrom}
+      hint={dict.dataPanel.whereFromHint}
     >
       <div className="space-y-5">
-        {SOURCE_GROUPS.map((group) => (
+        {SOURCE_GROUPS.map((group) => {
+          const groupText = dict.catalogGroups[group.id] ?? group;
+          return (
           <div key={group.id}>
             <div className="mb-2 flex items-baseline justify-between gap-2">
               <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-                {group.label}
+                {groupText.label}
               </p>
               {group.id === "zornade" && (
                 <span className="rounded-full bg-zornade-50 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-zornade-700">
-                  esclusivo
+                  {dict.dataPanel.exclusive}
                 </span>
               )}
             </div>
-            <p className="mb-2 text-[11px] text-slate-400">{group.hint}</p>
+            <p className="mb-2 text-[11px] text-slate-400">{groupText.hint}</p>
             <div className="grid gap-2">
               {group.items.map((s) => {
                 const Icon = s.icon;
+                const itemText = dict.catalogItems[s.id] ?? s;
                 const isZornade = group.id === "zornade";
                 const disabled = s.status === "soon";
                 return (
@@ -182,11 +190,11 @@ export function DataPanel() {
                     </span>
                     <span className="min-w-0 flex-1">
                       <span className="flex items-center gap-2 text-sm font-medium text-slate-800">
-                        {s.label}
+                        {itemText.label}
                         {s.status === "soon" && <SoonBadge />}
                       </span>
                       <span className="block text-xs text-slate-500">
-                        {s.desc}
+                        {itemText.desc}
                       </span>
                     </span>
                   </button>
@@ -194,7 +202,8 @@ export function DataPanel() {
               })}
             </div>
           </div>
-        ))}
+          );
+        })}
       </div>
     </PanelSection>
   );
@@ -210,6 +219,7 @@ function DataCatalog({
   onBack: () => void;
 }) {
   const [live, setLive] = useState<boolean | null>(null);
+  const { dict } = useI18n();
   useEffect(() => {
     let cancelled = false;
     catalogApiAvailable().then((ok) => {
@@ -226,7 +236,7 @@ function DataCatalog({
         <BackButton onClick={onBack} />
         <div className="flex items-center justify-center gap-2 py-10 text-sm text-slate-400">
           <Loader2 size={16} className="animate-spin" />
-          Carico il catalogo…
+          {dict.dataPanel.loadingCatalog}
         </div>
       </div>
     );
@@ -240,13 +250,14 @@ function DataCatalog({
 }
 
 function BackButton({ onClick }: { onClick: () => void }) {
+  const { dict } = useI18n();
   return (
     <button
       onClick={onClick}
       className="flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-slate-700"
     >
       <ArrowLeft size={14} />
-      Indietro
+      {dict.common.back}
     </button>
   );
 }
@@ -262,6 +273,7 @@ function LiveCatalog({
   scope: CatalogScope;
   onBack: () => void;
 }) {
+  const { dict } = useI18n();
   const portals = scope === "europa" ? EUROPEAN_PORTALS : ITALIAN_PORTALS;
   const [portal, setPortal] = useState(portals[0]?.id ?? "nazionale");
   const [query, setQuery] = useState("");
@@ -282,7 +294,7 @@ function LiveCatalog({
       const res = await searchCkan(q, p, pg * PAGE_SIZE, PAGE_SIZE);
       setData({ count: res.count, results: res.results });
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Errore di ricerca.");
+      setError(e instanceof Error ? e.message : dict.dataPanel.searchErrorGeneric);
       setData(null);
     } finally {
       setLoading(false);
@@ -298,12 +310,12 @@ function LiveCatalog({
       <BackButton onClick={onBack} />
       <PanelSection
         title={
-          scope === "europa" ? "Open data europei" : "Open data italiani"
+          scope === "europa" ? dict.dataPanel.europeanOpenData : dict.dataPanel.italianOpenData
         }
-        hint="Cerca tra i dataset pubblicati dai portali open data e caricali direttamente."
+        hint={dict.dataPanel.liveCatalogHint}
       >
         {/* Portal selector */}
-        <Field label="Portale">
+        <Field label={dict.dataPanel.portalLabel}>
           <select
             value={portal}
             onChange={(e) => {
@@ -335,7 +347,7 @@ function LiveCatalog({
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Cerca: popolazione, prezzi case, scuole, rifiuti…"
+            placeholder={dict.dataPanel.searchPlaceholderPortal}
             className="w-full rounded-lg border border-slate-200 py-2 pl-9 pr-3 text-sm focus:border-zornade focus:outline-none focus:ring-2 focus:ring-zornade/20"
           />
         </form>
@@ -343,7 +355,7 @@ function LiveCatalog({
         {loading && (
           <div className="flex items-center justify-center gap-2 py-8 text-sm text-slate-400">
             <Loader2 size={16} className="animate-spin" />
-            Cerco…
+            {dict.dataPanel.searching}
           </div>
         )}
 
@@ -357,9 +369,11 @@ function LiveCatalog({
         {!loading && data && (
           <>
             <p className="text-[11px] text-slate-400">
-              {data.count.toLocaleString("it-IT")} dataset trovati
-              {submitted ? ` per “${submitted}”` : ""}
-              {data.results.length > 0 ? ` · ${from}–${to}` : ""}
+              {dict.dataPanel.datasetsFound(
+                data.count.toLocaleString("it-IT"),
+                submitted,
+                data.results.length > 0 ? ` · ${from}–${to}` : "",
+              )}
             </p>
             <div className="space-y-2">
               {data.results.map((d) => (
@@ -367,8 +381,7 @@ function LiveCatalog({
               ))}
               {data.results.length === 0 && (
                 <p className="rounded-lg bg-slate-50 px-3 py-6 text-center text-xs text-slate-400">
-                  Nessun dataset con risorse caricabili in questa pagina. Prova
-                  la pagina successiva o un'altra ricerca.
+                  {dict.dataPanel.noLoadableDatasets}
                 </p>
               )}
             </div>
@@ -382,17 +395,17 @@ function LiveCatalog({
                   className="flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-medium text-slate-600 transition-colors hover:border-slate-300 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   <ChevronLeft size={14} />
-                  Precedenti
+                  {dict.dataPanel.previous}
                 </button>
                 <span className="text-[11px] text-slate-400">
-                  Pagina {page + 1} di {totalPages.toLocaleString("it-IT")}
+                  {dict.dataPanel.pageOf(page + 1, totalPages.toLocaleString("it-IT"))}
                 </span>
                 <button
                   onClick={() => void runSearch(submitted, portal, page + 1)}
                   disabled={page + 1 >= totalPages}
                   className="flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-medium text-slate-600 transition-colors hover:border-slate-300 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  Successivi
+                  {dict.dataPanel.next}
                   <ChevronRight size={14} />
                 </button>
               </div>
@@ -402,14 +415,12 @@ function LiveCatalog({
 
         {!loading && !data && !error && (
           <p className="rounded-lg bg-slate-50 px-3 py-6 text-center text-xs text-slate-400">
-            Scrivi una parola chiave e premi Invio per cercare nei portali
-            open data.
+            {dict.dataPanel.typeKeywordPrompt}
           </p>
         )}
 
         <p className="mt-1 text-[11px] text-slate-400">
-          I dati restano dei rispettivi enti pubblici: verifica licenza e
-          attribuzione sulla scheda della fonte.
+          {dict.dataPanel.dataRemainsNote}
         </p>
       </PanelSection>
     </div>
@@ -418,15 +429,14 @@ function LiveCatalog({
 
 function LiveDatasetCard({ dataset }: { dataset: CkanDataset }) {
   const { setData, setStep, updateProject } = useStudio();
+  const { dict } = useI18n();
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const loadResource = async (r: CkanResource) => {
     if (r.format !== "CSV") {
-      setError(
-        `Per ora si può caricare in mappa solo il CSV. “${r.format}”: usa “Apri la fonte”.`,
-      );
+      setError(dict.dataPanel.onlyCsvSupported(r.format));
       return;
     }
     setBusy(r.url);
@@ -441,10 +451,10 @@ function LiveDatasetCard({ dataset }: { dataset: CkanDataset }) {
       setData(out.dataset);
       // A ready catalogue source carries its own title/description: use them as
       // the default project title/subtitle (still editable in the Design step).
-      applyDatasetMeta(updateProject, dataset);
+      applyDatasetMeta(updateProject, dataset, dict);
       setStep("structure");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Caricamento fallito.");
+      setError(e instanceof Error ? e.message : dict.dataPanel.loadFailed);
     } finally {
       setBusy(null);
     }
@@ -488,12 +498,12 @@ function LiveDatasetCard({ dataset }: { dataset: CkanDataset }) {
                 {r.format}
               </span>
               <span className="min-w-0 flex-1 truncate text-xs text-slate-600">
-                {r.name || "risorsa"}
+                {r.name || dict.dataPanel.resourceFallbackName}
               </span>
               <button
                 onClick={() => void loadResource(r)}
                 disabled={busy === r.url}
-                title="Carica nella mappa"
+                title={dict.dataPanel.loadToMapTitle}
                 className="flex items-center gap-1 rounded-md bg-zornade px-2 py-1 text-[11px] font-medium text-white transition-colors hover:bg-zornade-700 disabled:opacity-60"
               >
                 {busy === r.url ? (
@@ -501,7 +511,7 @@ function LiveDatasetCard({ dataset }: { dataset: CkanDataset }) {
                 ) : (
                   <Download size={12} />
                 )}
-                Carica
+                {dict.dataPanel.loadAction}
               </button>
             </div>
           ))}
@@ -512,7 +522,7 @@ function LiveDatasetCard({ dataset }: { dataset: CkanDataset }) {
             className="flex items-center gap-1 pt-1 text-[11px] font-medium text-slate-500 hover:text-zornade-700"
           >
             <ExternalLink size={12} />
-            Apri la fonte
+            {dict.dataPanel.openSource}
           </a>
           {error && (
             <p className="rounded-lg bg-amber-50 px-2.5 py-1.5 text-[11px] text-amber-700">
@@ -528,6 +538,7 @@ function LiveDatasetCard({ dataset }: { dataset: CkanDataset }) {
 /* ----------------------- Curated catalog (fallback) ----------------------- */
 
 function CuratedCatalog({ onBack }: { onBack: () => void }) {
+  const { dict } = useI18n();
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<string | null>(null);
   const results = useMemo(
@@ -542,12 +553,12 @@ function CuratedCatalog({ onBack }: { onBack: () => void }) {
         className="flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-slate-700"
       >
         <ArrowLeft size={14} />
-        Indietro
+        {dict.common.back}
       </button>
 
       <PanelSection
-        title="Catalogo dati"
-        hint="Fonti ufficiali e autorevoli. Apri la fonte, scarica i dati, poi caricali in “I tuoi dati”."
+        title={dict.dataPanel.catalogTitle}
+        hint={dict.dataPanel.catalogHint}
       >
         {/* Search box */}
         <div className="relative">
@@ -558,7 +569,7 @@ function CuratedCatalog({ onBack }: { onBack: () => void }) {
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Cerca: prezzi case, terremoti, scuole, redditi…"
+            placeholder={dict.dataPanel.searchCatalogPlaceholder}
             className="w-full rounded-lg border border-slate-200 py-2 pl-9 pr-3 text-sm focus:border-zornade focus:outline-none focus:ring-2 focus:ring-zornade/20"
           />
         </div>
@@ -573,7 +584,7 @@ function CuratedCatalog({ onBack }: { onBack: () => void }) {
                 : "border-slate-200 text-slate-500 hover:border-slate-300"
             }`}
           >
-            Tutte
+            {dict.dataPanel.allCategories}
           </button>
           {DATA_CATEGORIES.map((c) => {
             const Icon = c.icon;
@@ -588,14 +599,14 @@ function CuratedCatalog({ onBack }: { onBack: () => void }) {
                 }`}
               >
                 <Icon size={12} />
-                {c.label}
+                {dict.dataCategories[c.id] ?? c.label}
               </button>
             );
           })}
         </div>
 
         <p className="text-[11px] text-slate-400">
-          {results.length} font{results.length === 1 ? "e" : "i"} trovate
+          {dict.dataPanel.sourcesFound(results.length)}
         </p>
 
         {/* Results */}
@@ -605,14 +616,13 @@ function CuratedCatalog({ onBack }: { onBack: () => void }) {
           ))}
           {results.length === 0 && (
             <p className="rounded-lg bg-slate-50 px-3 py-6 text-center text-xs text-slate-400">
-              Nessuna fonte trovata. Prova con un'altra parola chiave.
+              {dict.dataPanel.noSourceFound}
             </p>
           )}
         </div>
 
         <p className="mt-2 text-[11px] text-slate-400">
-          Catalogo curato di {DATA_CATALOG.length} fonti. I dati restano dei
-          rispettivi enti; verifica sempre licenza e attribuzione della fonte.
+          {dict.dataPanel.curatedCatalogNote(DATA_CATALOG.length)}
         </p>
       </PanelSection>
     </div>
@@ -620,6 +630,7 @@ function CuratedCatalog({ onBack }: { onBack: () => void }) {
 }
 
 function DataCatalogCard({ entry }: { entry: DataSourceEntry }) {
+  const { dict } = useI18n();
   return (
     <a
       href={entry.url}
@@ -647,7 +658,7 @@ function DataCatalogCard({ entry }: { entry: DataSourceEntry }) {
             key={a}
             className="rounded bg-zornade-50 px-1.5 py-0.5 text-[10px] font-medium text-zornade-700"
           >
-            {accessLabel(a)}
+            {dict.accessLabels[a] ?? accessLabel(a)}
           </span>
         ))}
         {entry.formats.slice(0, 3).map((f) => (
@@ -663,14 +674,16 @@ function DataCatalogCard({ entry }: { entry: DataSourceEntry }) {
   );
 }
 
-/** Italian label for the geometry primitives in a custom geometry dataset. */
-function geoKindsLabel(kinds: ("polygon" | "line" | "point")[]): string {
-  const map = { polygon: "aree", line: "linee", point: "punti" };
-  return kinds.length > 0 ? kinds.map((k) => map[k]).join(", ") : "geometrie";
+/** Localized label for the geometry primitives in a custom geometry dataset. */
+function geoKindsLabel(kinds: ("polygon" | "line" | "point")[], dict: Dictionary): string {
+  return kinds.length > 0
+    ? kinds.map((k) => dict.geometryKinds[k]).join(", ")
+    : dict.geometryKinds.fallback;
 }
 
 function UploadSource() {
   const { data, setData, setStep, project, updateProject } = useStudio();
+  const { dict } = useI18n();
   const [error, setError] = useState<string | null>(null);
 
   const handleFile = async (file: File) => {
@@ -728,21 +741,17 @@ function UploadSource() {
         out = buildGeoDataset(fc, file.name);
       } else if (name.endsWith(".tif") || name.endsWith(".tiff")) {
         // GeoTIFF is raster, not vector - a different render path (in arrivo).
-        setError(
-          "Il GeoTIFF (raster) è in arrivo. Per ora: CSV, Excel, GeoJSON, Shapefile (.zip/.shp), KML e KMZ.",
-        );
+        setError(dict.dataPanel.unsupportedGeoTiff);
         return;
       } else {
-        setError(
-          "Formato non supportato. Usa CSV, Excel, GeoJSON, Shapefile (.zip), KML o KMZ.",
-        );
+        setError(dict.dataPanel.unsupportedFormat);
         return;
       }
     } catch (e) {
       setError(
         e instanceof Error
-          ? `Impossibile leggere il file: ${e.message}`
-          : "Impossibile leggere il file.",
+          ? dict.dataPanel.cannotReadFile(e.message)
+          : dict.dataPanel.cannotReadFileGeneric,
       );
       return;
     }
@@ -772,12 +781,12 @@ function UploadSource() {
             <p className="font-medium">{data.fileName}</p>
             <p className="text-emerald-700">
               {data.kind === "area"
-                ? `${data.rows.length} righe · livello ${GEO_LEVELS[data.geoLevel].label} · chiave “${data.keyColumn}”`
+                ? dict.dataPanel.areaSummary(data.rows.length, dict.geoLevels[data.geoLevel] ?? GEO_LEVELS[data.geoLevel].label, data.keyColumn)
                 : data.kind === "point"
-                  ? `${data.rows.length} righe · punti (lat “${data.latColumn}”, lon “${data.lonColumn}”)`
+                  ? dict.dataPanel.pointSummary(data.rows.length, data.latColumn, data.lonColumn)
                   : data.kind === "geo"
-                    ? `${data.geojson.features.length} geometrie · ${geoKindsLabel(data.geometryKinds)}`
-                    : `${data.rows.length} righe · tabella (per grafici)`}
+                    ? dict.dataPanel.geoSummary(data.geojson.features.length, geoKindsLabel(data.geometryKinds, dict))
+                    : dict.dataPanel.tableSummary(data.rows.length)}
             </p>
           </div>
         </div>
@@ -785,14 +794,14 @@ function UploadSource() {
         {data.kind !== "table" &&
           (data.kind === "area" || data.numericColumns.length > 0) && (
           <Field
-            label={data.kind === "area" ? "Colonna da mappare" : "Dimensione (opzionale)"}
+            label={data.kind === "area" ? dict.dataPanel.columnToMap : dict.dataPanel.sizeOptional}
           >
             <select
               value={data.valueColumn}
               onChange={(e) => setData({ ...data, valueColumn: e.target.value })}
               className="w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-sm text-slate-700 focus:border-zornade focus:outline-none"
             >
-              {data.kind === "point" && <option value="">Nessuna (uniforme)</option>}
+              {data.kind === "point" && <option value="">{dict.dataPanel.noneUniform}</option>}
               {data.numericColumns.map((c) => (
                 <option key={c} value={c}>
                   {c}
@@ -803,7 +812,7 @@ function UploadSource() {
         )}
 
         <Button variant="secondary" onClick={() => setData(null)} className="w-full">
-          Carica un altro file
+          {dict.dataPanel.loadAnotherFile}
         </Button>
       </div>
     );
@@ -814,10 +823,10 @@ function UploadSource() {
       <label className="flex cursor-pointer flex-col items-center gap-2 rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-center transition-colors hover:border-zornade hover:bg-zornade-50">
         <Upload size={22} className="text-slate-400" />
         <span className="text-sm font-medium text-slate-700">
-          Trascina un file o clicca per caricare
+          {dict.dataPanel.dropOrClick}
         </span>
         <span className="text-xs text-slate-500">
-          CSV, Excel (.xlsx), GeoJSON, Shapefile (.zip), KML e KMZ · GeoTIFF in arrivo
+          {dict.dataPanel.supportedFormats}
         </span>
         <input
           type="file"
@@ -837,7 +846,7 @@ function UploadSource() {
       )}
       <p className="flex items-start gap-1.5 text-xs text-slate-500">
         <Info size={13} className="mt-0.5 flex-shrink-0" />
-        Aggancio automatico su CAP, comune o provincia per la coropletica.
+        {dict.dataPanel.autoJoinNote}
       </p>
     </div>
   );
@@ -845,6 +854,7 @@ function UploadSource() {
 
 function OsmSource() {
   const { setData, setStep, project, updateProject, bboxPickMode: _bpm, setBboxPickMode, pendingBbox, setPendingBbox } = useStudio();
+  const { dict } = useI18n();
   const [selected, setSelected] = useState<string | null>(null);
   const [catQuery, setCatQuery] = useState("");
   const [scopeMode, setScopeMode] = useState<"place" | "bbox">("place");
@@ -928,7 +938,7 @@ function OsmSource() {
         display_name?: string;
       }>;
       if (!results.length || !results[0].boundingbox) {
-        setResolveError(`Luogo "${q}" non trovato.`);
+        setResolveError(dict.dataPanel.placeNotFound(q));
         return;
       }
       const bb = results[0].boundingbox; // Nominatim: [south, north, west, east]
@@ -940,7 +950,7 @@ function OsmSource() {
       };
       handleMapBbox(bbox);
     } catch (e) {
-      setResolveError(e instanceof Error ? e.message : "Errore geocoding.");
+      setResolveError(e instanceof Error ? e.message : dict.dataPanel.geocodingError);
     } finally {
       setResolving(false);
     }
@@ -968,11 +978,11 @@ function OsmSource() {
       let where = "";
 
       const onProgress = (n: number) =>
-        setInfo(`Scarico dati OSM… ${n} aree analizzate.`);
+        setInfo(dict.dataPanel.downloadingOsm(n));
 
       if (scopeMode === "bbox") {
         if (!effectiveBbox) {
-          setError("Disegna un'area sulla mappa o inserisci le coordinate.");
+          setError(dict.dataPanel.drawAreaOrCoords);
           return;
         }
         where = `bbox(${effectiveBbox.west.toFixed(2)},${effectiveBbox.south.toFixed(2)},${effectiveBbox.east.toFixed(2)},${effectiveBbox.north.toFixed(2)})`;
@@ -986,7 +996,7 @@ function OsmSource() {
         const { geocodeArea } = await import("../../lib/nominatim");
         const area = await geocodeArea(placeName.trim(), "area");
         if (!area) {
-          setError(`Luogo "${placeName.trim()}" non trovato. Controlla il nome.`);
+          setError(dict.dataPanel.placeNotFoundCheck(placeName.trim()));
           return;
         }
         where = area.displayName.split(",")[0] || placeName.trim();
@@ -1006,10 +1016,7 @@ function OsmSource() {
 
       const table = overpassToTable(elements, preset.filters);
       if (table.rows.length === 0) {
-        setError(
-          `Nessun "${preset.label.toLowerCase()}" trovato in ${where}. ` +
-            "Prova un'area più ampia o un'altra categoria.",
-        );
+        setError(dict.dataPanel.noResultsFound(preset.label.toLowerCase(), where));
         return;
       }
       setData({
@@ -1020,21 +1027,23 @@ function OsmSource() {
         latColumn: "lat",
         lonColumn: "lon",
         valueColumn: "",
-        categoryColumn: "categoria",
-        nameColumn: "nome",
+        categoryColumn: dict.dataPanel.osmCategoryColumnName,
+        nameColumn: dict.dataPanel.osmNameColumnName,
         numericColumns: [],
       });
-      if (!project.title || project.title === "Mappa senza titolo") {
+      if (!project.title || project.title === dict.projectsModal.untitledMap) {
         updateProject({ title: `${preset.label} · ${where}` });
       }
       setInfo(
-        `${table.rows.length} risultati in ${where}` +
-          (table.dropped > 0 ? ` (${table.dropped} senza coordinate)` : "") +
-          ".",
+        dict.dataPanel.resultsInPlace(
+          table.rows.length,
+          where,
+          table.dropped > 0 ? dict.dataPanel.droppedSuffix(table.dropped) : "",
+        ),
       );
       setStep("structure");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Errore nella ricerca OSM.");
+      setError(e instanceof Error ? e.message : dict.dataPanel.osmSearchError);
     } finally {
       setLoading(false);
     }
@@ -1043,11 +1052,11 @@ function OsmSource() {
   return (
     <div className="space-y-4">
       <div>
-        <p className="mb-2 text-xs font-medium text-slate-600">Cosa cerchi?</p>
+        <p className="mb-2 text-xs font-medium text-slate-600">{dict.dataPanel.whatAreYouLookingFor}</p>
         <input
           value={catQuery}
           onChange={(e) => setCatQuery(e.target.value)}
-          placeholder="Cerca una categoria (es. schools, ports, hospitals)…"
+          placeholder={dict.dataPanel.searchCategoryPlaceholder}
           className="mb-2 w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:border-zornade focus:outline-none"
         />
         <div className="max-h-56 space-y-3 overflow-y-auto pr-1">
@@ -1079,13 +1088,13 @@ function OsmSource() {
             );
           })}
           {visiblePresets.length === 0 && (
-            <p className="text-xs text-slate-400">Nessuna categoria trovata.</p>
+            <p className="text-xs text-slate-400">{dict.dataPanel.noCategoryFound}</p>
           )}
         </div>
       </div>
 
       {/* Scope mode selector */}
-      <Field label="Area di ricerca">
+      <Field label={dict.dataPanel.searchArea}>
         <div className="flex gap-1 rounded-lg bg-slate-100 p-1">
           <button
             onClick={() => setScopeMode("place")}
@@ -1095,7 +1104,7 @@ function OsmSource() {
                 : "text-slate-500 hover:text-slate-700"
             }`}
           >
-            Nome del luogo
+            {dict.dataPanel.placeNameTab}
           </button>
           <button
             onClick={() => setScopeMode("bbox")}
@@ -1105,20 +1114,20 @@ function OsmSource() {
                 : "text-slate-500 hover:text-slate-700"
             }`}
           >
-            Bounding box
+            {dict.dataPanel.bboxTab}
           </button>
         </div>
       </Field>
 
       {scopeMode === "place" && (
-        <Field label="Luogo" hint="Città, regione, paese - ovunque nel mondo">
+        <Field label={dict.dataPanel.placeLabel} hint={dict.dataPanel.placeHint}>
           <input
             value={placeName}
             onChange={(e) => setPlaceName(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === "Enter" && canSearch) void search();
             }}
-            placeholder="es. Berlin, Cairo, Buenos Aires, Toscana…"
+            placeholder={dict.dataPanel.placePlaceholder}
             className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:border-zornade focus:outline-none"
           />
         </Field>
@@ -1131,8 +1140,8 @@ function OsmSource() {
             <Map size={15} className="mt-0.5 flex-shrink-0 text-zornade-700" />
             <p className="text-xs text-zornade-800">
               {effectiveBbox
-                ? `Area selezionata: ${effectiveBbox.west.toFixed(2)},\u200b${effectiveBbox.south.toFixed(2)},\u200b${effectiveBbox.east.toFixed(2)},\u200b${effectiveBbox.north.toFixed(2)}`
-                : "Clicca e trascina sulla mappa a destra per selezionare l'area."}
+                ? dict.dataPanel.areaSelected(`${effectiveBbox.west.toFixed(2)},\u200b${effectiveBbox.south.toFixed(2)},\u200b${effectiveBbox.east.toFixed(2)},\u200b${effectiveBbox.north.toFixed(2)}`)
+                : dict.dataPanel.clickDragMap}
             </p>
           </div>
 
@@ -1144,7 +1153,7 @@ function OsmSource() {
               onKeyDown={(e) => {
                 if (e.key === "Enter") void resolvePlaceToBbox();
               }}
-              placeholder="Cerca un luogo per centrare la mappa…"
+              placeholder={dict.dataPanel.findPlaceToCenter}
               className="flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-700 focus:border-zornade focus:outline-none"
             />
             <button
@@ -1152,7 +1161,7 @@ function OsmSource() {
               disabled={resolving || !placeName.trim()}
               className="flex-shrink-0 rounded-lg border border-slate-200 px-3 py-2 text-xs font-medium text-slate-600 hover:border-slate-300 disabled:opacity-50"
             >
-              {resolving ? <Loader2 size={13} className="animate-spin" /> : "Trova"}
+              {resolving ? <Loader2 size={13} className="animate-spin" /> : dict.dataPanel.find}
             </button>
           </div>
 
@@ -1161,11 +1170,11 @@ function OsmSource() {
           )}
 
           {/* Editable coordinate field - stays in sync with the drawn bbox */}
-          <Field label="Coordinate (minLon,minLat,maxLon,maxLat)" hint="Modifica manualmente se necessario">
+          <Field label={dict.dataPanel.coordinatesLabel} hint={dict.dataPanel.coordinatesHint}>
             <input
               value={bboxRaw}
               onChange={(e) => handleBboxRawChange(e.target.value)}
-              placeholder="es. 11.0,43.5,11.5,44.0"
+              placeholder={dict.dataPanel.coordinatesPlaceholder}
               className={`w-full rounded-lg border px-3 py-2 text-sm font-mono text-slate-700 focus:border-zornade focus:outline-none ${
                 bboxRaw && !parseBboxRaw(bboxRaw)
                   ? "border-amber-300 bg-amber-50"
@@ -1185,10 +1194,10 @@ function OsmSource() {
         {loading ? (
           <span className="flex items-center justify-center gap-2">
             <Loader2 size={15} className="animate-spin" />
-            Ricerca in corso…
+            {dict.dataPanel.searchingInProgress}
           </span>
         ) : (
-          "Cerca su OpenStreetMap"
+          dict.dataPanel.searchOsm
         )}
       </Button>
       {error && (
@@ -1204,13 +1213,14 @@ function OsmSource() {
         </p>
       )}
       <p className="text-xs text-slate-500">
-        I risultati appaiono come punti sulla mappa. Dati © OpenStreetMap (ODbL).
+        {dict.dataPanel.osmResultsNote}
       </p>
     </div>
   );
 }
 function ZornadeDbSource() {
   const { setData, setStep, updateProject } = useStudio();
+  const { dict } = useI18n();
   const [dataset, setDataset] = useState<string>("omi");
   // OMI options.
   const [semestre, setSemestre] = useState<string>("2025_2");
@@ -1245,7 +1255,7 @@ function ZornadeDbSource() {
       const req = buildRequest();
       const rows = await queryZornadeDb(req);
       if (rows.length === 0) {
-        setError("Nessun dato per questa selezione. Prova un'altra opzione.");
+        setError(dict.dataPanel.noDataForSelection);
         return;
       }
       const meta = describeDbRequest(req);
@@ -1258,12 +1268,12 @@ function ZornadeDbSource() {
       setData(out.dataset);
       updateProject({
         title: meta.title,
-        source: "Fonte: dati Zornade · Fatto con Zornade Studio",
+        source: dict.dataPanel.zornadeSourceNote,
       });
-      setInfo(`${rows.length} comuni caricati.`);
+      setInfo(dict.dataPanel.municipalitiesLoaded(rows.length));
       setStep("structure");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Errore di interrogazione.");
+      setError(e instanceof Error ? e.message : dict.dataPanel.queryError);
     } finally {
       setLoading(false);
     }
@@ -1274,16 +1284,20 @@ function ZornadeDbSource() {
       <div className="rounded-lg bg-zornade-50 p-3">
         <p className="flex items-start gap-1.5 text-xs text-zornade-900">
           <ShieldCheck size={14} className="mt-0.5 flex-shrink-0" />
-          Dati Zornade in <strong>sola lettura</strong> tramite un proxy sicuro.
-          Le credenziali restano sul server, mai nel browser. Tutti i dataset
-          sono per <strong>comune</strong> e si agganciano alla mappa dei comuni.
+          {dict.dataPanel.readOnlyNotePre}
+          <strong>{dict.dataPanel.readOnlyNoteBold1}</strong>
+          {dict.dataPanel.readOnlyNoteMid}
+          <strong>{dict.dataPanel.readOnlyNoteBold2}</strong>
+          {dict.dataPanel.readOnlyNotePost}
         </p>
       </div>
 
       <div>
-        <p className="mb-2 text-xs font-medium text-slate-600">Dataset</p>
+        <p className="mb-2 text-xs font-medium text-slate-600">{dict.dataPanel.datasetLabel}</p>
         <div className="grid gap-2">
-          {DB_DATASETS.map((d) => (
+          {DB_DATASETS.map((d) => {
+            const dText = dict.dbDatasets[d.id] ?? d;
+            return (
             <button
               key={d.id}
               onClick={() => setDataset(d.id)}
@@ -1294,17 +1308,18 @@ function ZornadeDbSource() {
               }`}
             >
               <span className="text-sm font-medium text-slate-800">
-                {d.label}
+                {dText.label}
               </span>
-              <span className="block text-xs text-slate-500">{d.desc}</span>
+              <span className="block text-xs text-slate-500">{dText.desc}</span>
             </button>
-          ))}
+            );
+          })}
         </div>
       </div>
 
       {dataset === "omi" && (
         <div className="space-y-2 rounded-xl border border-slate-200 p-3">
-          <Field label="Mercato">
+          <Field label={dict.dataPanel.marketLabel}>
             <div className="flex gap-1.5">
               {(["compravendita", "locazione"] as OmiMarket[]).map((m) => (
                 <button
@@ -1316,12 +1331,12 @@ function ZornadeDbSource() {
                       : "border-slate-200 text-slate-600 hover:border-slate-300"
                   }`}
                 >
-                  {m === "compravendita" ? "Compravendita" : "Affitto"}
+                  {m === "compravendita" ? dict.dataPanel.compravendita : dict.dataPanel.affitto}
                 </button>
               ))}
             </div>
           </Field>
-          <Field label="Tipologia immobiliare">
+          <Field label={dict.dataPanel.propertyTypeLabel}>
             <select
               value={tipologia}
               onChange={(e) => setTipologia(e.target.value)}
@@ -1329,12 +1344,12 @@ function ZornadeDbSource() {
             >
               {OMI_TYPES.map((t) => (
                 <option key={t.code} value={t.code}>
-                  {t.label}
+                  {dict.omiTypes[t.code] ?? t.label}
                 </option>
               ))}
             </select>
           </Field>
-          <Field label="Semestre">
+          <Field label={dict.dataPanel.semesterLabel}>
             <select
               value={semestre}
               onChange={(e) => setSemestre(e.target.value)}
@@ -1356,8 +1371,7 @@ function ZornadeDbSource() {
               className="mt-0.5 accent-zornade"
             />
             <span className="text-xs text-slate-600">
-              <strong>Tutti i semestri</strong> (2015→2025) per l'animazione
-              temporale con time slider.
+              <strong>{dict.dataPanel.allSemestersBold}</strong>{dict.dataPanel.allSemestersRest}
             </span>
           </label>
         </div>
@@ -1365,7 +1379,7 @@ function ZornadeDbSource() {
 
       {dataset === "solar" && (
         <div className="rounded-xl border border-slate-200 p-3">
-          <Field label="Indicatore">
+          <Field label={dict.dataPanel.indicatorLabel}>
             <select
               value={metric}
               onChange={(e) => setMetric(e.target.value)}
@@ -1373,7 +1387,7 @@ function ZornadeDbSource() {
             >
               {SOLAR_METRICS.map((m) => (
                 <option key={m.id} value={m.id}>
-                  {m.label} ({m.unit})
+                  {dict.solarMetrics[m.id] ?? m.label} ({m.unit})
                 </option>
               ))}
             </select>
@@ -1390,10 +1404,10 @@ function ZornadeDbSource() {
         {loading ? (
           <span className="flex items-center justify-center gap-2">
             <Loader2 size={15} className="animate-spin" />
-            Interrogazione…
+            {dict.dataPanel.queryingProgress}
           </span>
         ) : (
-          "Carica dal database Zornade"
+          dict.dataPanel.loadFromZornadeDb
         )}
       </Button>
 
@@ -1414,11 +1428,12 @@ function ZornadeDbSource() {
 }
 
 function ComingSoon() {
+  const { dict } = useI18n();
   return (
     <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-center">
-      <p className="text-sm font-medium text-slate-600">In arrivo</p>
+      <p className="text-sm font-medium text-slate-600">{dict.dataPanel.comingSoonTitle}</p>
       <p className="mt-1 text-xs text-slate-500">
-        Questa sorgente è nella roadmap. Per ora usa “Carica file”.
+        {dict.dataPanel.comingSoonBody}
       </p>
     </div>
   );
@@ -1431,6 +1446,7 @@ type EurostatStep = "list" | "detail";
 
 function EurostatSource() {
   const { setData, setStep, updateProject } = useStudio();
+  const { dict } = useI18n();
   const [tab, setTab] = useState<"curated" | "search">("curated");
   const [themeFilter, setThemeFilter] = useState<EurostatTheme | "">("");
   const [localQ, setLocalQ] = useState("");
@@ -1489,11 +1505,11 @@ function EurostatSource() {
       updateProject({
         title: selected.label,
         subtitle: selected.desc,
-        source: `Fonte: Eurostat (${selected.code}) \u00b7 Fatto con Zornade Studio`,
+        source: dict.dataPanel.eurostatSourcePrefix(selected.code),
       });
       setStep("structure");
     } catch (e) {
-      setLoadError(e instanceof Error ? e.message : "Caricamento fallito.");
+      setLoadError(e instanceof Error ? e.message : dict.dataPanel.loadFailed);
     } finally {
       setLoading(false);
     }
@@ -1507,7 +1523,7 @@ function EurostatSource() {
       const res = await searchEurostat(q, 0, 30);
       setLiveResults(res);
     } catch (e) {
-      setLiveError(e instanceof Error ? e.message : "Errore di ricerca.");
+      setLiveError(e instanceof Error ? e.message : dict.dataPanel.searchErrorGeneric);
       setLiveResults(null);
     } finally {
       setLiveLoading(false);
@@ -1516,12 +1532,12 @@ function EurostatSource() {
 
   if (innerStep === "detail" && selected) {
     const geoOptions: Array<{ value: "paese" | "nuts2" | "nuts3"; label: string }> = [
-      { value: "paese", label: "Livello paese" },
+      { value: "paese", label: dict.dataPanel.geoOptionCountry },
       ...(selected.geo !== "paese"
-        ? [{ value: "nuts2" as const, label: "Regioni NUTS2" }]
+        ? [{ value: "nuts2" as const, label: dict.dataPanel.geoOptionNuts2 }]
         : []),
       ...(selected.geo === "nuts3"
-        ? [{ value: "nuts3" as const, label: "Province NUTS3" }]
+        ? [{ value: "nuts3" as const, label: dict.dataPanel.geoOptionNuts3 }]
         : []),
     ];
 
@@ -1532,11 +1548,11 @@ function EurostatSource() {
           className="flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-slate-700"
         >
           <ArrowLeft size={14} />
-          Tutti i dataset
+          {dict.dataPanel.allDatasetsBack}
         </button>
 
         <PanelSection title={selected.label} hint={selected.desc}>
-          <Field label="Granularita geografica">
+          <Field label={dict.dataPanel.geoGranularityLabel}>
             <select
               value={geo}
               onChange={(e) => setGeo(e.target.value as typeof geo)}
@@ -1551,8 +1567,8 @@ function EurostatSource() {
           </Field>
 
           <Field
-            label="Paese"
-            hint="Codice ISO-2 (es. IT, DE, FR). Vuoto = tutta l'UE."
+            label={dict.dataPanel.countryLabel}
+            hint={dict.dataPanel.countryHint}
           >
             <input
               value={country}
@@ -1565,16 +1581,16 @@ function EurostatSource() {
 
           <div className="rounded-lg bg-slate-50 p-3 space-y-1">
             <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-              Aggiornato {selected.updated} &middot; {geoLabel(selected.geo)}
+              {dict.dataPanel.updatedNote(selected.updated, dict.eurostatGeoLabels[selected.geo] ?? geoLabel(selected.geo))}
             </p>
             <p className="text-[11px] text-slate-500">
-              Serie: {selected.timeRange[0]}&ndash;{selected.timeRange[1]}
+              {dict.dataPanel.seriesNote(selected.timeRange[0], selected.timeRange[1])}
             </p>
           </div>
 
           {selected.columns.length > 0 && (
             <div>
-              <p className="mb-2 text-xs font-medium text-slate-600">Colonne prodotte</p>
+              <p className="mb-2 text-xs font-medium text-slate-600">{dict.dataPanel.columnsProduced}</p>
               <div className="space-y-1">
                 {selected.columns.map((col) => (
                   <div key={col.name} className="flex items-start gap-2 text-xs">
@@ -1599,10 +1615,10 @@ function EurostatSource() {
             {loading ? (
               <>
                 <Loader2 size={14} className="animate-spin" />
-                Caricamento...
+                {dict.dataPanel.loadingEllipsis}
               </>
             ) : (
-              "Carica in Studio"
+              dict.dataPanel.loadIntoStudio
             )}
           </Button>
 
@@ -1613,7 +1629,7 @@ function EurostatSource() {
             className="flex items-center justify-center gap-1 text-xs text-slate-400 hover:text-zornade-700"
           >
             <ExternalLink size={12} />
-            Apri su Eurostat
+            {dict.dataPanel.openOnEurostat}
           </a>
         </PanelSection>
       </div>
@@ -1631,7 +1647,7 @@ function EurostatSource() {
               : "text-slate-500 hover:text-slate-700"
           }`}
         >
-          Curati ({EUROSTAT_DATASETS.length})
+          {dict.dataPanel.curatedTab(EUROSTAT_DATASETS.length)}
         </button>
         <button
           onClick={() => setTab("search")}
@@ -1641,7 +1657,7 @@ function EurostatSource() {
               : "text-slate-500 hover:text-slate-700"
           }`}
         >
-          Cerca tutti
+          {dict.dataPanel.searchAllTab}
         </button>
       </div>
 
@@ -1656,7 +1672,7 @@ function EurostatSource() {
                   : "bg-slate-100 text-slate-500 hover:bg-slate-200"
               }`}
             >
-              Tutti
+              {dict.dataPanel.allThemes}
             </button>
             {(
               Object.entries(EUROSTAT_THEMES) as [
@@ -1674,7 +1690,7 @@ function EurostatSource() {
                 }`}
               >
                 <meta.icon size={12} className="flex-shrink-0" />
-                {meta.label}
+                {dict.eurostatThemes[t] ?? meta.label}
               </button>
             ))}
           </div>
@@ -1687,7 +1703,7 @@ function EurostatSource() {
             <input
               value={localQ}
               onChange={(e) => { setLocalQ(e.target.value); setThemeFilter(""); }}
-              placeholder="Cerca tra i dataset curati..."
+              placeholder={dict.dataPanel.searchCuratedPlaceholder}
               className="w-full rounded-lg border border-slate-200 py-2 pl-9 pr-3 text-sm focus:border-zornade focus:outline-none focus:ring-2 focus:ring-zornade/20"
             />
           </div>
@@ -1707,7 +1723,7 @@ function EurostatSource() {
                         const Icon = EUROSTAT_THEMES[ds.theme].icon;
                         return <Icon size={11} className="flex-shrink-0" />;
                       })()}
-                      {EUROSTAT_THEMES[ds.theme].label}
+                      {dict.eurostatThemes[ds.theme] ?? EUROSTAT_THEMES[ds.theme].label}
                     </p>
                     <p className="mt-1 line-clamp-2 text-xs text-slate-500">{ds.desc}</p>
                   </div>
@@ -1716,7 +1732,7 @@ function EurostatSource() {
                   </span>
                 </div>
                 <div className="mt-2 flex items-center gap-3 text-[11px] text-slate-400">
-                  <span>{geoLabel(ds.geo)}</span>
+                  <span>{dict.eurostatGeoLabels[ds.geo] ?? geoLabel(ds.geo)}</span>
                   <span>&middot;</span>
                   <span>{ds.timeRange[0]}&ndash;{ds.timeRange[1]}</span>
                 </div>
@@ -1724,7 +1740,7 @@ function EurostatSource() {
             ))}
             {curatedFiltered.length === 0 && (
               <p className="rounded-lg bg-slate-50 px-3 py-6 text-center text-xs text-slate-400">
-                Nessun dataset trovato.
+                {dict.dataPanel.noDatasetFound}
               </p>
             )}
           </div>
@@ -1744,7 +1760,7 @@ function EurostatSource() {
             <input
               value={liveQ}
               onChange={(e) => setLiveQ(e.target.value)}
-              placeholder="Es: population, GDP, unemployment..."
+              placeholder={dict.dataPanel.searchEurostatPlaceholder}
               className="w-full rounded-lg border border-slate-200 py-2 pl-9 pr-3 text-sm focus:border-zornade focus:outline-none focus:ring-2 focus:ring-zornade/20"
             />
           </form>
@@ -1752,7 +1768,7 @@ function EurostatSource() {
           {liveLoading && (
             <div className="flex items-center justify-center gap-2 py-6 text-sm text-slate-400">
               <Loader2 size={16} className="animate-spin" />
-              Cerco nel catalogo Eurostat...
+              {dict.dataPanel.searchingEurostatCatalog}
             </div>
           )}
 
@@ -1766,7 +1782,7 @@ function EurostatSource() {
           {!liveLoading && liveResults && (
             <>
               <p className="text-[11px] text-slate-400">
-                {liveResults.count.toLocaleString("it-IT")} dataset trovati per "{liveSubmitted}"
+                {dict.dataPanel.datasetsFoundFor(liveResults.count.toLocaleString("it-IT"), liveSubmitted)}
               </p>
               <div className="space-y-2">
                 {liveResults.results.map((item) => {
@@ -1803,7 +1819,7 @@ function EurostatSource() {
                             const Icon = EUROSTAT_THEMES[curated.theme].icon;
                             return <Icon size={11} className="flex-shrink-0" />;
                           })()}
-                          Gia curato
+                          {dict.dataPanel.alreadyCurated}
                         </p>
                       )}
                     </button>
@@ -1815,7 +1831,7 @@ function EurostatSource() {
 
           {!liveLoading && !liveResults && !liveError && (
             <p className="rounded-lg bg-slate-50 px-3 py-6 text-center text-xs text-slate-400">
-              Cerca per parola chiave in inglese (es. "population", "GDP", "unemployment").
+              {dict.dataPanel.searchEurostatPrompt}
             </p>
           )}
         </div>

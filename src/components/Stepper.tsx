@@ -2,28 +2,30 @@ import { Database, Columns3, BarChart3, Palette, Share2, Check } from "lucide-re
 import type { LucideIcon } from "lucide-react";
 import { useStudio } from "../studio/StudioContext";
 import type { StepId } from "../studio/types";
+import { useI18n } from "../i18n/LanguageContext";
 
 interface StepDef {
   id: StepId;
-  label: string;
   icon: LucideIcon;
 }
 
-const STEPS: StepDef[] = [
-  { id: "data", label: "Dati", icon: Database },
-  { id: "structure", label: "Struttura", icon: Columns3 },
-  { id: "visualize", label: "Visualizza", icon: BarChart3 },
-  { id: "design", label: "Design", icon: Palette },
-  { id: "publish", label: "Pubblica", icon: Share2 },
+const STEP_META: StepDef[] = [
+  { id: "data", icon: Database },
+  { id: "structure", icon: Columns3 },
+  { id: "visualize", icon: BarChart3 },
+  { id: "design", icon: Palette },
+  { id: "publish", icon: Share2 },
 ];
 
 export function Stepper() {
   const { step, setStep } = useStudio();
+  const { dict } = useI18n();
+  const STEPS = STEP_META.map((s) => ({ ...s, label: dict.stepper[s.id] }));
   const activeIndex = STEPS.findIndex((s) => s.id === step);
 
   return (
     <nav
-      aria-label="Fasi di creazione"
+      aria-label={dict.stepper.ariaLabel}
       className="flex flex-shrink-0 items-center gap-1 border-b border-slate-200 bg-white px-4 py-2"
     >
       {STEPS.map((s, i) => {

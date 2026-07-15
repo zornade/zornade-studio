@@ -1,5 +1,23 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
 import { AlertTriangle } from "lucide-react";
+import { it } from "../i18n/dictionaries/it";
+import { en } from "../i18n/dictionaries/en";
+
+const STORAGE_KEY = "zornade-studio-lang";
+
+/**
+ * Class components can't use hooks (useI18n), and this boundary must keep
+ * working even if something above it in the tree threw before the
+ * LanguageProvider could render - so it reads the persisted language
+ * preference directly instead of relying on context.
+ */
+function currentDict() {
+  try {
+    return localStorage.getItem(STORAGE_KEY) === "en" ? en : it;
+  } catch {
+    return it;
+  }
+}
 
 interface Props {
   children: ReactNode;
@@ -29,6 +47,7 @@ export class MapErrorBoundary extends Component<Props, State> {
 
   render(): ReactNode {
     if (this.state.hasError) {
+      const dict = currentDict();
       return (
         <div className="flex h-full w-full items-center justify-center bg-slate-50 p-6">
           <div className="max-w-sm text-center">
@@ -36,11 +55,10 @@ export class MapErrorBoundary extends Component<Props, State> {
               <AlertTriangle size={22} />
             </div>
             <h2 className="font-display text-base font-semibold text-slate-800">
-              Mappa non disponibile
+              {dict.mapErrorBoundary.title}
             </h2>
             <p className="mt-1 text-sm text-slate-500">
-              {this.props.message ??
-                "Impossibile inizializzare la mappa. Verifica che il browser abbia l'accelerazione grafica (WebGL) attiva, poi ricarica la pagina."}
+              {this.props.message ?? dict.mapErrorBoundary.body}
             </p>
           </div>
         </div>

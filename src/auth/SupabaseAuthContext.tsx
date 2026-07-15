@@ -25,6 +25,7 @@ import {
 } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { getSupabaseClient, isSupabaseConfigured } from "../lib/supabase";
+import { useI18n } from "../i18n/LanguageContext";
 
 interface SupabaseAuthContextValue {
   /** Whether a valid Supabase session exists. */
@@ -45,6 +46,7 @@ interface SupabaseAuthContextValue {
 const SupabaseAuthContext = createContext<SupabaseAuthContextValue | null>(null);
 
 export function SupabaseAuthProvider({ children }: { children: ReactNode }) {
+  const { dict } = useI18n();
   const [session, setSession] = useState<Session | null>(null);
   // No client configured -> nothing to wait for, resolve immediately.
   const [loading, setLoading] = useState(isSupabaseConfigured);
@@ -78,9 +80,9 @@ export function SupabaseAuthProvider({ children }: { children: ReactNode }) {
 
   const sendMagicLink = useCallback(async (email: string): Promise<string | null> => {
     const client = getSupabaseClient();
-    if (!client) return "Supabase non configurato per questo ambiente.";
+    if (!client) return dict.supabaseAuthContext.notConfigured;
     const trimmed = email.trim();
-    if (!trimmed) return "Inserisci un indirizzo email.";
+    if (!trimmed) return dict.supabaseAuthContext.enterEmail;
     const { error } = await client.auth.signInWithOtp({
       email: trimmed,
       options: {
@@ -89,7 +91,7 @@ export function SupabaseAuthProvider({ children }: { children: ReactNode }) {
       },
     });
     return error ? error.message : null;
-  }, []);
+  }, [dict]);
 
   const signOut = useCallback(async () => {
     const client = getSupabaseClient();

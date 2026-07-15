@@ -8,12 +8,12 @@ import {
   applyMapping,
   kindsAvailable,
   roleOf,
-  kindLabel,
   type DatasetMapping,
   type DatasetKind,
 } from "../../lib/mapping";
 import { detectNumericColumns } from "../../lib/csv";
 import { GEO_LEVELS, type GeoLevel } from "../../lib/choropleth";
+import { useI18n } from "../../i18n/LanguageContext";
 
 const inputCls =
   "w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-zornade focus:outline-none";
@@ -63,6 +63,7 @@ function colOptions(columns: string[]) {
  */
 export function StructurePanel() {
   const { data, setData, design, updateDesign } = useStudio();
+  const { dict } = useI18n();
   const [mapping, setMapping] = useState<DatasetMapping | null>(
     data ? mappingFromDataset(data) : null,
   );
@@ -79,7 +80,7 @@ export function StructurePanel() {
   if (!data || !mapping) {
     return (
       <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700">
-        Scegli prima i dati nel passo “Dati”.
+        {dict.structurePanel.chooseDataFirst}
       </p>
     );
   }
@@ -123,16 +124,17 @@ export function StructurePanel() {
   return (
     <div className="space-y-6">
       <PanelSection
-        title="Struttura dei dati"
-        hint="Conferma o correggi come usare ogni colonna. L'anteprima a destra mostra il ruolo di ciascuna."
+        title={dict.structurePanel.title}
+        hint={dict.structurePanel.hint}
       >
         {isGeo ? (
           <p className="rounded-lg bg-slate-50 px-3 py-2 text-xs text-slate-600">
-            Questo file porta la sua <strong>geometria</strong>: viene disegnata
-            direttamente. Sotto scegli cosa colorare ed etichettare.
+            {dict.structurePanel.geoNotePre}
+            <strong>{dict.structurePanel.geoNoteBold}</strong>
+            {dict.structurePanel.geoNotePost}
           </p>
         ) : (
-          <Field label="Tipo di dato">
+          <Field label={dict.structurePanel.dataTypeLabel}>
             <div className="grid grid-cols-3 gap-2">
               {(["area", "point", "table"] as DatasetKind[])
                 .filter((k) => kinds.has(k))
@@ -151,7 +153,7 @@ export function StructurePanel() {
                     >
                       <Icon size={16} />
                       <span className="text-[11px] font-medium leading-tight">
-                        {kindLabel(k)}
+                        {dict.datasetKind[k]}
                       </span>
                     </button>
                   );
@@ -169,65 +171,65 @@ export function StructurePanel() {
 
       {/* ---- Mappa per aree ---- */}
       {mapping.kind === "area" && (
-        <PanelSection title="Mappa per aree" hint="Unisci i dati alla geografia.">
-          <Field label="Livello geografico">
+        <PanelSection title={dict.structurePanel.areaMapTitle} hint={dict.structurePanel.areaMapHint}>
+          <Field label={dict.structurePanel.geoLevelLabel}>
             <Select
               value={mapping.geoLevel ?? ""}
               onChange={(v) => patch({ geoLevel: (v || null) as GeoLevel | null })}
             >
-              <option value="">- scegli -</option>
+              <option value="">{dict.structurePanel.chooseOption}</option>
               {Object.values(GEO_LEVELS).map((l) => (
                 <option key={l.id} value={l.id}>
-                  {l.label}
+                  {dict.geoLevels[l.id] ?? l.label}
                 </option>
               ))}
             </Select>
           </Field>
-          <Field label="Colonna chiave" hint="La colonna che identifica l'area (nome o codice).">
+          <Field label={dict.structurePanel.keyColumnLabel} hint={dict.structurePanel.keyColumnHint}>
             <Select
               value={mapping.keyColumn ?? ""}
               onChange={(v) => patch({ keyColumn: v || null })}
             >
-              <option value="">- scegli -</option>
+              <option value="">{dict.structurePanel.chooseOption}</option>
               {colOptions(allColumns)}
             </Select>
           </Field>
-          <Field label="Colonna valore">
+          <Field label={dict.structurePanel.valueColumnLabel}>
             <Select
               value={mapping.valueColumn ?? ""}
               onChange={(v) => patch({ valueColumn: v || null })}
             >
-              <option value="">- prima numerica -</option>
+              <option value="">{dict.structurePanel.firstNumericOption}</option>
               {colOptions(valueOptions)}
             </Select>
           </Field>
           <Field
-            label="Secondo valore (opzionale)"
-            hint="Serve per la mappa bivariata: combina due variabili numeriche in una matrice 3×3 di colori."
+            label={dict.structurePanel.secondValueLabel}
+            hint={dict.structurePanel.secondValueHint}
           >
             <Select
               value={design.bivariateColumn2}
               onChange={(v) => updateDesign({ bivariateColumn2: v })}
             >
-              <option value="">- automatico (la prossima numerica) -</option>
+              <option value="">{dict.structurePanel.autoNextNumericOption}</option>
               {colOptions(secondValueOptions)}
             </Select>
           </Field>
-          <Field label="Categoria (opzionale)" hint="Per la mappa a categorie.">
+          <Field label={dict.structurePanel.categoryLabelOpt} hint={dict.structurePanel.categoryHintForArea}>
             <Select
               value={mapping.categoryColumn ?? ""}
               onChange={(v) => patch({ categoryColumn: v || null })}
             >
-              <option value="">- nessuna -</option>
+              <option value="">{dict.structurePanel.noneOption}</option>
               {colOptions(allColumns)}
             </Select>
           </Field>
-          <Field label="Tempo (opzionale)" hint="Una colonna periodo abilita la linea del tempo.">
+          <Field label={dict.structurePanel.timeLabelOpt} hint={dict.structurePanel.timeHint}>
             <Select
               value={mapping.timeColumn ?? ""}
               onChange={(v) => patch({ timeColumn: v || null })}
             >
-              <option value="">- nessuna -</option>
+              <option value="">{dict.structurePanel.noneOption}</option>
               {colOptions(allColumns)}
             </Select>
           </Field>
@@ -236,49 +238,49 @@ export function StructurePanel() {
 
       {/* ---- Mappa per punti ---- */}
       {mapping.kind === "point" && (
-        <PanelSection title="Mappa per punti" hint="Posiziona i punti dalle coordinate.">
-          <Field label="Latitudine">
+        <PanelSection title={dict.structurePanel.pointMapTitle} hint={dict.structurePanel.pointMapHint}>
+          <Field label={dict.structurePanel.latLabel}>
             <Select
               value={mapping.latColumn ?? ""}
               onChange={(v) => patch({ latColumn: v || null })}
             >
-              <option value="">- scegli -</option>
+              <option value="">{dict.structurePanel.chooseOption}</option>
               {colOptions(numericColumns)}
             </Select>
           </Field>
-          <Field label="Longitudine">
+          <Field label={dict.structurePanel.lonLabel}>
             <Select
               value={mapping.lonColumn ?? ""}
               onChange={(v) => patch({ lonColumn: v || null })}
             >
-              <option value="">- scegli -</option>
+              <option value="">{dict.structurePanel.chooseOption}</option>
               {colOptions(numericColumns)}
             </Select>
           </Field>
-          <Field label="Dimensione (opzionale)" hint="Un valore numerico dimensiona i punti.">
+          <Field label={dict.structurePanel.sizeLabelOpt} hint={dict.structurePanel.sizeHint}>
             <Select
               value={mapping.valueColumn ?? ""}
               onChange={(v) => patch({ valueColumn: v || null })}
             >
-              <option value="">- uniforme -</option>
+              <option value="">{dict.structurePanel.uniformOption}</option>
               {colOptions(valueOptions)}
             </Select>
           </Field>
-          <Field label="Categoria (opzionale)">
+          <Field label={dict.structurePanel.categoryLabelOpt}>
             <Select
               value={mapping.categoryColumn ?? ""}
               onChange={(v) => patch({ categoryColumn: v || null })}
             >
-              <option value="">- nessuna -</option>
+              <option value="">{dict.structurePanel.noneOption}</option>
               {colOptions(allColumns)}
             </Select>
           </Field>
-          <Field label="Etichetta (opzionale)" hint="Mostrata nei tooltip e nel localizzatore.">
+          <Field label={dict.structurePanel.labelOpt} hint={dict.structurePanel.labelHintTooltip}>
             <Select
               value={mapping.nameColumn ?? ""}
               onChange={(v) => patch({ nameColumn: v || null })}
             >
-              <option value="">- nessuna -</option>
+              <option value="">{dict.structurePanel.noneOption}</option>
               {colOptions(allColumns)}
             </Select>
           </Field>
@@ -287,31 +289,31 @@ export function StructurePanel() {
 
       {/* ---- Geometria propria ---- */}
       {mapping.kind === "geo" && (
-        <PanelSection title="Geometria propria" hint="Scegli cosa colorare ed etichettare.">
-          <Field label="Colonna valore (opzionale)">
+        <PanelSection title={dict.structurePanel.ownGeometryTitle} hint={dict.structurePanel.ownGeometryHint}>
+          <Field label={dict.structurePanel.valueColumnOptLabel}>
             <Select
               value={mapping.valueColumn ?? ""}
               onChange={(v) => patch({ valueColumn: v || null })}
             >
-              <option value="">- nessuna -</option>
+              <option value="">{dict.structurePanel.noneOption}</option>
               {colOptions(numericColumns)}
             </Select>
           </Field>
-          <Field label="Categoria (opzionale)">
+          <Field label={dict.structurePanel.categoryLabelOpt}>
             <Select
               value={mapping.categoryColumn ?? ""}
               onChange={(v) => patch({ categoryColumn: v || null })}
             >
-              <option value="">- nessuna -</option>
+              <option value="">{dict.structurePanel.noneOption}</option>
               {colOptions(allColumns)}
             </Select>
           </Field>
-          <Field label="Etichetta (opzionale)">
+          <Field label={dict.structurePanel.labelOpt}>
             <Select
               value={mapping.nameColumn ?? ""}
               onChange={(v) => patch({ nameColumn: v || null })}
             >
-              <option value="">- nessuna -</option>
+              <option value="">{dict.structurePanel.noneOption}</option>
               {colOptions(allColumns)}
             </Select>
           </Field>
@@ -320,25 +322,25 @@ export function StructurePanel() {
 
       {/* ---- Tabella / grafico (assi) ---- */}
       {mapping.kind === "table" && (
-        <PanelSection title="Assi del grafico" hint="Per i grafici dai dati senza geografia.">
-          <Field label="Asse X (categoria / tempo)">
+        <PanelSection title={dict.structurePanel.chartAxesTitle} hint={dict.structurePanel.chartAxesHint}>
+          <Field label={dict.structurePanel.xAxisLabel}>
             <Select value={design.chartX} onChange={(v) => updateDesign({ chartX: v })}>
-              <option value="">- automatico -</option>
+              <option value="">{dict.structurePanel.autoOption}</option>
               {colOptions(allColumns)}
             </Select>
           </Field>
-          <Field label="Asse Y (valore)">
+          <Field label={dict.structurePanel.yAxisLabel}>
             <Select value={design.chartY} onChange={(v) => updateDesign({ chartY: v })}>
-              <option value="">- automatico -</option>
+              <option value="">{dict.structurePanel.autoOption}</option>
               {colOptions(numericColumns)}
             </Select>
           </Field>
-          <Field label="Serie / colore (opzionale)">
+          <Field label={dict.structurePanel.seriesLabel}>
             <Select
               value={design.chartSeries}
               onChange={(v) => updateDesign({ chartSeries: v })}
             >
-              <option value="">- nessuna -</option>
+              <option value="">{dict.structurePanel.noneOption}</option>
               {colOptions(allColumns)}
             </Select>
           </Field>
@@ -355,6 +357,7 @@ export function StructurePanel() {
  */
 export function StructurePreview() {
   const { data, design } = useStudio();
+  const { dict } = useI18n();
   if (!data) return null;
   const numericSet = new Set(detectNumericColumns(data.columns, data.rows));
   const m = mappingFromDataset(data);
@@ -369,11 +372,10 @@ export function StructurePreview() {
     <div className="flex h-full w-full flex-col bg-white">
       <div className="flex-shrink-0 border-b border-slate-200 px-6 py-3">
         <h2 className="text-sm font-semibold text-slate-800">
-          Anteprima dati · {data.fileName}
+          {dict.structurePanel.previewTitle(data.fileName)}
         </h2>
         <p className="text-xs text-slate-500">
-          {data.rows.length} righe · {data.columns.length} colonne. I colori
-          mostrano il ruolo di ogni colonna.
+          {dict.structurePanel.previewSummary(data.rows.length, data.columns.length)}
         </p>
       </div>
       <div className="min-h-0 flex-1 p-6">

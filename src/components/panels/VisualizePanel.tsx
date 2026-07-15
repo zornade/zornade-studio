@@ -5,6 +5,8 @@ import { PanelSection, SoonBadge } from "../primitives";
 import { profileColumns, type SemanticType } from "../../lib/profile";
 import { evaluateCompatibility } from "../../lib/viz-compat";
 import { GEO_LEVELS, type GeoResolution } from "../../lib/choropleth";
+import { useI18n } from "../../i18n/LanguageContext";
+import type { Dictionary } from "../../i18n/dictionaries/it";
 
 /** Viz types whose rendering is actually implemented today. */
 const IMPLEMENTED = new Set<string>([
@@ -28,26 +30,17 @@ const IMPLEMENTED = new Set<string>([
   "table",
 ]);
 
-/** Italian label for the geometry primitives in a custom geometry dataset. */
-function geoKindsLabel(kinds: ("polygon" | "line" | "point")[]): string {
-  const map = { polygon: "aree", line: "linee", point: "punti" };
-  return kinds.length > 0 ? kinds.map((k) => map[k]).join(", ") : "geometrie";
+/** Localized label for the geometry primitives in a custom geometry dataset. */
+function geoKindsLabel(kinds: ("polygon" | "line" | "point")[], dict: Dictionary): string {
+  return kinds.length > 0
+    ? kinds.map((k) => dict.geometryKinds[k]).join(", ")
+    : dict.geometryKinds.fallback;
 }
-
-/** Italian label for each semantic column type (for the summary). */
-const TYPE_LABEL: Record<SemanticType, string> = {
-  "geo-point-lat": "latitudine",
-  "geo-point-lon": "longitudine",
-  temporal: "temporale",
-  quantitative: "numerico",
-  categorical: "categoria",
-  identifier: "identificatore",
-  text: "testo",
-  empty: "vuoto",
-};
 
 export function VisualizePanel() {
   const { vizType, setVizType, data } = useStudio();
+  const { dict } = useI18n();
+  const TYPE_LABEL: Record<SemanticType, string> = dict.columnTypes as Record<SemanticType, string>;
 
   // Profile the loaded data and evaluate which visualisations it supports.
   // Geo level/key are already resolved at load time (value-based), so we feed a
@@ -76,56 +69,54 @@ export function VisualizePanel() {
     <div className="space-y-6">
       {!data && (
         <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700">
-          Scegli prima i dati di partenza nel passo “Dati”.
+          {dict.visualizePanel.chooseDataFirst}
         </p>
       )}
 
       {data && summary && (
         <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
           <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-500">
-            Cosa abbiamo capito
+            {dict.visualizePanel.whatWeUnderstood}
           </p>
           <p className="text-xs text-slate-600">
             {summary.geo ? (
               <>
-                Livello geografico:{" "}
+                {dict.visualizePanel.geoLevelPrefix}{" "}
                 <span className="font-medium text-slate-800">
-                  {GEO_LEVELS[summary.geo.level].label}
+                  {dict.geoLevels[summary.geo.level] ?? GEO_LEVELS[summary.geo.level].label}
                 </span>{" "}
-                · chiave “{summary.geo.keyColumn}”
+                {dict.visualizePanel.keySuffix(summary.geo.keyColumn)}
               </>
             ) : data.kind === "geo" ? (
               <>
-                Tipo di dato:{" "}
+                {dict.visualizePanel.dataTypePrefix}{" "}
                 <span className="font-medium text-slate-800">
-                  geometria personalizzata
+                  {dict.visualizePanel.customGeometry}
                 </span>{" "}
-                ({geoKindsLabel(data.geometryKinds)})
+                ({geoKindsLabel(data.geometryKinds, dict)})
               </>
             ) : data.kind === "table" ? (
               <>
-                Tipo di dato:{" "}
+                {dict.visualizePanel.dataTypePrefix}{" "}
                 <span className="font-medium text-slate-800">
-                  tabella (senza geografia)
+                  {dict.visualizePanel.tableNoGeo}
                 </span>
               </>
             ) : (
               <>
-                Tipo di dato:{" "}
-                <span className="font-medium text-slate-800">punti (coordinate)</span>
+                {dict.visualizePanel.dataTypePrefix}{" "}
+                <span className="font-medium text-slate-800">{dict.visualizePanel.pointsCoords}</span>
               </>
             )}
           </p>
           {data.kind === "geo" && (
             <p className="mt-1 text-[11px] text-slate-500">
-              La tua geometria viene disegnata direttamente sulla mappa. Scegli
-              il dato nel passo “Struttura” e i colori nel “Design”.
+              {dict.visualizePanel.geoHint}
             </p>
           )}
           {data.kind === "table" && (
             <p className="mt-1 text-[11px] text-slate-500">
-              Dati senza una dimensione geografica: usali per un grafico o una
-              tabella. Scegli gli assi nel passo “Struttura”.
+              {dict.visualizePanel.tableHint}
             </p>
           )}
           <div className="mt-1.5 flex flex-wrap gap-1">
@@ -140,14 +131,13 @@ export function VisualizePanel() {
             ))}
           </div>
           <p className="mt-2 text-[11px] text-slate-400">
-            Le visualizzazioni si attivano in base ai dati. Puoi correggere il
-            tipo di dato, il livello e le colonne nel passo “Struttura”.
+            {dict.visualizePanel.footerHint}
           </p>
         </div>
       )}
 
       {VIZ_GROUPS.map((group) => (
-        <PanelSection key={group.id} title={group.label}>
+        <PanelSection key={group.id} title={dict.catalogGroups[group.id]?.label ?? group.label}>
           <div className="grid grid-cols-2 gap-2">
             {group.items.map((item) => {
               const Icon = item.icon;
@@ -162,6 +152,7 @@ export function VisualizePanel() {
               const showSoon = data ? dataCompatible && !implemented : item.status === "soon";
               const reason =
                 data && !dataCompatible ? c?.reason : undefined;
+              const catalogText = dict.catalogItems[item.id] ?? { label: item.label, desc: item.desc };
               return (
                 <button
                   key={item.id}
@@ -184,10 +175,10 @@ export function VisualizePanel() {
                     {showSoon && <SoonBadge />}
                   </span>
                   <span className="text-sm font-medium text-slate-800">
-                    {item.label}
+                    {catalogText.label}
                   </span>
                   <span className="text-xs text-slate-500">
-                    {reason ?? item.desc}
+                    {reason ?? catalogText.desc}
                   </span>
                 </button>
               );

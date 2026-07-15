@@ -2,10 +2,12 @@ import { useState, type FormEvent } from "react";
 import { Lock, LogIn, AlertTriangle, Mail, CheckCircle2 } from "lucide-react";
 import { useAuth } from "../auth/AuthContext";
 import { useSupabaseAuth } from "../auth/SupabaseAuthContext";
+import { useI18n } from "../i18n/LanguageContext";
 
 export function LoginScreen() {
   const { isAuthed: legacyAuthed, notConfigured, legacyEnabled } = useAuth();
   const { isConfigured: supabaseConfigured } = useSupabaseAuth();
+  const { dict } = useI18n();
 
   // When the legacy gate is enabled AND configured AND Supabase is also
   // configured, access requires both steps in sequence - legacy
@@ -30,11 +32,11 @@ export function LoginScreen() {
             <p className="mt-1 text-sm text-slate-500">
               {sequential
                 ? showMagicLinkStep
-                  ? "Passo 2 di 2 · verifica la tua email"
-                  : "Passo 1 di 2 · accesso riservato alla redazione"
+                  ? dict.loginScreen.step2of2
+                  : dict.loginScreen.step1of2
                 : legacyEnabled
-                  ? "Accesso riservato alla redazione"
-                  : "Accedi o registrati gratuitamente con la tua email"}
+                  ? dict.loginScreen.restrictedAccess
+                  : dict.loginScreen.loginOrRegister}
             </p>
           </div>
         </div>
@@ -44,7 +46,7 @@ export function LoginScreen() {
         ) : showMagicLinkStep ? (
           <MagicLinkSection
             standalone
-            label="Conferma la tua identità con la tua email"
+            label={dict.loginScreen.confirmIdentityLabel}
           />
         ) : (
           <>
@@ -55,8 +57,8 @@ export function LoginScreen() {
 
         <p className="mt-4 text-center text-[11px] text-slate-400">
           {legacyEnabled
-            ? "Strumento interno. La sessione scade dopo 12 ore."
-            : "Nessuna password necessaria \u2014 ti invieremo un link sicuro via email."}
+            ? dict.loginScreen.internalToolNote
+            : dict.loginScreen.noPasswordNote}
         </p>
       </div>
     </div>
@@ -67,6 +69,7 @@ export function LoginScreen() {
  * shown alone as "step 1 of 2" when Supabase is also configured. */
 function PasswordForm() {
   const { login, notConfigured } = useAuth();
+  const { dict } = useI18n();
   const [user, setUser] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -89,14 +92,19 @@ function PasswordForm() {
       {notConfigured && (
         <p className="flex items-start gap-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700">
           <AlertTriangle size={14} className="mt-0.5 flex-shrink-0" />
-          Accesso non configurato: imposta <code>VITE_STUDIO_USER</code> e{" "}
-          <code>VITE_STUDIO_PASS_SHA256</code> in <code>.env.local</code>.
+          {dict.loginScreen.passwordForm.notConfiguredPre}
+          <code>VITE_STUDIO_USER</code>
+          {dict.loginScreen.passwordForm.notConfiguredMid}
+          <code>VITE_STUDIO_PASS_SHA256</code>
+          {dict.loginScreen.passwordForm.notConfiguredPost}
+          <code>{dict.loginScreen.passwordForm.notConfiguredEnvFile}</code>
+          {dict.loginScreen.passwordForm.notConfiguredEnd}
         </p>
       )}
 
       <label className="block">
         <span className="mb-1 block text-xs font-medium text-slate-600">
-          Utente
+          {dict.loginScreen.passwordForm.user}
         </span>
         <input
           value={user}
@@ -109,7 +117,7 @@ function PasswordForm() {
 
       <label className="block">
         <span className="mb-1 block text-xs font-medium text-slate-600">
-          Password
+          {dict.loginScreen.passwordForm.password}
         </span>
         <div className="relative">
           <Lock
@@ -138,7 +146,7 @@ function PasswordForm() {
         className="flex w-full items-center justify-center gap-2 rounded-lg bg-zornade px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-zornade-700 disabled:cursor-not-allowed disabled:opacity-60"
       >
         <LogIn size={16} />
-        {busy ? "Accesso…" : "Entra"}
+        {busy ? dict.loginScreen.passwordForm.loggingIn : dict.loginScreen.passwordForm.enter}
       </button>
     </form>
   );
@@ -167,12 +175,14 @@ function PasswordForm() {
  */
 export function MagicLinkSection({
   standalone = false,
-  label = "Accedi (o registrati) con la tua email",
+  label,
 }: {
   standalone?: boolean;
   label?: string;
 }) {
   const { isConfigured, sendMagicLink } = useSupabaseAuth();
+  const { dict } = useI18n();
+  const resolvedLabel = label ?? dict.loginScreen.magicLink.defaultLabel;
   const [email, setEmail] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [sent, setSent] = useState(false);
@@ -202,7 +212,7 @@ export function MagicLinkSection({
         <div className="mb-3 flex items-center gap-2">
           <div className="h-px flex-1 bg-slate-200" />
           <span className="text-[11px] font-medium uppercase tracking-wide text-slate-400">
-            oppure
+            {dict.loginScreen.magicLink.or}
           </span>
           <div className="h-px flex-1 bg-slate-200" />
         </div>
@@ -211,13 +221,13 @@ export function MagicLinkSection({
       {sent ? (
         <p className="flex items-start gap-2 rounded-lg bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
           <CheckCircle2 size={14} className="mt-0.5 flex-shrink-0" />
-          Controlla la tua email: ti abbiamo inviato un link di accesso.
+          {dict.loginScreen.magicLink.checkEmail}
         </p>
       ) : (
         <form onSubmit={onSubmit} className="space-y-3">
           <label className="block">
             <span className="mb-1 block text-xs font-medium text-slate-600">
-              {label}
+              {resolvedLabel}
             </span>
             <div className="relative">
               <Mail
@@ -230,7 +240,7 @@ export function MagicLinkSection({
                 onChange={(e) => setEmail(e.target.value)}
                 autoComplete="email"
                 autoFocus={standalone}
-                placeholder="tu@esempio.com"
+                placeholder={dict.loginScreen.magicLink.placeholder}
                 className="w-full rounded-lg border border-slate-200 py-2 pl-9 pr-3 text-sm focus:border-zornade focus:outline-none focus:ring-2 focus:ring-zornade/20"
               />
             </div>
@@ -248,7 +258,7 @@ export function MagicLinkSection({
             className="flex w-full items-center justify-center gap-2 rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-700 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
           >
             <Mail size={16} />
-            {busy ? "Invio…" : "Invia link di accesso"}
+            {busy ? dict.loginScreen.magicLink.sending : dict.loginScreen.magicLink.sendLink}
           </button>
         </form>
       )}
