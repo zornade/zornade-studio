@@ -32,7 +32,7 @@ import { publishKeys } from "../../src/lib/publish-key";
 import {
   computeBreaks,
   matchedFeatureValues,
-  normaliseKey,
+  normaliseJoinKey,
   type ClassBreaks,
 } from "../../src/lib/choropleth";
 
@@ -169,7 +169,7 @@ async function classifyAgainstGeometry(
     for (const datums of frameDataSets) {
       const valueByKey = new Map<string, number>();
       for (const dd of datums) {
-        const k = normaliseKey(dd.key);
+        const k = normaliseJoinKey(spec.geo.level, dd.key);
         if (k !== "") valueByKey.set(k, dd.value);
       }
       for (const v of matchedFeatureValues(geojson, spec.geo.level, valueByKey)) {

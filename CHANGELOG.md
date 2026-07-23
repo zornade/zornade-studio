@@ -26,6 +26,27 @@ e questo progetto aderisce al [Versionamento Semantico](https://semver.org/lang/
 - Row Level Security completa (proprietario/editor/visualizzatore) sulle
   tabelle dei progetti e dei collaboratori, verificata con una suite pgTAP
   dedicata prima di ogni modifica allo schema.
+- Livello geografico **CAP** (codici postali, ~9.200 zone) per il join
+  spaziale, generato dai confini sub-comunali Zornade.
+
+### Modificato
+
+- Rimossa la sezione "Database Zornade" (join proprietario su dataset OMI/
+  solare interni) dal pannello Dati - non era open source e richiedeva
+  credenziali interne. Tutti gli altri livelli di join spaziale (paesi,
+  regioni, province, comuni, CAP) restano disponibili.
+
+### Corretto
+
+- Riconoscimento automatico del livello/colonna geografica più robusto per i
+  dataset Eurostat: la colonna standard `geo` (codici NUTS2, es. `ITC1`) è ora
+  riconosciuta e tradotta nel corrispondente codice ISTAT regione, non solo
+  `geo_label`; un bug di normalizzazione che impediva il match di nomi con
+  apostrofo tipografico (es. "Valle d'Aosta" scritto con `’`) è stato
+  corretto; quando nessuna colonna raggiunge una corrispondenza sufficiente al
+  livello più affidabile, il rilevamento riprova con soglie più permissive
+  prima di rinunciare, e se anche così non trova nulla lo segnala con un
+  avviso invece di produrre silenziosamente una mappa vuota.
 
 ## Prima della cronologia pubblica
 

@@ -20,6 +20,18 @@ function geo(names: string[]): GeoJSON.FeatureCollection {
   };
 }
 
+/** Minimal regioni-like geometry keyed by ISTAT code (for NUTS2 alias tests). */
+function geoByIstatCode(pairs: Array<[string, string]>): GeoJSON.FeatureCollection {
+  return {
+    type: "FeatureCollection",
+    features: pairs.map(([reg_istat_code, reg_name]) => ({
+      type: "Feature",
+      properties: { reg_istat_code, reg_name },
+      geometry: { type: "Polygon", coordinates: [] },
+    })),
+  };
+}
+
 const LEVEL: GeoLevel = "regioni";
 
 describe("joinChoropleth classification source", () => {
@@ -85,6 +97,59 @@ describe("matchedFeatureValues", () => {
       ]),
     );
     expect(v).toEqual([1, 3]);
+  });
+});
+
+describe("joinChoropleth: NUTS2 code alias (Eurostat 'geo')", () => {
+  it("joins a NUTS2-coded column onto the matching ISTAT region", () => {
+    const g = geoByIstatCode([
+      ["01", "Piemonte"],
+      ["03", "Lombardia"],
+      ["04", "Trentino-Alto Adige/Südtirol"],
+    ]);
+    const res = joinChoropleth({
+      geojson: g,
+      level: LEVEL,
+      rows: [
+        { geo: "ITC1", v: "10" }, // Piemonte
+        { geo: "ITC4", v: "20" }, // Lombardia
+      ],
+      keyColumn: "geo",
+      valueColumn: "v",
+      nClasses: 3,
+      method: "quantile",
+      manualBreaks: [],
+    });
+    expect(res.matched.length).toBe(2);
+    expect(res.unmatchedCsv).toEqual([]);
+    expect(res.noDataFeatures).toBe(1); // Trentino-Alto Adige got no value.
+  });
+
+  it("collapses two NUTS2 codes onto one ISTAT region (Bolzano + Trento), last value wins", () => {
+    const g = geoByIstatCode([["04", "Trentino-Alto Adige/Südtirol"]]);
+    const res = joinChoropleth({
+      geojson: g,
+      level: LEVEL,
+      rows: [
+        { geo: "ITH1", v: "10" }, // P.A. Bolzano
+        { geo: "ITH2", v: "20" }, // P.A. Trento
+      ],
+      keyColumn: "geo",
+      valueColumn: "v",
+      nClasses: 3,
+      method: "quantile",
+      manualBreaks: [],
+    });
+    expect(res.matched.length).toBe(1);
+    expect(res.noDataFeatures).toBe(0);
+    // Both CSV rows are consumed - no dangling "unmatched" NUTS2 code left over.
+    expect(res.unmatchedCsv).toEqual([]);
+  });
+});
+
+describe("normaliseKey: typographic apostrophe", () => {
+  it("treats a curly apostrophe (\u2019) the same as a straight one (')", () => {
+    expect(normaliseKey("Valle d\u2019Aosta")).toBe(normaliseKey("Valle d'Aosta"));
   });
 });
 

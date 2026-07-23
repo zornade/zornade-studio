@@ -2,14 +2,14 @@
  * Geographic levels supported by the choropleth pipeline and the geo-join +
  * classification logic that turns a parsed CSV into a coloured GeoJSON.
  *
- * Only "regioni" ships with bundled geometry today; "province" and "comuni"
- * are declared so the UI and join logic are ready as soon as their geometry
- * is added under public/geo/.
+ * All five levels (paesi, regioni, province, comuni, cap) ship with bundled
+ * geometry under public/geo/ - see scripts/build_geo.py for how each is
+ * generated/simplified.
  */
 
 import { parseNumber } from "./csv";
 
-export type GeoLevel = "paesi" | "regioni" | "province" | "comuni";
+export type GeoLevel = "paesi" | "regioni" | "province" | "comuni" | "cap";
 
 export interface GeoLevelDef {
   id: GeoLevel;
@@ -29,7 +29,51 @@ export interface GeoLevelDef {
   keyHints: string[];
   /** Whether the bundled geometry is available. */
   ready: boolean;
+  /**
+   * Normalised alternate-code → normalised canonical key, for standard external
+   * codes that don't appear as a geometry property but ARE a legitimate,
+   * stable join key (e.g. EU NUTS codes onto ISTAT regions). Checked in
+   * addition to the geometry's own keys, both when scoring a candidate column
+   * ({@link resolveGeoJoin}/{@link bestKeyColumnForLevel}) and when actually
+   * joining ({@link joinChoropleth}) - so a dataset keyed by "geo" (Eurostat's
+   * NUTS column) resolves exactly like one keyed by the ISTAT name/code.
+   */
+  codeAliases?: Record<string, string>;
 }
+
+/**
+ * NUTS2 (EU statistical regions, 2021 classification) → ISTAT region code, for
+ * Italy. A standard, stable EU/ISTAT correspondence - not dataset-specific -
+ * so it's safe to hardcode like the ISO country codes already baked into the
+ * `paesi` geometry. Two NUTS2 codes (Bolzano/Bozen, Trento) map to the SAME
+ * ISTAT region (Trentino-Alto Adige), which NUTS splits in two for statistics
+ * even though it's one Italian administrative region; a dataset with distinct
+ * values for both is aggregated onto that single polygon (last value wins,
+ * same as any other many-to-one join in this pipeline).
+ */
+const NUTS2_IT_TO_REG_ISTAT: Record<string, string> = {
+  itc1: "01", // Piemonte
+  itc2: "02", // Valle d'Aosta/Vallée d'Aoste
+  itc3: "07", // Liguria
+  itc4: "03", // Lombardia
+  ith1: "04", // P.A. Bolzano → Trentino-Alto Adige
+  ith2: "04", // P.A. Trento → Trentino-Alto Adige
+  ith3: "05", // Veneto
+  ith4: "06", // Friuli-Venezia Giulia
+  ith5: "08", // Emilia-Romagna
+  iti1: "09", // Toscana
+  iti2: "10", // Umbria
+  iti3: "11", // Marche
+  iti4: "12", // Lazio
+  itf1: "13", // Abruzzo
+  itf2: "14", // Molise
+  itf3: "15", // Campania
+  itf4: "16", // Puglia
+  itf5: "17", // Basilicata
+  itf6: "18", // Calabria
+  itg1: "19", // Sicilia
+  itg2: "20", // Sardegna
+};
 
 export const GEO_LEVELS: Record<GeoLevel, GeoLevelDef> = {
   paesi: {
@@ -59,8 +103,9 @@ export const GEO_LEVELS: Record<GeoLevel, GeoLevelDef> = {
     url: "/geo/regioni.geojson",
     joinField: "reg_istat_code",
     nameField: "reg_name",
-    keyHints: ["codice_istat", "cod_reg", "reg_istat_code", "regione"],
+    keyHints: ["codice_istat", "cod_reg", "reg_istat_code", "regione", "geo_label", "geo"],
     ready: true,
+    codeAliases: NUTS2_IT_TO_REG_ISTAT,
   },
   province: {
     id: "province",
@@ -69,7 +114,7 @@ export const GEO_LEVELS: Record<GeoLevel, GeoLevelDef> = {
     joinField: "prov_acr",
     nameField: "prov_name",
     aliasFields: ["prov_istat_code"],
-    keyHints: ["sigla", "prov_acr", "provincia", "targa"],
+    keyHints: ["sigla", "prov_acr", "provincia", "targa", "geo_label", "geo"],
     ready: true,
   },
   comuni: {
@@ -82,6 +127,24 @@ export const GEO_LEVELS: Record<GeoLevel, GeoLevelDef> = {
     keyHints: ["com_istat_code", "pro_com", "comune", "codice_comune"],
     ready: true,
   },
+  cap: {
+    id: "cap",
+    label: "CAP",
+    url: "/geo/cap.geojson",
+    joinField: "cap",
+    nameField: "comune",
+    keyHints: [
+      "cap",
+      "codice_postale",
+      "codice postale",
+      "postal_code",
+      "postalcode",
+      "zip",
+      "zip_code",
+      "cap_code",
+    ],
+    ready: true,
+  },
 };
 
 /** Normalise a join key for tolerant matching (codes and names). */
@@ -90,10 +153,40 @@ export function normaliseKey(raw: string | number | undefined | null): string {
   let s = String(raw).trim().toLowerCase();
   // Zero-pad short numeric ISTAT codes (e.g. "1" -> "01").
   if (/^\d$/.test(s)) s = "0" + s;
+  // Curly/typographic quotes → straight ones, so "Valle d’Aosta" (as returned
+  // by some upstream APIs, e.g. Eurostat) matches "Valle d'Aosta" (ISTAT).
+  s = s.replace(/[\u2018\u2019\u201A\u201B]/g, "'").replace(/[\u201C\u201D\u201E\u201F]/g, '"');
   // For names: drop bilingual variants and accents for looser matching.
   s = s.split("/")[0].trim();
   s = s.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
   return s;
+}
+
+/**
+ * Whether `raw` (a CSV cell) matches `level`'s real geometry keys - directly,
+ * or via a standard alias code (e.g. a NUTS2 code for `regioni`). Shared by
+ * every value-based resolver so a column is scored/joined identically
+ * regardless of which one asks.
+ */
+function matchesLevelKey(level: GeoLevel, raw: string, set: Set<string>): boolean {
+  const n = normaliseKey(raw);
+  if (n === "") return false;
+  if (set.has(n)) return true;
+  const alias = GEO_LEVELS[level].codeAliases?.[n];
+  return alias != null && set.has(alias);
+}
+
+/**
+ * Normalise a CSV key for JOINING (not just scoring): a standard alias code
+ * (e.g. a NUTS2 code for `regioni`) is translated to the geometry's own key,
+ * so it's stored/looked-up under the SAME string the feature actually carries.
+ * Used by {@link joinChoropleth} and by the embed renderer ({@link
+ * embed-html.ts}), which must resolve identically to the live editor.
+ */
+export function normaliseJoinKey(level: GeoLevel, raw: string | number | undefined | null): string {
+  const n = normaliseKey(raw);
+  if (n === "") return n;
+  return GEO_LEVELS[level].codeAliases?.[n] ?? n;
 }
 
 /**
@@ -143,6 +236,7 @@ export function detectKeyColumn(
 
 /** Finer levels rank higher: used as a tie-break when match scores are close. */
 const GEO_GRANULARITY: Record<GeoLevel, number> = {
+  cap: 5,
   comuni: 4,
   province: 3,
   regioni: 2,
@@ -216,13 +310,13 @@ export function resolveGeoJoin(
       if (v == null || String(v).trim() === "") continue;
       nonEmpty++;
       if (parseNumber(String(v)) != null) numericCells++;
-      normalised.push(normaliseKey(v));
+      normalised.push(String(v));
     }
     if (normalised.length === 0) continue;
     const numeric = nonEmpty > 0 && numericCells / nonEmpty >= 0.85;
     for (const [level, set] of sets) {
       let matched = 0;
-      for (const n of normalised) if (n !== "" && set.has(n)) matched++;
+      for (const v of normalised) if (matchesLevelKey(level, v, set)) matched++;
       const score = matched / normalised.length;
       if (score >= minScore) candidates.push({ level, keyColumn: col, score, numeric });
     }
@@ -273,7 +367,7 @@ export function bestKeyColumnForLevel(
       const v = row[col];
       if (v == null || String(v).trim() === "") continue;
       total++;
-      if (set.has(normaliseKey(v))) matched++;
+      if (matchesLevelKey(level, v, set)) matched++;
     }
     if (total === 0) continue;
     const score = matched / total;
@@ -500,7 +594,7 @@ export function joinChoropleth(params: JoinParams): JoinResult {
     extraColumns.length > 0 ? new Map<string, Record<string, string>>() : null;
   const unmatchedCsv: string[] = [];
   for (const row of rows) {
-    const key = normaliseKey(row[keyColumn]);
+    const key = normaliseJoinKey(level, row[keyColumn]);
     const value = parseNumber(row[valueColumn]);
     if (key === "" || value == null) continue;
     valueByKey.set(key, value);

@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { buildDatasetFromCsv, buildDatasetFromTable } from "./build-dataset";
 
 /**
@@ -140,5 +140,36 @@ describe("buildDatasetFromCsv", () => {
   it("returns the empty-file error for blank text", async () => {
     const out = await buildDatasetFromCsv("", "empty.csv");
     expect("error" in out).toBe(true);
+  });
+});
+
+describe("buildDatasetFromTable: geo column detected but values don't match", () => {
+  it("falls back to TABLE with a geoHint instead of a silently-empty map", async () => {
+    // Simulate the keys index being available (so matches ARE verified) but a
+    // "geo"-like column whose actual values match no known place at any level
+    // - e.g. a badly filtered or foreign-country Eurostat extract.
+    vi.resetModules();
+    vi.doMock("./geo-keys", () => ({
+      loadGeoKeys: async () => ({ regioni: new Set(["01", "02", "regione fittizia"]) }),
+    }));
+    const { buildDatasetFromTable: build } = await import("./build-dataset");
+    const out = await build(
+      {
+        columns: ["geo", "value"],
+        rows: [
+          { geo: "XX9", value: "150000" },
+          { geo: "YY8", value: "260000" },
+        ],
+      },
+      "eurostat.csv",
+    );
+    expect("dataset" in out).toBe(true);
+    if (!("dataset" in out)) return;
+    const d = out.dataset;
+    expect(d.kind).toBe("table");
+    if (d.kind !== "table") return;
+    expect(d.geoHint).toEqual({ level: "regioni", keyColumn: "geo" });
+    vi.doUnmock("./geo-keys");
+    vi.resetModules();
   });
 });

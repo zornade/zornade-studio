@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from "react";
 import {
   ArrowLeft,
   Upload,
-  ShieldCheck,
   Info,
   CheckCircle2,
   AlertTriangle,
@@ -62,17 +61,6 @@ import {
   type EurostatDataset,
   type EurostatTheme,
 } from "../../lib/eurostat-catalog";
-import {
-  DB_DATASETS,
-  OMI_TYPES,
-  SOLAR_METRICS,
-  omiSemesters,
-  queryZornadeDb,
-  dbRowsToTable,
-  describeDbRequest,
-  type DbQueryRequest,
-  type OmiMarket,
-} from "../../lib/zornade-db";
 import type { DatasetState, ProjectMeta } from "../../studio/types";
 import { useI18n } from "../../i18n/LanguageContext";
 import type { Dictionary } from "../../i18n/dictionaries/it";
@@ -119,7 +107,6 @@ export function DataPanel() {
         <PanelSection title={metaText?.label ?? meta?.label ?? ""} hint={metaText?.desc ?? meta?.desc}>
           {dataSource === "upload" && <UploadSource />}
           {dataSource === "osm" && <OsmSource />}
-          {dataSource === "zornade-db" && <ZornadeDbSource />}
           {dataSource === "eurostat" && <EurostatSource />}
           {(dataSource === "paste" ||
             dataSource === "url" ||
@@ -134,7 +121,7 @@ export function DataPanel() {
     return <DataCatalog scope={scope} onBack={() => setMode("home")} />;
   }
 
-  // Home: pick a source, grouped by its nature (Zornade moat first).
+  // Home: pick a source, grouped by its nature.
   return (
     <PanelSection
       title={dict.dataPanel.whereFrom}
@@ -149,18 +136,12 @@ export function DataPanel() {
               <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">
                 {groupText.label}
               </p>
-              {group.id === "zornade" && (
-                <span className="rounded-full bg-zornade-50 px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-zornade-700">
-                  {dict.dataPanel.exclusive}
-                </span>
-              )}
             </div>
             <p className="mb-2 text-[11px] text-slate-400">{groupText.hint}</p>
             <div className="grid gap-2">
               {group.items.map((s) => {
                 const Icon = s.icon;
                 const itemText = dict.catalogItems[s.id] ?? s;
-                const isZornade = group.id === "zornade";
                 const disabled = s.status === "soon";
                 return (
                   <button
@@ -174,18 +155,10 @@ export function DataPanel() {
                     className={`flex items-start gap-3 rounded-xl border p-3 text-left transition-all ${
                       disabled
                         ? "cursor-not-allowed border-slate-200 bg-slate-50 opacity-60"
-                        : isZornade
-                          ? "border-zornade-200 bg-zornade-50/40 hover:border-zornade hover:shadow-sm"
-                          : "border-slate-200 bg-white hover:border-zornade hover:shadow-sm"
+                        : "border-slate-200 bg-white hover:border-zornade hover:shadow-sm"
                     }`}
                   >
-                    <span
-                      className={`grid h-9 w-9 flex-shrink-0 place-items-center rounded-lg ${
-                        isZornade
-                          ? "bg-zornade text-white"
-                          : "bg-zornade-50 text-zornade-700"
-                      }`}
-                    >
+                    <span className="grid h-9 w-9 flex-shrink-0 place-items-center rounded-lg bg-zornade-50 text-zornade-700">
                       <Icon size={18} />
                     </span>
                     <span className="min-w-0 flex-1">
@@ -1218,215 +1191,6 @@ function OsmSource() {
     </div>
   );
 }
-function ZornadeDbSource() {
-  const { setData, setStep, updateProject } = useStudio();
-  const { dict } = useI18n();
-  const [dataset, setDataset] = useState<string>("omi");
-  // OMI options.
-  const [semestre, setSemestre] = useState<string>("2025_2");
-  const [tipologia, setTipologia] = useState<string>("20");
-  const [market, setMarket] = useState<OmiMarket>("compravendita");
-  // OMI: load all 22 semesters at once → time slider (animazione temporale).
-  const [omiTemporal, setOmiTemporal] = useState(false);
-  // Solar metric.
-  const [metric, setMetric] = useState<string>(SOLAR_METRICS[0].id);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [info, setInfo] = useState<string | null>(null);
-
-  const buildRequest = (): DbQueryRequest => {
-    switch (dataset) {
-      case "omi":
-        return { dataset: "omi", semestre, tipologia, market, temporal: omiTemporal };
-      case "solar":
-        return { dataset: "solar", metric };
-      case "population":
-        return { dataset: "population" };
-      default:
-        return { dataset: "buildings" };
-    }
-  };
-
-  const load = async () => {
-    setLoading(true);
-    setError(null);
-    setInfo(null);
-    try {
-      const req = buildRequest();
-      const rows = await queryZornadeDb(req);
-      if (rows.length === 0) {
-        setError(dict.dataPanel.noDataForSelection);
-        return;
-      }
-      const meta = describeDbRequest(req);
-      const table = dbRowsToTable(rows);
-      const out = await buildDatasetFromTable(table, `Zornade · ${meta.title}`);
-      if ("error" in out) {
-        setError(out.error);
-        return;
-      }
-      setData(out.dataset);
-      updateProject({
-        title: meta.title,
-        source: dict.dataPanel.zornadeSourceNote,
-      });
-      setInfo(dict.dataPanel.municipalitiesLoaded(rows.length));
-      setStep("structure");
-    } catch (e) {
-      setError(e instanceof Error ? e.message : dict.dataPanel.queryError);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <div className="space-y-4">
-      <div className="rounded-lg bg-zornade-50 p-3">
-        <p className="flex items-start gap-1.5 text-xs text-zornade-900">
-          <ShieldCheck size={14} className="mt-0.5 flex-shrink-0" />
-          {dict.dataPanel.readOnlyNotePre}
-          <strong>{dict.dataPanel.readOnlyNoteBold1}</strong>
-          {dict.dataPanel.readOnlyNoteMid}
-          <strong>{dict.dataPanel.readOnlyNoteBold2}</strong>
-          {dict.dataPanel.readOnlyNotePost}
-        </p>
-      </div>
-
-      <div>
-        <p className="mb-2 text-xs font-medium text-slate-600">{dict.dataPanel.datasetLabel}</p>
-        <div className="grid gap-2">
-          {DB_DATASETS.map((d) => {
-            const dText = dict.dbDatasets[d.id] ?? d;
-            return (
-            <button
-              key={d.id}
-              onClick={() => setDataset(d.id)}
-              className={`rounded-xl border p-2.5 text-left transition-colors ${
-                dataset === d.id
-                  ? "border-zornade bg-zornade-50"
-                  : "border-slate-200 hover:border-slate-300"
-              }`}
-            >
-              <span className="text-sm font-medium text-slate-800">
-                {dText.label}
-              </span>
-              <span className="block text-xs text-slate-500">{dText.desc}</span>
-            </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {dataset === "omi" && (
-        <div className="space-y-2 rounded-xl border border-slate-200 p-3">
-          <Field label={dict.dataPanel.marketLabel}>
-            <div className="flex gap-1.5">
-              {(["compravendita", "locazione"] as OmiMarket[]).map((m) => (
-                <button
-                  key={m}
-                  onClick={() => setMarket(m)}
-                  className={`flex-1 rounded-lg border px-2.5 py-1.5 text-xs font-medium capitalize transition-colors ${
-                    market === m
-                      ? "border-zornade bg-zornade-50 text-zornade-700"
-                      : "border-slate-200 text-slate-600 hover:border-slate-300"
-                  }`}
-                >
-                  {m === "compravendita" ? dict.dataPanel.compravendita : dict.dataPanel.affitto}
-                </button>
-              ))}
-            </div>
-          </Field>
-          <Field label={dict.dataPanel.propertyTypeLabel}>
-            <select
-              value={tipologia}
-              onChange={(e) => setTipologia(e.target.value)}
-              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-zornade focus:outline-none"
-            >
-              {OMI_TYPES.map((t) => (
-                <option key={t.code} value={t.code}>
-                  {dict.omiTypes[t.code] ?? t.label}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <Field label={dict.dataPanel.semesterLabel}>
-            <select
-              value={semestre}
-              onChange={(e) => setSemestre(e.target.value)}
-              disabled={omiTemporal}
-              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-zornade focus:outline-none disabled:bg-slate-50 disabled:text-slate-400"
-            >
-              {omiSemesters().map((s) => (
-                <option key={s} value={s}>
-                  {s.replace("_", " · sem. ")}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <label className="flex cursor-pointer items-start gap-2 rounded-lg bg-slate-50 px-3 py-2">
-            <input
-              type="checkbox"
-              checked={omiTemporal}
-              onChange={(e) => setOmiTemporal(e.target.checked)}
-              className="mt-0.5 accent-zornade"
-            />
-            <span className="text-xs text-slate-600">
-              <strong>{dict.dataPanel.allSemestersBold}</strong>{dict.dataPanel.allSemestersRest}
-            </span>
-          </label>
-        </div>
-      )}
-
-      {dataset === "solar" && (
-        <div className="rounded-xl border border-slate-200 p-3">
-          <Field label={dict.dataPanel.indicatorLabel}>
-            <select
-              value={metric}
-              onChange={(e) => setMetric(e.target.value)}
-              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:border-zornade focus:outline-none"
-            >
-              {SOLAR_METRICS.map((m) => (
-                <option key={m.id} value={m.id}>
-                  {dict.solarMetrics[m.id] ?? m.label} ({m.unit})
-                </option>
-              ))}
-            </select>
-          </Field>
-        </div>
-      )}
-
-      <Button
-        variant="primary"
-        disabled={loading}
-        onClick={() => void load()}
-        className="w-full"
-      >
-        {loading ? (
-          <span className="flex items-center justify-center gap-2">
-            <Loader2 size={15} className="animate-spin" />
-            {dict.dataPanel.queryingProgress}
-          </span>
-        ) : (
-          dict.dataPanel.loadFromZornadeDb
-        )}
-      </Button>
-
-      {error && (
-        <p className="flex items-start gap-1.5 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-700">
-          <AlertTriangle size={13} className="mt-0.5 flex-shrink-0" />
-          {error}
-        </p>
-      )}
-      {info && (
-        <p className="flex items-start gap-1.5 rounded-lg bg-emerald-50 px-3 py-2 text-xs text-emerald-700">
-          <CheckCircle2 size={13} className="mt-0.5 flex-shrink-0" />
-          {info}
-        </p>
-      )}
-    </div>
-  );
-}
-
 function ComingSoon() {
   const { dict } = useI18n();
   return (

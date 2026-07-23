@@ -20,7 +20,6 @@ export type DataSourceKind =
   | "url"
   | "api"
   | "osm"
-  | "zornade-db"
   | "eurostat"
   | null;
 
@@ -220,6 +219,14 @@ export interface TableDataset extends DatasetBase {
   kind: "table";
   /** Columns that hold categorical/temporal labels (candidate x-axis). */
   labelColumns: string[];
+  /**
+   * Set when a column LOOKED geographic (e.g. Eurostat's "geo") but none of
+   * its values matched any known place at the detected level - so no map
+   * could be built automatically. Lets the UI explain the gap instead of
+   * silently offering only charts; the operator can still map it manually
+   * from Struttura (pick "Mappa per aree" + the same column).
+   */
+  geoHint?: { level: GeoLevel; keyColumn: string };
 }
 
 export interface StudioState {

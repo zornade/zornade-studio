@@ -161,13 +161,11 @@ export const DATA_SOURCES: CatalogItem[] = [
   { id: "url", label: "URL live", desc: "Google Sheets / CSV remoto", icon: Link2, status: "soon" },
   { id: "api", label: "API / Open data", desc: "ISTAT, Socrata, CKAN, JSON", icon: Plug, status: "soon" },
   { id: "osm", label: "OpenStreetMap", desc: "Porti, telecamere, scuole…", icon: Globe2, status: "ready" },
-  { id: "zornade-db", label: "Database Zornade", desc: "Prezzi OMI, solare, popolazione, edifici - per comune", icon: Database, status: "ready" },
 ];
 
 /**
  * Data sources grouped by their **provenance**, so the user immediately sees
- * where each source comes from. Buckets, Zornade moat first:
- *  - `zornade` - exclusive Zornade data (the competitive advantage).
+ * where each source comes from. Buckets:
  *  - `italia`  - official Italian open data (national / regional / municipal).
  *  - `europa`  - European open data (data.europa.eu, Eurostat).
  *  - `mondo`   - worldwide sources (OpenStreetMap).
@@ -177,27 +175,13 @@ export const DATA_SOURCES: CatalogItem[] = [
  * Italian or European portals rather than selecting a `dataSource`.
  */
 export interface SourceGroup {
-  id: "zornade" | "italia" | "europa" | "mondo" | "own";
+  id: "italia" | "europa" | "mondo" | "own";
   label: string;
   hint: string;
   items: CatalogItem[];
 }
 
 export const SOURCE_GROUPS: SourceGroup[] = [
-  {
-    id: "zornade",
-    label: "Dati Zornade",
-    hint: "Esclusivi: geodati italiani pronti per la mappa, per comune.",
-    items: [
-      {
-        id: "zornade-db",
-        label: "Database Zornade",
-        desc: "Prezzi OMI, solare, popolazione, edifici - per comune",
-        icon: Database,
-        status: "ready",
-      },
-    ],
-  },
   {
     id: "italia",
     label: "Fonti ufficiali italiane",
@@ -1095,22 +1079,6 @@ export const OSM_PRESETS: OsmPreset[] = [
 export const OSM_GROUPS: string[] = Array.from(
   OSM_PRESETS.reduce((set, p) => set.add(p.group), new Set<string>()),
 );
-
-/** Guided datasets available from the Zornade DB (read-only). */
-export interface ZornadeDataset {
-  id: string;
-  label: string;
-  desc: string;
-  level: "comune" | "provincia" | "cap" | "sezione";
-}
-export const ZORNADE_DATASETS: ZornadeDataset[] = [
-  { id: "omi", label: "Prezzi immobiliari (OMI)", desc: "€/m² compravendita e affitto, 2015→oggi", level: "comune" },
-  { id: "risk", label: "Rischio territoriale", desc: "Sismico, alluvione, frana, subsidenza", level: "comune" },
-  { id: "solar", label: "Potenziale solare", desc: "Idoneità tetti, kWh/anno, payback", level: "comune" },
-  { id: "demographics", label: "Indicatori socio-demografici", desc: "Età media, densità, occupazione, stranieri", level: "sezione" },
-  { id: "addresses", label: "Indirizzi & CAP", desc: "9.228 zone CAP, indirizzi ANNCSU", level: "cap" },
-  { id: "realestate", label: "Annunci immobiliari", desc: "Real estate per zona", level: "comune" },
-];
 
 /** Customisable fonts for the newsroom (UI/title font is applied live). */
 export interface FontOption {

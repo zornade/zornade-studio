@@ -217,4 +217,42 @@ export const DATASET_CASES: DatasetCase[] = [
     expectKeyColumn: "comune",
     expectMinJoinFrac: 0.9,
   },
+  // 21. Eurostat SDMX→CSV reale (freq,unit,geo,geo_label,time,value): "geo" è
+  // il codice NUTS2 (risolto via crosswalk NUTS2→ISTAT), "geo_label" è il nome
+  // ma SPLITTA Trentino-Alto Adige in due province autonome (Bolzano/Bozen,
+  // Trento) che non esistono come regione ISTAT a sé - "geo" vince perché
+  // matcha davvero di più, non per un tie-break arbitrario sull'ordine colonne.
+  {
+    name: "regioni per NUTS2 Eurostat (geo vs geo_label, split Bolzano/Trento)",
+    raw:
+      "freq,unit,geo,geo_label,time,value\n" +
+      "A,MIO_EUR,ITC1,Piemonte,2022,140000\n" +
+      "A,MIO_EUR,ITC2,Valle d'Aosta/Vallée d'Aoste,2022,5000\n" +
+      "A,MIO_EUR,ITC3,Liguria,2022,50000\n" +
+      "A,MIO_EUR,ITC4,Lombardia,2022,400000\n" +
+      "A,MIO_EUR,ITH1,Provincia Autonoma di Bolzano/Bozen,2022,24000\n" +
+      "A,MIO_EUR,ITH2,Provincia Autonoma di Trento,2022,20000\n" +
+      "A,MIO_EUR,ITH3,Veneto,2022,160000\n" +
+      "A,MIO_EUR,ITH4,Friuli-Venezia Giulia,2022,40000\n" +
+      "A,MIO_EUR,ITH5,Emilia-Romagna,2022,150000\n" +
+      "A,MIO_EUR,ITI1,Toscana,2022,120000\n" +
+      "A,MIO_EUR,ITI2,Umbria,2022,22000\n",
+    expectColumns: 6,
+    expectLevel: "regioni",
+    expectKeyColumn: "geo",
+    expectMinJoinFrac: 1,
+  },
+  // 22. Apostrofo tipografico (’ U+2019, come restituito da alcune API) invece
+  // di quello dritto (') usato da ISTAT: deve comunque matchare Valle d'Aosta.
+  {
+    name: "regioni per nome con apostrofo tipografico",
+    raw:
+      "regione,valore\n" +
+      "Valle d’Aosta/Vallée d’Aoste,107\n" +
+      "Lombardia,25794\nVeneto,73890\nLazio,3421\nSicilia,1333\n",
+    expectColumns: 2,
+    expectLevel: "regioni",
+    expectKeyColumn: "regione",
+    expectMinJoinFrac: 1,
+  },
 ];

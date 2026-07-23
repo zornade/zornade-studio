@@ -205,7 +205,6 @@ export const it = {
     url: { label: "URL live", desc: "Google Sheets / CSV remoto" },
     api: { label: "API / connettori", desc: "Socrata, CKAN, JSON remoto" },
     osm: { label: "OpenStreetMap", desc: "Scuole, ospedali, porti… ovunque nel mondo" },
-    "zornade-db": { label: "Database Zornade", desc: "Prezzi OMI, solare, popolazione, edifici - per comune" },
     "catalog-it": { label: "Open data italiani", desc: "dati.gov.it, regioni, comuni - cerca per tema" },
     "catalog-eu": { label: "Open data europei", desc: "data.europa.eu - 1,7M dataset di tutta la UE" },
     eurostat: { label: "Eurostat", desc: "Statistiche ufficiali europee, dataset curati" },
@@ -214,7 +213,6 @@ export const it = {
   catalogGroups: {
     maps: { label: "Mappe", hint: "" },
     charts: { label: "Grafici", hint: "" },
-    zornade: { label: "Dati Zornade", hint: "Esclusivi: geodati italiani pronti per la mappa, per comune." },
     italia: { label: "Fonti ufficiali italiane", hint: "Portali open data della PA: nazionali, regionali e comunali." },
     europa: { label: "Fonti europee", hint: "Dati ufficiali dell'Unione Europea." },
     mondo: { label: "Mondo", hint: "Dati geografici globali, ovunque nel mondo." },
@@ -245,6 +243,7 @@ export const it = {
     regioni: "Regioni",
     province: "Province",
     comuni: "Comuni",
+    cap: "CAP",
   } as Record<string, string>,
 
   datasetKind: {
@@ -298,6 +297,8 @@ export const it = {
       "Dati senza una dimensione geografica: usali per un grafico o una tabella. Scegli gli assi nel passo “Struttura”.",
     footerHint:
       "Le visualizzazioni si attivano in base ai dati. Puoi correggere il tipo di dato, il livello e le colonne nel passo “Struttura”.",
+    noGeoMatchWarning: (level: string, keyColumn: string) =>
+      `Abbiamo notato una colonna che sembra geografica (“${keyColumn}”, livello ${level}) ma nessun valore corrisponde a un luogo noto: per questo non è ancora una mappa. Prova a correggerla manualmente nel passo “Struttura” (Tipo di dato → Mappa per aree), oppure verifica i codici/nomi in quella colonna.`,
   },
 
   structurePanel: {
@@ -641,34 +642,6 @@ export const it = {
    * intestazioni di gruppo) darebbe un'esperienza mista peggiore che lasciarli
    * coerentemente in italiano. Riprendere in un secondo passaggio se richiesto.
    */
-  dbDatasets: {
-    omi: { label: "Prezzi immobiliari (OMI)", desc: "€/m² medi per comune, 22 semestri 2015→2025" },
-    solar: { label: "Potenziale solare", desc: "Produzione, potenza e idoneità dei tetti per comune" },
-    population: { label: "Popolazione stimata", desc: "Abitanti stimati per comune" },
-    buildings: { label: "Numero di edifici", desc: "Edifici censiti per comune" },
-  } as Record<string, { label: string; desc: string }>,
-
-  omiTypes: {
-    "20": "Abitazioni civili",
-    "1": "Ville e villini",
-    "21": "Abitazioni di tipo economico",
-    "13": "Box",
-    "5": "Negozi",
-    "9": "Magazzini",
-    "6": "Uffici",
-    "10": "Laboratori",
-    "7": "Capannoni tipici",
-    "8": "Capannoni industriali",
-    "16": "Autorimesse",
-    "15": "Posti auto scoperti",
-  } as Record<string, string>,
-
-  solarMetrics: {
-    pvout_per_capita_kwh: "Produzione solare pro capite",
-    kwp_max_total: "Potenza installabile",
-    high_viability_pct: "Tetti ad alta idoneità",
-  } as Record<string, string>,
-
   eurostatThemes: {
     demografia: "Popolazione",
     economia: "Economia",
@@ -698,7 +671,6 @@ export const it = {
     changeSource: "Cambia sorgente",
     whereFrom: "Da dove parti?",
     whereFromHint: "Scegli i dati di partenza per la tua mappa.",
-    exclusive: "esclusivo",
     loadingCatalog: "Carico il catalogo…",
     europeanOpenData: "Open data europei",
     italianOpenData: "Open data italiani",
@@ -776,26 +748,6 @@ export const it = {
     osmResultsNote: "I risultati appaiono come punti sulla mappa. Dati © OpenStreetMap (ODbL).",
     osmCategoryColumnName: "categoria",
     osmNameColumnName: "nome",
-    readOnlyNotePre: "Dati Zornade in ",
-    readOnlyNoteBold1: "sola lettura",
-    readOnlyNoteMid: " tramite un proxy sicuro. Le credenziali restano sul server, mai nel browser. Tutti i dataset sono per ",
-    readOnlyNoteBold2: "comune",
-    readOnlyNotePost: " e si agganciano alla mappa dei comuni.",
-    datasetLabel: "Dataset",
-    marketLabel: "Mercato",
-    compravendita: "Compravendita",
-    affitto: "Affitto",
-    propertyTypeLabel: "Tipologia immobiliare",
-    semesterLabel: "Semestre",
-    allSemestersBold: "Tutti i semestri",
-    allSemestersRest: " (2015→2025) per l'animazione temporale con time slider.",
-    indicatorLabel: "Indicatore",
-    queryingProgress: "Interrogazione…",
-    loadFromZornadeDb: "Carica dal database Zornade",
-    noDataForSelection: "Nessun dato per questa selezione. Prova un'altra opzione.",
-    queryError: "Errore di interrogazione.",
-    municipalitiesLoaded: (n: number) => `${n} comuni caricati.`,
-    zornadeSourceNote: "Fonte: dati Zornade · Fatto con Zornade Studio",
     comingSoonTitle: "In arrivo",
     comingSoonBody: "Questa sorgente è nella roadmap. Per ora usa “Carica file”.",
     allDatasetsBack: "Tutti i dataset",

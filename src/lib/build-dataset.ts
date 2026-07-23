@@ -110,19 +110,40 @@ export async function buildDatasetFromTable(
     : rows;
 
   const keys = await loadGeoKeys();
-  const resolved =
-    Object.keys(keys).length > 0 ? resolveGeoJoin(aColumns, aRows, keys) : null;
+  const haveKeys = Object.keys(keys).length > 0;
+  let resolved = haveKeys ? resolveGeoJoin(aColumns, aRows, keys) : null;
+  // Best-effort second pass: nothing reached the confident 0.5 bar - try again
+  // with a much lower one. A column with even a WEAK real match (e.g. a
+  // heavily-filtered extract with few matching rows) is still solid evidence,
+  // and strictly better than an unverified name guess ("try other columns"
+  // before giving up, rather than trusting the first name-hint match blindly).
+  if (!resolved && haveKeys) {
+    resolved = resolveGeoJoin(aColumns, aRows, keys, { minScore: 0.05 });
+  }
   let areaLevel: GeoLevel | null = null;
   let areaKey: string | null = null;
+  let geoHint: { level: GeoLevel; keyColumn: string } | undefined;
   if (resolved) {
     areaLevel = resolved.level;
     areaKey = resolved.keyColumn;
-  } else {
+  } else if (!haveKeys) {
+    // No ground truth to verify against (the keys index failed to load) -
+    // column-name hints are the only signal available.
     const detected = detectGeoLevel(aColumns);
     if (detected && GEO_LEVELS[detected].ready) {
       areaLevel = detected;
       areaKey = detectKeyColumn(detected, aColumns);
     }
+  } else {
+    // Keys ARE available, but not a single cell in any column matched
+    // anything, even at the lowest bar: a name-hint guess here would have
+    // zero evidence behind it, so don't force a map that would silently paint
+    // nothing. Still remember which column LOOKS geographic (e.g. Eurostat's
+    // "geo"), so the UI can explain *why* there's no map instead of just
+    // dropping the dataset into a plain table.
+    const detected = detectGeoLevel(aColumns);
+    const key = detected ? detectKeyColumn(detected, aColumns) : null;
+    if (detected && key) geoHint = { level: detected, keyColumn: key };
   }
 
   if (areaLevel && areaKey) {
@@ -184,6 +205,7 @@ export async function buildDatasetFromTable(
       rows,
       numericColumns,
       labelColumns,
+      ...(geoHint ? { geoHint } : {}),
     },
   };
 }

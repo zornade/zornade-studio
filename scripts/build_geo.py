@@ -51,6 +51,7 @@ import zipfile
 
 import geopandas as gpd
 import topojson as tp
+from shapely.errors import GEOSException
 from shapely.validation import make_valid
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -77,6 +78,26 @@ ISTAT_ZIP_URL = (
 # geometrie quasi-puntiformi, entrambi gia' tra i piu' piccoli d'Italia).
 EPS_PROVINCE = 0.003
 EPS_COMUNI = 0.01
+# CAP zones mix whole-comune polygons (identical scale to comuni) with much
+# smaller sub-comunale splits inside large cities (e.g. ~120 zones in Roma) -
+# a lower tolerance than EPS_COMUNI keeps those fine splits legible.
+EPS_CAP = 0.004
+
+# The national CAP-zone geometry ("cap_subcomunali", ~9.2k polygons: one per
+# CAP code, sub-comunale splits for the ~41 multi-CAP cities and one
+# whole-comune polygon for every other comune) is a proprietary Zornade
+# dataset - it lives only in the Zornade Postgres DB (table `cap_subcomunali`,
+# same DB queried by app/scripts/generate_cap_city_gis.py), not on a public
+# URL, so it can't be re-downloaded like the ISTAT/Natural Earth sources
+# above. To (re)generate cap.geojson, export that table to a local GeoPackage
+# (never committed - it's ~200MB) and point CAP_GPKG_PATH at it, e.g.:
+#   ogr2ogr -f GPKG /tmp/cap_subcomunali.gpkg "PG:host=... dbname=postgres \
+#     user=... password=..." cap_subcomunali
+#   CAP_GPKG_PATH=/tmp/cap_subcomunali.gpkg python3 scripts/build_geo.py
+# If the env var is unset or the file is missing, build_cap() is skipped and
+# the other layers still build normally (cap.geojson is optional).
+CAP_GPKG_ENV = "CAP_GPKG_PATH"
+CAP_LAYER = "cap_subcomunali"
 
 
 def _download(url: str, dest: str) -> str:
@@ -197,10 +218,35 @@ def _toposimplify(gdf: gpd.GeoDataFrame, eps: float, id_field: str) -> gpd.GeoDa
 def _assert_no_overlaps(gdf: gpd.GeoDataFrame, label: str, crs_metric: int = 32632) -> None:
     """Sanity check: sum of individual feature areas must equal the union area
     (within floating-point tolerance). A meaningful gap between the two would
-    indicate overlapping polygons re-introduced by simplification."""
+    indicate overlapping polygons re-introduced by simplification.
+
+    `grid_size` snaps inputs to a 1cm fixed-precision grid before the unary
+    union: some source datasets (e.g. the proprietary cap_subcomunali export,
+    unlike the ISTAT layers) contain vertices that are technically valid
+    (`is_valid` true) but numerically too close together for GEOS's exact
+    unary union, raising a `TopologyException: side location conflict`. This
+    is purely a diagnostic aggregate (not the shipped geometry), so on that
+    error we retry with a coarser grid - a few times, each 10x coarser - before
+    giving up; a 1cm-10m snap is far below anything that could hide a real
+    overlap at this scale.
+    """
     metric = gdf.to_crs(crs_metric)
     sum_area = metric.geometry.area.sum()
-    union_area = metric.geometry.union_all().area
+    union_area = None
+    last_err: Exception | None = None
+    for grid_size in (0.01, 0.1, 1.0, 10.0):
+        try:
+            union_area = metric.geometry.union_all(grid_size=grid_size).area
+            last_err = None
+            break
+        except GEOSException as exc:
+            last_err = exc
+            continue
+    if last_err is not None:
+        raise RuntimeError(
+            f"{label}: union_all kept failing with a GEOS topology error even at a "
+            "10m grid snap - investigate the source geometry before shipping."
+        ) from last_err
     diff_pct = 100 * abs(sum_area - union_area) / sum_area if sum_area else 0.0
     print(f"  [topology check] {label}: overlap = {diff_pct:.4f}% (should be ~0)")
     if diff_pct > 0.05:
@@ -303,13 +349,60 @@ def build_provinces_and_municipalities(tmp: str) -> None:
     _write(com_out, "comuni.geojson")
 
 
+def build_cap() -> None:
+    """Build cap.geojson from the proprietary `cap_subcomunali` export (see
+    CAP_GPKG_ENV above). Skipped (with a message) if the source isn't available
+    locally - cap.geojson is optional, unlike the other public-source layers.
+
+    Kept fields: `cap` (5-digit postal code, the join key - NOT unique
+    nationally, e.g. several small neighbouring comuni can legitimately share
+    one CAP, each as its own polygon) and, for context/tooltip only, `comune`,
+    `prov_acr`, `reg_name`. The MEF income aggregates and internal metadata
+    columns of the source table are dropped: irrelevant to the spatial join
+    and they would needlessly bloat the bundled file.
+    """
+    gpkg_path = os.environ.get(CAP_GPKG_ENV)
+    if not gpkg_path or not os.path.exists(gpkg_path):
+        print(
+            f"  [skip] cap.geojson: set {CAP_GPKG_ENV} to a local export of the "
+            f"'{CAP_LAYER}' table to (re)generate it (see comment above EPS_CAP)"
+        )
+        return
+
+    cap = gpd.read_file(gpkg_path, layer=CAP_LAYER)
+    cap = _fix_geometry(cap).to_crs(4326)
+    cap_out = gpd.GeoDataFrame(
+        {
+            "cap": cap["cap"].astype(str).str.zfill(5),
+            "comune": cap["comune"],
+            "prov_acr": cap["provincia_"],
+            "reg_name": cap["regione"],
+            "geometry": cap.geometry,
+        },
+        crs=cap.crs,
+    )
+    # `cap` isn't a unique row id (see docstring), so use a synthetic one for
+    # _toposimplify's degenerate-feature fallback (it needs a 1:1 id -> original
+    # geometry mapping, which a duplicated `cap` value cannot provide).
+    cap_out["_row_id"] = range(len(cap_out))
+    print(f"  simplifying cap (topology-preserving, {len(cap_out)} features)…")
+    cap_out = _toposimplify(cap_out, EPS_CAP, id_field="_row_id")
+    cap_out = cap_out.drop(columns=["_row_id"])
+    _assert_no_overlaps(cap_out, "cap")
+    _write(cap_out, "cap.geojson")
+
+
 # Join-key fields per level - MUST mirror GEO_LEVELS in src/lib/choropleth.ts
 # (joinField, nameField, aliasFields). Used to build the keys index.
+# `cap` intentionally lists ONLY the code, not `comune`: comune names repeat
+# across many CAP zones (e.g. dozens of Roma sub-zones), so including it would
+# let comuni-level name data falsely score as a cap-level match.
 LEVEL_KEY_FIELDS = {
     "paesi": ["iso_a3", "name", "iso_a2", "name_en"],
     "regioni": ["reg_istat_code", "reg_name"],
     "province": ["prov_acr", "prov_name", "prov_istat_code"],
     "comuni": ["com_istat_code", "com_name", "com_istat_code_num"],
+    "cap": ["cap"],
 }
 
 
@@ -377,6 +470,8 @@ def main() -> None:
     build_nations(tmp)
     print("Building province.geojson + comuni.geojson (ISTAT) …")
     build_provinces_and_municipalities(tmp)
+    print("Building cap.geojson …")
+    build_cap()
     print("Building keys.json …")
     build_keys_index()
     print("Done.")

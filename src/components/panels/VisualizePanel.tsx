@@ -119,6 +119,14 @@ export function VisualizePanel() {
               {dict.visualizePanel.tableHint}
             </p>
           )}
+          {data.kind === "table" && data.geoHint && (
+            <p className="mt-2 rounded-lg bg-amber-50 px-3 py-2 text-[11px] text-amber-700">
+              {dict.visualizePanel.noGeoMatchWarning(
+                dict.geoLevels[data.geoHint.level] ?? GEO_LEVELS[data.geoHint.level].label,
+                data.geoHint.keyColumn,
+              )}
+            </p>
+          )}
           <div className="mt-1.5 flex flex-wrap gap-1">
             {summary.profile.columns.map((c) => (
               <span

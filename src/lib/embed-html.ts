@@ -18,7 +18,7 @@ import {
   geoJoinFields,
   buildFillColorExpression,
   sampleColors,
-  normaliseKey,
+  normaliseJoinKey,
   DEFAULT_NO_DATA_COLOR,
   type ClassBreaks,
 } from "./choropleth";
@@ -510,7 +510,7 @@ function buildAreaEmbedHtml(
   const extraByKey: Record<string, Record<string, string>> = {};
   for (const datum of spec.data) {
     if (!datum.extra) continue;
-    const k = normaliseKey(datum.key);
+    const k = normaliseJoinKey(spec.geo.level, datum.key);
     if (k !== "") extraByKey[k] = datum.extra;
   }
 
@@ -526,7 +526,7 @@ function buildAreaEmbedHtml(
 
   if (isNumeric) {
     for (const datum of spec.data) {
-      const k = normaliseKey(datum.key);
+      const k = normaliseJoinKey(spec.geo.level, datum.key);
       if (k === "" || datum.value == null) continue;
       keyed[k] = datum.value;
     }
@@ -547,7 +547,7 @@ function buildAreaEmbedHtml(
     const categories: string[] = [];
     const seen = new Set<string>();
     for (const datum of spec.data) {
-      const k = normaliseKey(datum.key);
+      const k = normaliseJoinKey(spec.geo.level, datum.key);
       const cat = datum.category;
       if (k === "" || cat == null || cat === "") continue;
       keyed[k] = cat;
@@ -577,7 +577,7 @@ function buildAreaEmbedHtml(
     const breaksA = computeBreaks(aVals, "quantile", 3).breaks;
     const breaksB = computeBreaks(bVals, "quantile", 3).breaks;
     for (const datum of spec.data) {
-      const k = normaliseKey(datum.key);
+      const k = normaliseJoinKey(spec.geo.level, datum.key);
       if (k === "" || datum.value == null || datum.value2 == null) continue;
       keyed[k] = tercileClass(datum.value2, breaksB) * 3 + tercileClass(datum.value, breaksA);
       bivA[k] = datum.value;
@@ -597,7 +597,7 @@ function buildAreaEmbedHtml(
       ? spec.frames.map((f) => {
           const k: Record<string, number> = {};
           for (const dd of f.data) {
-            const nk = normaliseKey(dd.key);
+            const nk = normaliseJoinKey(spec.geo.level, dd.key);
             if (nk !== "" && dd.value != null) k[nk] = dd.value;
           }
           return { label: frameLabel(f.period), keyed: k };

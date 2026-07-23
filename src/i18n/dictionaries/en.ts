@@ -197,7 +197,6 @@ export const en: Dictionary = {
     url: { label: "Live URL", desc: "Google Sheets / remote CSV" },
     api: { label: "API / connectors", desc: "Socrata, CKAN, remote JSON" },
     osm: { label: "OpenStreetMap", desc: "Schools, hospitals, ports… anywhere in the world" },
-    "zornade-db": { label: "Zornade database", desc: "OMI prices, solar, population, buildings - per municipality" },
     "catalog-it": { label: "Italian open data", desc: "dati.gov.it, regions, municipalities - search by topic" },
     "catalog-eu": { label: "European open data", desc: "data.europa.eu - 1.7M datasets across the EU" },
     eurostat: { label: "Eurostat", desc: "Official European statistics, curated datasets" },
@@ -206,7 +205,6 @@ export const en: Dictionary = {
   catalogGroups: {
     maps: { label: "Maps", hint: "" },
     charts: { label: "Charts", hint: "" },
-    zornade: { label: "Zornade data", hint: "Exclusive: ready-made Italian geodata, per municipality." },
     italia: { label: "Official Italian sources", hint: "Public-sector open data portals: national, regional and municipal." },
     europa: { label: "European sources", hint: "Official European Union data." },
     mondo: { label: "World", hint: "Global geographic data, anywhere in the world." },
@@ -237,6 +235,7 @@ export const en: Dictionary = {
     regioni: "Regions",
     province: "Provinces",
     comuni: "Municipalities",
+    cap: "Postal codes",
   },
 
   datasetKind: {
@@ -290,6 +289,8 @@ export const en: Dictionary = {
       "Data with no geographic dimension: use it for a chart or a table. Choose the axes in the \u201cStructure\u201d step.",
     footerHint:
       "Visualizations become available based on your data. You can adjust the data type, level and columns in the \u201cStructure\u201d step.",
+    noGeoMatchWarning: (level: string, keyColumn: string) =>
+      `We noticed a column that looks geographic (\u201c${keyColumn}\u201d, ${level} level), but none of its values matched a known place - so it isn't a map yet. Try fixing it manually in the \u201cStructure\u201d step (data type \u2192 area map), or double-check the codes/names in that column.`,
   },
 
   structurePanel: {
@@ -624,34 +625,6 @@ export const en: Dictionary = {
     annotationTextPlaceholder: "Text",
   },
 
-  dbDatasets: {
-    omi: { label: "Real estate prices (OMI)", desc: "Average €/m² per municipality, 22 half-years 2015→2025" },
-    solar: { label: "Solar potential", desc: "Production, power and roof suitability per municipality" },
-    population: { label: "Estimated population", desc: "Estimated residents per municipality" },
-    buildings: { label: "Number of buildings", desc: "Buildings recorded per municipality" },
-  },
-
-  omiTypes: {
-    "20": "Residential (standard)",
-    "1": "Villas and detached houses",
-    "21": "Residential (economic)",
-    "13": "Garage boxes",
-    "5": "Shops",
-    "9": "Warehouses",
-    "6": "Offices",
-    "10": "Workshops",
-    "7": "Typical sheds",
-    "8": "Industrial sheds",
-    "16": "Garages",
-    "15": "Uncovered parking spaces",
-  },
-
-  solarMetrics: {
-    pvout_per_capita_kwh: "Solar production per capita",
-    kwp_max_total: "Installable power",
-    high_viability_pct: "High-suitability roofs",
-  },
-
   eurostatThemes: {
     demografia: "Population",
     economia: "Economy",
@@ -681,7 +654,6 @@ export const en: Dictionary = {
     changeSource: "Change source",
     whereFrom: "Where do you want to start?",
     whereFromHint: "Choose the starting data for your map.",
-    exclusive: "exclusive",
     loadingCatalog: "Loading catalog…",
     europeanOpenData: "European open data",
     italianOpenData: "Italian open data",
@@ -759,26 +731,6 @@ export const en: Dictionary = {
     osmResultsNote: "Results appear as points on the map. Data © OpenStreetMap (ODbL).",
     osmCategoryColumnName: "category",
     osmNameColumnName: "name",
-    readOnlyNotePre: "Zornade data in ",
-    readOnlyNoteBold1: "read-only",
-    readOnlyNoteMid: " mode through a secure proxy. Credentials stay on the server, never in the browser. All datasets are per ",
-    readOnlyNoteBold2: "municipality",
-    readOnlyNotePost: " and join the municipalities map.",
-    datasetLabel: "Dataset",
-    marketLabel: "Market",
-    compravendita: "Sale",
-    affitto: "Rent",
-    propertyTypeLabel: "Property type",
-    semesterLabel: "Half-year",
-    allSemestersBold: "All half-years",
-    allSemestersRest: " (2015→2025) for the time animation with the time slider.",
-    indicatorLabel: "Indicator",
-    queryingProgress: "Querying…",
-    loadFromZornadeDb: "Load from the Zornade database",
-    noDataForSelection: "No data for this selection. Try another option.",
-    queryError: "Query error.",
-    municipalitiesLoaded: (n: number) => `${n} municipalities loaded.`,
-    zornadeSourceNote: "Source: Zornade data · Made with Zornade Studio",
     comingSoonTitle: "Coming soon",
     comingSoonBody: "This source is on the roadmap. For now use “Upload file”.",
     allDatasetsBack: "All datasets",
