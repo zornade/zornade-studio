@@ -693,6 +693,20 @@ export function DesignPanel() {
         </PanelSection>
       )}
 
+      {/* ---- Vertici delle linee (solo geometrie personalizzate con linee) ---- */}
+      {data?.kind === "geo" && data.geometryKinds.includes("line") && (
+        <PanelSection
+          title={dict.designPanel.lineVerticesTitle}
+          hint={dict.designPanel.lineVerticesHint}
+        >
+          <Toggle
+            label={dict.designPanel.lineVerticesToggle}
+            checked={design.showLineVertices !== false}
+            onChange={(v) => updateDesign({ showLineVertices: v })}
+          />
+        </PanelSection>
+      )}
+
       {/* ---- Marker personalizzati (mappa localizzatore / punti) ---- */}
       {caps.has("markerStyle") && (
         <PanelSection

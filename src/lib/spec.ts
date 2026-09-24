@@ -128,6 +128,8 @@ export interface SpecDesign {
   extrusionScale?: number;
   /** Global opacity of the data overlay (0.1–1). Absent = 1. */
   dataOpacity?: number;
+  /** Geo embeds: draw a circle at every vertex of line features. Absent = true. */
+  showLineVertices?: boolean;
 }
 
 export interface ChoroplethSpec {
@@ -788,6 +790,7 @@ function buildGeoSpec(state: StudioState & { camera?: StoryCamera | null }): Bui
       readerFilters: design.readerFilters,
       pointColor: design.pointColor,
       pointSize: design.pointSize,
+      showLineVertices: design.showLineVertices !== false,
       customBasemapUrl: design.customBasemapUrl ?? "",
       ...(design.hideLabels ? { hideLabels: true } : {}),
       ...(design.lockView ? { lockView: true } : {}),

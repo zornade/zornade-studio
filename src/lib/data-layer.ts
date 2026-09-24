@@ -422,6 +422,8 @@ export function buildDataLayer(args: BuildDataLayerArgs): DataLayer | null {
       lineColorExpr,
       circleColor,
       circleRadius: design.pointSize,
+      geometryKinds: [...data.geometryKinds],
+      showLineVertices: design.showLineVertices !== false,
       nameField: data.nameColumn || data.categoryColumn ? "__name" : undefined,
       valueLabel,
       valueUnit: design.valueUnit || undefined,

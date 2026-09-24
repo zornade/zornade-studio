@@ -590,6 +590,10 @@ export const it = {
     pointStyleHint: "Colore e dimensione dei punti/simboli.",
     colorLabel: "Colore",
     sizeLabel: (n: number) => `Dimensione · ${n}`,
+    lineVerticesTitle: "Vertici delle linee",
+    lineVerticesHint:
+      "Un punto su ogni vertice delle linee: evidenzia la densità di campionamento. Le aree non mostrano mai i vertici.",
+    lineVerticesToggle: "Mostra i vertici",
     markerTitle: "Marker",
     markerHint: "Forma del marker e icona (FontAwesome) per i punti.",
     classesLegendTitle: "Classi e legenda",

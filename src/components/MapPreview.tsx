@@ -29,6 +29,7 @@ import {
   type MarkerDescriptor,
 } from "../lib/annotations";
 import type { StoryCamera } from "../lib/story";
+import type { GeometryKind } from "../studio/types";
 
 /** A choropleth data layer to overlay on the basemap. */
 export interface DataLayer {
@@ -51,6 +52,17 @@ export interface DataLayer {
   circleRadius?: unknown;
   /** Circle fill opacity (point). Default 0.9. */
   circleOpacity?: number;
+  /**
+   * Geometry primitives present in a "geo" layer. Drives the circle layers:
+   * real point features get one circle each; line features optionally get a
+   * vertex circle layer (see `showLineVertices`); polygons never get circles.
+   */
+  geometryKinds?: GeometryKind[];
+  /**
+   * Draw a small circle at every vertex of line features ("geo" layers).
+   * Default true (legacy behaviour); false hides the vertices.
+   */
+  showLineVertices?: boolean;
   /**
    * Marker rendering (locator / plain point maps): when set, the point dataset
    * is drawn as a MapLibre symbol layer with a rendered marker image (shape +
@@ -166,6 +178,8 @@ const HEATMAP = "studio-data-heatmap";
 const EXTRUSION = "studio-data-extrusion";
 /** Extra layer for points inside a user "geo" dataset (KML/Shapefile points). */
 const GEO_POINT = "studio-geo-point";
+/** Optional vertex circles along the lines of a user "geo" dataset. */
+const GEO_VERTEX = "studio-geo-vertex";
 
 /** Annotation layers (O3.4): lines/areas as GeoJSON, drawn above the data. */
 const ANNOT_SRC = "studio-annot";
@@ -187,6 +201,7 @@ const OWN_LAYER_IDS = new Set<string>([
   HEATMAP,
   EXTRUSION,
   GEO_POINT,
+  GEO_VERTEX,
   ANNOT_FILL,
   ANNOT_LINE,
   ANNOT_PREVIEW_FILL,
@@ -513,6 +528,7 @@ export function MapPreview({
     // Global data-opacity multiplier (0.1–1) applied to every viz type.
     const op = dataOpacityRef.current ?? 1;
     if (map.getLayer(GEO_POINT)) map.removeLayer(GEO_POINT);
+    if (map.getLayer(GEO_VERTEX)) map.removeLayer(GEO_VERTEX);
     if (map.getLayer(LABEL)) map.removeLayer(LABEL);
     if (map.getLayer(HEATMAP)) map.removeLayer(HEATMAP);
     if (map.getLayer(EXTRUSION)) map.removeLayer(EXTRUSION);
@@ -736,9 +752,15 @@ export function MapPreview({
     if (layer.kind === "geo") {
       // The user's own geometry. MapLibre applies a `fill` layer only to
       // polygons, a `line` layer to polygons (outline) + lines, and a `circle`
-      // layer only to points - so one source with three layers renders mixed
-      // collections correctly. Polygons are coloured by value/category (FILL,
-      // which the tooltip is bound to); lines and points get their own colour.
+      // layer to anything - so one source with three layers renders mixed
+      // collections correctly, PROVIDED each circle layer is filtered by
+      // geometry type: unfiltered, a circle layer draws one circle at EVERY
+      // vertex of lines and polygons, not just real points. Polygons are
+      // coloured by value/category (FILL, which the tooltip is bound to);
+      // lines and points get their own colour. Cartographic best practice:
+      // polygons never show vertex symbols (they are an editing affordance);
+      // line vertices stay visible (sampling density) but can be hidden.
+      const kinds = layer.geometryKinds ?? [];
       map.addLayer(
         {
           id: FILL,
@@ -768,24 +790,53 @@ export function MapPreview({
         },
         firstSymbol,
       );
-      map.addLayer(
-        {
-          id: GEO_POINT,
-          type: "circle",
-          source: SRC,
-          paint: {
-            "circle-color":
-              (layer.circleColor as maplibregl.ExpressionSpecification) ??
-              BRAND_TEAL,
-            "circle-radius":
-              (layer.circleRadius as maplibregl.ExpressionSpecification) ?? 5,
-            "circle-stroke-color": "#ffffff",
-            "circle-stroke-width": 1,
-            "circle-opacity": 0.9 * op,
+      // Real point features: one circle each. The geometry-type filter keeps
+      // polygon/line vertices out (MultiPoint reports as "Point", per spec).
+      if (kinds.includes("point")) {
+        map.addLayer(
+          {
+            id: GEO_POINT,
+            type: "circle",
+            source: SRC,
+            filter: ["==", ["geometry-type"], "Point"],
+            paint: {
+              "circle-color":
+                (layer.circleColor as maplibregl.ExpressionSpecification) ??
+                BRAND_TEAL,
+              "circle-radius":
+                (layer.circleRadius as maplibregl.ExpressionSpecification) ?? 5,
+              "circle-stroke-color": "#ffffff",
+              "circle-stroke-width": 1,
+              "circle-opacity": 0.9 * op,
+            },
           },
-        },
-        firstSymbol,
-      );
+          firstSymbol,
+        );
+      }
+      // Line vertices: an optional circle at every vertex (MultiLineString
+      // reports as "LineString", per spec). On by default for line geometry;
+      // the user can hide it from the Design panel.
+      if (kinds.includes("line") && layer.showLineVertices !== false) {
+        map.addLayer(
+          {
+            id: GEO_VERTEX,
+            type: "circle",
+            source: SRC,
+            filter: ["==", ["geometry-type"], "LineString"],
+            paint: {
+              "circle-color":
+                (layer.circleColor as maplibregl.ExpressionSpecification) ??
+                BRAND_TEAL,
+              "circle-radius":
+                (layer.circleRadius as maplibregl.ExpressionSpecification) ?? 5,
+              "circle-stroke-color": "#ffffff",
+              "circle-stroke-width": 1,
+              "circle-opacity": 0.9 * op,
+            },
+          },
+          firstSymbol,
+        );
+      }
       applyDataFilter(map);
       raiseBasemapLabels(map);
       return;
@@ -1019,7 +1070,7 @@ export function MapPreview({
     // behind them), firing leave→enter in quick succession. Querying the
     // rendered features once per move - and hiding only when nothing is hit -
     // is stable both in 2D and on the globe.
-    const HOVER_LAYERS = [EXTRUSION, FILL, LINE, GEO_POINT];
+    const HOVER_LAYERS = [EXTRUSION, FILL, LINE, GEO_POINT, GEO_VERTEX];
 
     const tooltipHtmlFor = (f: maplibregl.MapGeoJSONFeature): string | null => {
       const layer = dataLayerRef.current;

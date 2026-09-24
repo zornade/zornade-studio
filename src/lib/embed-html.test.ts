@@ -612,6 +612,29 @@ describe("buildEmbedHtml · custom geometry (O4 publish, phase 3)", () => {
     expect(out).not.toContain("fetch(");
   });
 
+  it("filters every circle layer by geometry type (no circles on polygon vertices)", () => {
+    const out = buildEmbedHtml(geoSpec(), { geoBaseUrl: base });
+    // The point circles only draw real points; the vertex circles only draw
+    // line vertices. Polygon vertices never get a symbol.
+    expect(out).toContain('filter:["==",["geometry-type"],"Point"]');
+    expect(out).toContain('id:"d-vertex"');
+    expect(out).toContain('filter:["==",["geometry-type"],"LineString"]');
+  });
+
+  it("shows line vertices by default and hides them when the design disables them", () => {
+    const lineSpec = geoSpec({ geometryKinds: ["line"] });
+    expect(buildEmbedHtml(lineSpec, { geoBaseUrl: base })).toContain(
+      '"showLineVertices":true',
+    );
+    expect(
+      buildEmbedHtml(
+        { ...lineSpec, design: { ...lineSpec.design, showLineVertices: false } },
+        { geoBaseUrl: base },
+      ),
+    ).toContain('"showLineVertices":false');
+    expectRendererCompiles(buildEmbedHtml(lineSpec, { geoBaseUrl: base }));
+  });
+
   it("produces a syntactically valid inline renderer script", () => {
     expectRendererCompiles(buildEmbedHtml(geoSpec(), { geoBaseUrl: base }));
   });

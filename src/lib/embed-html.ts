@@ -1680,6 +1680,7 @@ function buildGeoEmbedHtml(spec: GeoSpec, opts: EmbedOptions): string {
   const embed = {
     geojson: spec.geojson,
     geometryKinds: spec.geometryKinds,
+    showLineVertices: d.showLineVertices !== false,
     fillColor,
     lineColor,
     circleColor,
@@ -1742,8 +1743,11 @@ ${GEO_RENDERER}
 /**
  * Inline renderer for a custom-geometry embed: the prepared geometry and the
  * colour expressions are inlined as `EMBED`; this adds a fill layer (polygons),
- * a line layer (polygons outline + lines) and a circle layer (points), then
- * wires the legend/tooltip. Self-contained, no fetch.
+ * a line layer (polygons outline + lines) and, per the geometry kinds present,
+ * a circle layer for real points and an optional vertex-circle layer for
+ * lines. Both circle layers are filtered by geometry type so polygon vertices
+ * never get a symbol (vertex markers are an editing affordance, not map
+ * symbology). Self-contained, no fetch.
  */
 const GEO_RENDERER = String.raw`
 (function(){
@@ -1770,9 +1774,18 @@ function build(){
     paint:{"fill-color":E.fillColor,"fill-opacity":0.7*DO}},before);
   map.addLayer({id:"d-line",type:"line",source:"d",
     paint:{"line-color":E.lineColor,"line-width":1.2}},before);
-  map.addLayer({id:"d-point",type:"circle",source:"d",
-    paint:{"circle-color":E.circleColor,"circle-radius":E.circleRadius||5,
-      "circle-stroke-color":"#fff","circle-stroke-width":1,"circle-opacity":0.9*DO}},before);
+  if((E.geometryKinds||[]).indexOf("point")>=0){
+    map.addLayer({id:"d-point",type:"circle",source:"d",
+      filter:["==",["geometry-type"],"Point"],
+      paint:{"circle-color":E.circleColor,"circle-radius":E.circleRadius||5,
+        "circle-stroke-color":"#fff","circle-stroke-width":1,"circle-opacity":0.9*DO}},before);
+  }
+  if((E.geometryKinds||[]).indexOf("line")>=0&&E.showLineVertices!==false){
+    map.addLayer({id:"d-vertex",type:"circle",source:"d",
+      filter:["==",["geometry-type"],"LineString"],
+      paint:{"circle-color":E.circleColor,"circle-radius":E.circleRadius||5,
+        "circle-stroke-color":"#fff","circle-stroke-width":1,"circle-opacity":0.9*DO}},before);
+  }
   raiseLabels();
   if(E.lockView&&E.hasCamera)applyView();else fit(E.pitch);
   if(E.showLegend)legend();
@@ -1815,7 +1828,7 @@ function tooltip(){
       (vtxt!==""?'<div class="studio-tooltip-value"><span>'+esc(E.valueLabel)+'</span> '+esc(vtxt)+'</div>':"");}
     pop.setLngLat(e.lngLat).setHTML(html).addTo(map);map.getCanvas().style.cursor="pointer";}
   function hide(){pop.remove();map.getCanvas().style.cursor="";}
-  ["d-fill","d-line","d-point"].forEach(function(id){
+  ["d-fill","d-line","d-point","d-vertex"].forEach(function(id){
     map.on("mousemove",id,show);map.on("mouseleave",id,hide);});
 }
 function annotations(){

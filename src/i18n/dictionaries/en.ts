@@ -582,6 +582,10 @@ export const en: Dictionary = {
     pointStyleHint: "Color and size of points/symbols.",
     colorLabel: "Color",
     sizeLabel: (n: number) => `Size · ${n}`,
+    lineVerticesTitle: "Line vertices",
+    lineVerticesHint:
+      "A dot on every vertex of the lines: shows the sampling density. Areas never show vertices.",
+    lineVerticesToggle: "Show vertices",
     markerTitle: "Marker",
     markerHint: "Marker shape and icon (FontAwesome) for points.",
     classesLegendTitle: "Classes and legend",

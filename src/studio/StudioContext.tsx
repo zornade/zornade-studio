@@ -151,6 +151,7 @@ const INITIAL_DESIGN: DesignSettings = {
   lockView: false,
   extrusionScale: 1,
   dataOpacity: 1,
+  showLineVertices: true,
 };
 
 /** localStorage key for the best-effort session autosave. */

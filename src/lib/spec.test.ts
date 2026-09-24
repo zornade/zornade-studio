@@ -440,6 +440,16 @@ describe("buildSpec · custom geometry (O4 publish, phase 3)", () => {
     const p0 = spec.geojson.features[0].properties as Record<string, unknown>;
     expect(p0.__value).toBe(100);
     expect(p0.__name).toBe("Zona A");
+    // Line vertices are on by default; the published design carries the flag.
+    expect(spec.design.showLineVertices).toBe(true);
+  });
+
+  it("publishes the line-vertices toggle when the operator hides them", () => {
+    const s = geoState();
+    s.design.showLineVertices = false;
+    const out = buildSpec(s);
+    if (!("spec" in out) || out.spec.type !== "geo") throw new Error("expected geo spec");
+    expect(out.spec.design.showLineVertices).toBe(false);
   });
 
   it("falls back to category colouring when there is no value column", () => {

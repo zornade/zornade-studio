@@ -312,6 +312,22 @@ describe("buildDataLayer", () => {
     );
     expect(layer?.kind).toBe("geo");
     expect(layer?.circleRadius).toBe(8);
+    expect(layer?.geometryKinds).toEqual(["polygon"]);
+    expect(layer?.showLineVertices).toBe(true);
+  });
+
+  it("user geo dataset → line vertices can be switched off in Design", () => {
+    const layer = buildDataLayer(
+      base({
+        vizType: "points",
+        geoRender: stub({ geojson: fc(), values: [], categories: [] }),
+        data: geoData({ geometryKinds: ["line"] }),
+        design: design({ showLineVertices: false }),
+      }),
+    );
+    expect(layer?.kind).toBe("geo");
+    expect(layer?.geometryKinds).toEqual(["line"]);
+    expect(layer?.showLineVertices).toBe(false);
   });
 
   it("branch order: choropleth wins over a present point dataset", () => {

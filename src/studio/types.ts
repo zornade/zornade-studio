@@ -126,6 +126,13 @@ export interface DesignSettings {
    * through more or less. Default 1.
    */
   dataOpacity?: number;
+  /**
+   * Geo datasets: draw a small circle at every vertex of line features (the
+   * sampling density of the line). Absent/true = shown (legacy behaviour);
+   * false = hidden. Polygons never show vertices: vertex symbols are an
+   * editing affordance, not map symbology (cartographic best practice).
+   */
+  showLineVertices?: boolean;
 }
 
 /**
