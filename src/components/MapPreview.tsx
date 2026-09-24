@@ -523,6 +523,17 @@ export function MapPreview({
     const layer = dataLayerRef.current;
     if (!layer) return;
 
+    // Areas without a mapped value are omitted entirely: the paint opacities
+    // below collapse to 0 for them (no fill, no border, no tooltip).
+    const hasAnyValue: unknown = [
+      "any",
+      ["has", "__value"],
+      ["has", "__cat"],
+      ["has", "__a"],
+      ["has", "__b"],
+    ];
+    const isNoData: unknown = ["!", hasAnyValue];
+
     map.addSource(SRC, { type: "geojson", data: layer.geojson, generateId: true });
 
     // Insert above all basemap geometry (roads, buildings, boundaries) but
@@ -571,7 +582,12 @@ export function MapPreview({
             maxH,
           ] as unknown as maplibregl.ExpressionSpecification,
           "fill-extrusion-base": 0,
-          "fill-extrusion-opacity": 0.95 * op,
+          "fill-extrusion-opacity": [
+            "case",
+            isNoData,
+            0,
+            0.95 * op,
+          ] as unknown as maplibregl.ExpressionSpecification,
           "fill-extrusion-vertical-gradient": true,
           "fill-extrusion-color-transition": { duration: 500, delay: 0 },
           "fill-extrusion-height-transition": { duration: 700, delay: 0 },
@@ -786,9 +802,14 @@ export function MapPreview({
           // stays slightly translucent so the basemap gives a sense of depth.
           "fill-opacity": [
             "case",
-            ["boolean", ["feature-state", "hover"], false],
-            0.95 * op,
-            0.82 * op,
+            isNoData,
+            0,
+            [
+              "case",
+              ["boolean", ["feature-state", "hover"], false],
+              0.95 * op,
+              0.82 * op,
+            ],
           ] as unknown as maplibregl.ExpressionSpecification,
         },
       },
@@ -808,7 +829,12 @@ export function MapPreview({
             1.6,
             0.6,
           ] as unknown as maplibregl.ExpressionSpecification,
-          "line-opacity": 0.55,
+          "line-opacity": [
+            "case",
+            isNoData,
+            0,
+            0.55,
+          ] as unknown as maplibregl.ExpressionSpecification,
         },
       },
       firstSymbol,
@@ -995,7 +1021,7 @@ export function MapPreview({
     // is stable both in 2D and on the globe.
     const HOVER_LAYERS = [EXTRUSION, FILL, LINE, GEO_POINT];
 
-    const tooltipHtmlFor = (f: maplibregl.MapGeoJSONFeature): string => {
+    const tooltipHtmlFor = (f: maplibregl.MapGeoJSONFeature): string | null => {
       const layer = dataLayerRef.current;
       const props = (f.properties ?? {}) as Record<string, unknown>;
       const name = layer?.nameField ? props[layer.nameField] : undefined;
@@ -1004,17 +1030,30 @@ export function MapPreview({
       // path would show "n/d". Use variable A as {valore} and, with no custom
       // template, list both variables with their labels.
       const biv = layer?.bivariate;
-      const raw = biv ? props.__a : props.__value;
+      // Category maps carry the label in `__cat` (not `__value`), mirroring how
+      // the embed renderer paints them.
+      const cat =
+        typeof props.__cat === "string" && props.__cat !== "" ? props.__cat : null;
+      const raw = biv ? props.__a : cat ?? props.__value;
+      // Areas without a mapped value (numeric value, category or bivariate
+      // pair) are "no data": the embed renderer hides the tooltip on them, so
+      // the editor preview does the same. Point/geo layers keep a name-only
+      // tooltip (their value column is optional).
+      const isArea = layer?.kind === "area" || layer?.kind === "extrusion";
+      const hasMappedValue = biv
+        ? props.__a != null || props.__b != null
+        : raw != null;
+      if (isArea && !hasMappedValue) return null;
       const value =
         typeof raw === "number"
           ? `${fmt.format(raw)}${unit}`
           : raw != null
             ? `${String(raw)}${unit}`
-            : "n/d";
+            : null;
       const label = layer?.valueLabel ?? "Valore";
       const tpl = layer?.tooltipTemplate?.trim();
       if (tpl) {
-        return renderTooltipTemplate(tpl, tooltipValues(props, String(name ?? ""), value));
+        return renderTooltipTemplate(tpl, tooltipValues(props, String(name ?? ""), value ?? ""));
       }
       if (biv) {
         const rawB = props.__b;
@@ -1024,16 +1063,22 @@ export function MapPreview({
             ? `${fmt.format(rawB)}${unitB}`
             : rawB != null
               ? `${String(rawB)}${unitB}`
-              : "n/d";
+              : null;
         return (
           `<div class="studio-tooltip-name">${escapeHtml(String(name ?? ""))}</div>` +
-          `<div class="studio-tooltip-value"><span>${escapeHtml(biv.labelA)}</span> ${escapeHtml(value)}</div>` +
-          `<div class="studio-tooltip-value"><span>${escapeHtml(biv.labelB)}</span> ${escapeHtml(valueB)}</div>`
+          (value != null
+            ? `<div class="studio-tooltip-value"><span>${escapeHtml(biv.labelA)}</span> ${escapeHtml(value)}</div>`
+            : "") +
+          (valueB != null
+            ? `<div class="studio-tooltip-value"><span>${escapeHtml(biv.labelB)}</span> ${escapeHtml(valueB)}</div>`
+            : "")
         );
       }
       return (
         `<div class="studio-tooltip-name">${escapeHtml(String(name ?? ""))}</div>` +
-        `<div class="studio-tooltip-value"><span>${escapeHtml(label)}</span> ${escapeHtml(value)}</div>`
+        (value != null
+          ? `<div class="studio-tooltip-value"><span>${escapeHtml(label)}</span> ${escapeHtml(value)}</div>`
+          : "")
       );
     };
 
@@ -1068,6 +1113,13 @@ export function MapPreview({
         hideTooltip();
         return;
       }
+      const html = tooltipHtmlFor(f);
+      // Areas without a mapped value are "no data": no tooltip and no pointer
+      // cursor, matching the published embed.
+      if (html === null) {
+        hideTooltip();
+        return;
+      }
       map.getCanvas().style.cursor = "pointer";
       // Hover highlight: move the `hover` feature-state to the feature under the
       // cursor (read by the choropleth fill-opacity / line-width expressions;
@@ -1080,7 +1132,7 @@ export function MapPreview({
           map.setFeatureState({ source: SRC, id: f.id }, { hover: true });
         }
       }
-      showTip(tooltipHtmlFor(f), e.point.x, e.point.y);
+      showTip(html, e.point.x, e.point.y);
     };
 
     map.on("mousemove", onHoverMove);

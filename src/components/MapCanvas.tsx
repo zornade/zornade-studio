@@ -13,7 +13,6 @@ import {
   computeBreaks,
   temporalSharedValues,
   sampleColors,
-  DEFAULT_NO_DATA_COLOR,
 } from "../lib/choropleth";
 import { buildPointFeatures } from "../lib/points";
 import { prepareGeoRender } from "../lib/geo-dataset";
@@ -29,7 +28,6 @@ import { rowsForFrame, frameLabel } from "../lib/temporal";
 import { buildDataLayer } from "../lib/data-layer";
 import { useI18n } from "../i18n/LanguageContext";
 
-const NO_DATA_COLOR = DEFAULT_NO_DATA_COLOR;
 /** Categorical palette for point/category colouring (falls back to teal). */
 const CAT_PALETTE =
   COLOR_SCALES.find((s) => s.id === "cat")?.colors ?? [BRAND_TEAL];
@@ -602,8 +600,7 @@ export function MapCanvas() {
             {legendNoData > 0 && (
               <div className="mt-1.5 flex items-center gap-1.5 text-[10px] text-slate-400">
                 <span
-                  className="inline-block h-2.5 w-2.5 rounded-sm"
-                  style={{ background: NO_DATA_COLOR }}
+                  className="inline-block h-2.5 w-2.5 rounded-sm border border-slate-300 bg-white"
                 />
                 Dato non disponibile ({legendNoData})
               </div>

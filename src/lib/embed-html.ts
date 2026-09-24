@@ -816,13 +816,14 @@ function build(){
       paint:{"fill-extrusion-color":E.fill,
         "fill-extrusion-height":["interpolate",["linear"],
           ["coalesce",["to-number",["get","__value"]],E.min],E.min,Math.max(2000,4800*(E.extrusionScale||1)),E.max,120000*(E.extrusionScale||1)],
-        "fill-extrusion-base":0,"fill-extrusion-opacity":0.95*DO,
+        "fill-extrusion-base":0,"fill-extrusion-opacity":["case",["has","__value"],0.95*DO,0],
         "fill-extrusion-vertical-gradient":true,
         "fill-extrusion-color-transition":{duration:500,delay:0},
         "fill-extrusion-height-transition":{duration:700,delay:0}}},before);
   }else if(E.render==="symbol"||E.render==="spike"){
     map.addLayer({id:"d-line",type:"line",source:"d",
-      paint:{"line-color":"#cbd5e1","line-width":0.5}},before);
+      paint:{"line-color":"#cbd5e1","line-width":0.5,
+        "line-opacity":["case",["has","__value"],1,0]}},before);
     map.addSource("dm",{type:"geojson",data:marks(E.render)});
     if(E.render==="symbol"){
       map.addLayer({id:"d-fill",type:"circle",source:"dm",
@@ -838,22 +839,26 @@ function build(){
     var carto=cartogram();
     map.addSource("dm",{type:"geojson",data:carto});
     map.addLayer({id:"d-fill",type:"fill",source:"dm",
-      paint:{"fill-color":E.fill,"fill-opacity":0.85*DO}},before);
+      paint:{"fill-color":E.fill,
+        "fill-opacity":["case",["has","__value"],0.85*DO,0]}},before);
     map.addLayer({id:"d-line",type:"line",source:"dm",
-      paint:{"line-color":"#fff","line-width":0.5}},before);
+      paint:{"line-color":"#fff","line-width":0.5,
+        "line-opacity":["case",["has","__value"],1,0]}},before);
   }else{
     map.addLayer({id:"d-fill",type:"fill",source:"d",
       paint:{"fill-color":E.fill,
         "fill-color-transition":{duration:500,delay:0},
         "fill-opacity-transition":{duration:300,delay:0},
-        "fill-opacity":["case",["boolean",["feature-state","hover"],false],0.95*DO,0.82*DO]}},before);
+        "fill-opacity":["case",["!",["has","__value"]],0,
+          ["case",["boolean",["feature-state","hover"],false],0.95*DO,0.82*DO]]}},before);
     map.addLayer({id:"d-cas",type:"line",source:"d",
-      paint:{"line-color":"#0f172a","line-width":1.4,"line-opacity":0.18*DO,"line-blur":0.4}},before);
+      paint:{"line-color":"#0f172a","line-width":1.4,
+        "line-opacity":["case",["has","__value"],0.18*DO,0],"line-blur":0.4}},before);
     map.addLayer({id:"d-line",type:"line",source:"d",
       paint:{"line-color":"#fff",
         "line-width":["case",["boolean",["feature-state","hover"],false],1.6,0.6],
         "line-width-transition":{duration:200,delay:0},
-        "line-opacity":0.6*DO}},before);
+        "line-opacity":["case",["has","__value"],0.6*DO,0]}},before);
     hoverFx();
   }
   if(E.render!=="extrusion")raiseLabels();
@@ -1070,7 +1075,7 @@ function legend(noData){
     mm.innerHTML="<span>"+esc(fmt(E.min))+"</span><span>"+esc(fmt(E.max))+"</span>";box.appendChild(mm);
   }
   if(noData>0){var nd=document.createElement("div");nd.className="lgd-nd";
-    nd.innerHTML='<span class="lgd-sw" style="background:'+esc(E.noData)+'"></span>'+esc(E.noDataLabel)+" ("+noData+")";
+    nd.innerHTML='<span class="lgd-sw" style="background:#fff;border:1px solid #94a3b8"></span>'+esc(E.noDataLabel)+" ("+noData+")";
     box.appendChild(nd);}
   document.body.appendChild(box);
 }

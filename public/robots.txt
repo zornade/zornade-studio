@@ -7,12 +7,18 @@ User-agent: *
 Allow: /
 # Netlify Functions: endpoint API, non pagine da indicizzare
 Disallow: /api/
+# URL di sessione (sessionId) generate da link cross-site (es. app_footer_
+# studio_link): bloccate come su app.zornade.com per evitare varianti
+# duplicate nell'indice. Aggiornato 2026-09-20.
+Disallow: /*sessionId=
 
 User-agent: Googlebot
 Allow: /
+Disallow: /*sessionId=
 
 User-agent: Bingbot
 Allow: /
+Disallow: /*sessionId=
 
 User-agent: DuckDuckBot
 Allow: /
