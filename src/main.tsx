@@ -1,6 +1,8 @@
 import React from "react";
 import { createRoot } from "react-dom/client";
 import "maplibre-gl/dist/maplibre-gl.css";
+// MapLibre 6: registra l'URL del worker prima che venga creata qualsiasi mappa
+import "./lib/maplibre-worker.ts";
 import "./index.css";
 import { App } from "./App";
 

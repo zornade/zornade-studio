@@ -11,7 +11,7 @@
  */
 import { useEffect, useRef, useState } from "react";
 import { Pencil, Move } from "lucide-react";
-import maplibregl from "maplibre-gl";
+import * as maplibregl from "maplibre-gl";
 import type { BboxValue } from "../studio/types";
 import { useI18n } from "../i18n/LanguageContext";
 

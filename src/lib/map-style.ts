@@ -1,4 +1,4 @@
-import maplibregl from "maplibre-gl";
+import * as maplibregl from "maplibre-gl";
 
 /**
  * Single source of truth for the MapLibre **sky**, **light** and **projection**
