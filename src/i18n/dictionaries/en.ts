@@ -11,6 +11,7 @@ export const en: Dictionary = {
     cancel: "Cancel",
     save: "Save",
     loading: "Loading…",
+    skipToContent: "Skip to main content",
     back: "Back",
     next: "Next",
     yes: "Yes",

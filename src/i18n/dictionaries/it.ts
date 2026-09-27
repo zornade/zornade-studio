@@ -9,6 +9,7 @@ export const it = {
     cancel: "Annulla",
     save: "Salva",
     loading: "Caricamento…",
+    skipToContent: "Salta al contenuto principale",
     back: "Indietro",
     next: "Avanti",
     yes: "Sì",

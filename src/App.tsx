@@ -51,6 +51,13 @@ function Workspace() {
 
   return (
     <div className="flex min-h-0 flex-1">
+      {/* 11-AP5: primo elemento focalizzabile della pagina, salta i pannelli laterali */}
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[100] focus:rounded focus:bg-white focus:px-4 focus:py-2 focus:text-sm focus:text-slate-900 focus:shadow-lg focus:outline-none focus:ring-2 focus:ring-zornade-600"
+      >
+        {dict.common.skipToContent}
+      </a>
       <aside className="flex w-[368px] flex-shrink-0 flex-col border-r border-slate-200 bg-white">
         <div className="scrollbar-thin flex-1 overflow-y-auto p-5">
           {step === "data" && <DataPanel />}
@@ -79,7 +86,7 @@ function Workspace() {
         </div>
       </aside>
 
-      <main className="min-w-0 flex-1">
+      <main id="main-content" className="min-w-0 flex-1">
         {bboxPickMode ? (
           /* Bbox picker: replaces any existing canvas while OSM bbox mode is active */
           <BboxPickerMap
