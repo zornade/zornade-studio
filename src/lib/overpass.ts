@@ -24,17 +24,38 @@ import type { OsmTagFilter } from "../studio/catalog";
  * Since an empty 200 without a remark is treated as a *valid* "no results" that
  * wins the hedge race immediately, that mirror silently broke every search
  * outside CH (e.g. "Nessun defibrillatore trovato" over Italy). Removed
- * 2026-06-28. Only full-planet mirrors below, so an empty result is genuine.
+ * 2026-06-28.
  *
- * CORS (`Access-Control-Allow-Origin: *`) and global coverage verified
- * 2026-06-28 against the OSM wiki "Overpass API/Public instances" list:
- * - `maps.mail.ru` - full planet, fast (~0.9s), no rate limit, CORS *.
- * - `overpass-api.de` - FOSSGIS main instance, full planet, CORS *.
- * - `overpass.private.coffee` - ex `overpass.kumi.systems` (renamed), full
- *   planet, no rate limit, CORS *. Kept as best-effort fallback.
+ * **Come si verifica la copertura, invece di fidarsi della latenza:** la stessa
+ * query su due riquadri lontani, contando gli ELEMENTI e non il tempo. L'istanza
+ * svizzera risponde in 0,4 s e sembra la migliore, ma da' 0 elementi a Roma e
+ * 200 a Zurigo. Lo script `scripts/verifica-endpoint-overpass.mjs` fa esattamente
+ * questo controllo: va rilanciato quando si cambia questa lista.
+ *
+ * Ordine misurato il 2026-09-27, tre campioni per endpoint, stessa query su
+ * Roma, eseguito il riordino deciso quel giorno:
+ * - `overpass.openstreetmap.fr` - mediana 1,1 s, pianeta intero, CORS `*`.
+ * - `overpass-api.de` - mediana 1,5 s, pianeta intero, CORS `*`.
+ * - `overpass.private.coffee` - pianeta intero, CORS `*`, tenuto come ultima
+ *   rete di sicurezza: dalle prove fatte da un server (non da un browser) non
+ *   ha risposto cinque volte su cinque, e questo non e' conclusivo perche' le
+ *   chiamate vere partono dagli IP degli utenti.
+ * `maps.mail.ru` e' stato rimosso lo stesso giorno: mediana 8,5 s contro 1,1 s,
+ * ospitato fuori UE, e con l'ordine nuovo non serve piu'.
+ *
+ * **Permesso d'uso.** L'istanza francese e quella tedesca sono comunitarie: la
+ * loro politica conta insieme le richieste di tutti gli utenti di un'applicazione
+ * e rimanda l'uso commerciale a un'istanza propria o a un fornitore a pagamento.
+ * Con i volumi attuali dello Studio siamo dentro i limiti, ma se l'uso cresce la
+ * strada e' un fornitore a pagamento dietro un proxy, non aggiungere altre
+ * istanze pubbliche.
+ *
+ * La CSP di `netlify.toml` elenca questi host in `connect-src`: un endpoint
+ * nuovo va aggiunto anche li', altrimenti il browser blocca la chiamata e il
+ * riordino non produce nessun effetto.
  */
 export const OVERPASS_ENDPOINTS = [
-  "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
+  "https://overpass.openstreetmap.fr/api/interpreter",
   "https://overpass-api.de/api/interpreter",
   "https://overpass.private.coffee/api/interpreter",
 ];

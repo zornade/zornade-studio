@@ -79,4 +79,8 @@
     X-Content-Type-Options = "nosniff"
     Referrer-Policy = "strict-origin-when-cross-origin"
     Permissions-Policy = "camera=(), microphone=(), geolocation=()"
-    Content-Security-Policy = "default-src 'self'; script-src 'self' blob: 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob: https://protomaps.github.io; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://*.supabase.co https://tiles.openfreemap.org https://protomaps.github.io https://nominatim.openstreetmap.org https://maps.mail.ru https://overpass-api.de https://overpass.private.coffee https://elevation-tiles-prod.s3.amazonaws.com; worker-src 'self' blob:; frame-ancestors 'self'; base-uri 'self'; form-action 'self'"
+    # 12-AP9: le violazioni CSP finiscono nello stesso collettore del sito e
+    # dell'app. Nota: Netlify non applica header personalizzati al contenuto
+    # proxato, quindi gli embed pubblicati non sono coperti da questa policy.
+    Reporting-Endpoints = "csp-endpoint=\"https://wupqwfqjfpwrapgnogjv.supabase.co/functions/v1/csp-report\""
+    Content-Security-Policy = "default-src 'self'; script-src 'self' blob: 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; img-src 'self' data: blob: https://protomaps.github.io; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://*.supabase.co https://tiles.openfreemap.org https://protomaps.github.io https://nominatim.openstreetmap.org https://overpass.openstreetmap.fr https://overpass-api.de https://overpass.private.coffee https://elevation-tiles-prod.s3.amazonaws.com; worker-src 'self' blob:; frame-ancestors 'self'; base-uri 'self'; form-action 'self'; report-uri https://wupqwfqjfpwrapgnogjv.supabase.co/functions/v1/csp-report; report-to csp-endpoint"
