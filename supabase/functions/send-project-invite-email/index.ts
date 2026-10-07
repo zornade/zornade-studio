@@ -34,7 +34,7 @@ const corsHeaders = {
 };
 
 const RESEND_API_URL = 'https://api.resend.com/emails';
-const FROM_ADDRESS = 'Zornade Studio <notifiche@zornade.com>';
+const FROM_ADDRESS = 'Zornade Studio <hello@zornade.com>';
 const STUDIO_URL = 'https://studio.zornade.com';
 
 const ROLE_LABELS: Record<string, string> = {

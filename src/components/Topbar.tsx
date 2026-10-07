@@ -10,7 +10,7 @@ import { useI18n } from "../i18n/LanguageContext";
 import type { Dictionary } from "../i18n/dictionaries/it";
 
 const REPO = "zornade/zornade-studio";
-const SUPPORT_EMAIL = "info@zornade.com";
+const SUPPORT_EMAIL = "hello@zornade.com";
 
 // Cross-link al prodotto "sorella" (esplorazione dati particellari/catastali)
 // - prima di oggi assente dalla UI di Studio (vedi memoria
